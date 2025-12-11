@@ -99,11 +99,23 @@ export async function detectMarkers(imageBuffer) {
       bottomRight: { x: bottomRight.x, y: bottomRight.y },
     };
   } catch (err) {
-    console.warn("Marker detect fallback used:", err.message);
+    const reason = err.message.includes("OpenCV not available") 
+      ? "opencv_missing" 
+      : "markers_not_found";
+    
+    if (reason === "opencv_missing") {
+      console.warn("⚠️  OpenCV yüklü değil. Marker detection kullanılamıyor, şablon modu aktif.");
+    } else {
+      console.warn("⚠️  Marker bulunamadı:", err.message, "- Şablon modu kullanılıyor.");
+    }
+    
     return {
       success: false,
-      reason: "opencv_missing",
+      reason,
       markers: [],
+      message: reason === "opencv_missing" 
+        ? "OpenCV yüklü değil, şablon modunda işleniyor"
+        : "Marker bulunamadı, şablon modunda işleniyor"
     };
   }
 }

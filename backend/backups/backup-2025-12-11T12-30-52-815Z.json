@@ -1,0 +1,467 @@
+{
+  "timestamp": "2025-12-11T12:30:52.814Z",
+  "counts": {
+    "departments": 9,
+    "courses": 1,
+    "students": 5,
+    "exams": 2,
+    "scores": 0,
+    "questions": 0,
+    "learningOutcomes": 6,
+    "programOutcomes": 0
+  },
+  "data": {
+    "departments": [
+      {
+        "_id": "693ab1d38e351a6fadda0880",
+        "code": "ELEK",
+        "name": "Elektrik",
+        "programOutcomes": [],
+        "__v": 0,
+        "createdAt": "2025-12-11T11:58:11.237Z",
+        "updatedAt": "2025-12-11T11:58:11.237Z"
+      },
+      {
+        "_id": "693ab1d38e351a6fadda0881",
+        "code": "EHAB",
+        "name": "Elektronik Haberleşme Teknolojisi",
+        "programOutcomes": [
+          {
+            "code": "PÇ1",
+            "description": "Matematik, fen bilimleri ve elektronik haberleşme teknolojisi alanındaki temel bilgileri kullanabilme",
+            "_id": "693ab51e58883461b0be1ab6"
+          },
+          {
+            "code": "PÇ2",
+            "description": "Modern elektronik haberleşme araçlarını ve tekniklerini kullanabilme",
+            "_id": "693ab52358883461b0be1ad6"
+          },
+          {
+            "code": "PÇ3",
+            "description": "Elektronik haberleşme sistemlerinde deney tasarlama, yapma, veri toplama, analiz etme ve yorumlama becerisi",
+            "_id": "693ab52e58883461b0be1af8"
+          },
+          {
+            "code": "PÇ4",
+            "description": "Elektronik haberleşme sistemlerinde etik sorumluluk bilinci",
+            "_id": "693ab53458883461b0be1b1c"
+          }
+        ],
+        "__v": 4,
+        "createdAt": "2025-12-11T11:58:11.238Z",
+        "updatedAt": "2025-12-11T12:12:36.538Z"
+      },
+      {
+        "_id": "693ab1d38e351a6fadda0882",
+        "code": "GIDA",
+        "name": "Gıda İşleme Teknolojisi",
+        "programOutcomes": [],
+        "__v": 0,
+        "createdAt": "2025-12-11T11:58:11.238Z",
+        "updatedAt": "2025-12-11T11:58:11.238Z"
+      },
+      {
+        "_id": "693ab1d38e351a6fadda0883",
+        "code": "MAKINE",
+        "name": "Makine ve Metal Teknolojileri",
+        "programOutcomes": [],
+        "__v": 0,
+        "createdAt": "2025-12-11T11:58:11.238Z",
+        "updatedAt": "2025-12-11T11:58:11.238Z"
+      },
+      {
+        "_id": "693ab1d38e351a6fadda0884",
+        "code": "IKLIM",
+        "name": "İklimlendirme ve Soğutma Teknolojisi",
+        "programOutcomes": [],
+        "__v": 0,
+        "createdAt": "2025-12-11T11:58:11.239Z",
+        "updatedAt": "2025-12-11T11:58:11.239Z"
+      },
+      {
+        "_id": "693ab1d38e351a6fadda0885",
+        "code": "MOBILYA",
+        "name": "Mobilya ve Dekorasyon",
+        "programOutcomes": [],
+        "__v": 0,
+        "createdAt": "2025-12-11T11:58:11.239Z",
+        "updatedAt": "2025-12-11T11:58:11.239Z"
+      },
+      {
+        "_id": "693ab1d38e351a6fadda0886",
+        "code": "HALICILIK",
+        "name": "Halıcılık ve Kilimcilik",
+        "programOutcomes": [],
+        "__v": 0,
+        "createdAt": "2025-12-11T11:58:11.239Z",
+        "updatedAt": "2025-12-11T11:58:11.239Z"
+      },
+      {
+        "_id": "693ab1d38e351a6fadda0887",
+        "code": "ELSAN",
+        "name": "El Sanatları",
+        "programOutcomes": [],
+        "__v": 0,
+        "createdAt": "2025-12-11T11:58:11.239Z",
+        "updatedAt": "2025-12-11T11:58:11.239Z"
+      },
+      {
+        "_id": "693ab1d38e351a6fadda0888",
+        "code": "KIMYA",
+        "name": "Kimya ve Kimyasal İşleme Teknolojisi",
+        "programOutcomes": [],
+        "__v": 0,
+        "createdAt": "2025-12-11T11:58:11.239Z",
+        "updatedAt": "2025-12-11T11:58:11.239Z"
+      }
+    ],
+    "courses": [
+      {
+        "_id": "693ab50f58883461b0be1a1d",
+        "name": "Dijital Haberleşme Sistemleri",
+        "code": "EHAB101",
+        "semester": "Güz 2025",
+        "department": "693ab1d38e351a6fadda0881",
+        "description": "",
+        "learningOutcomes": [
+          {
+            "code": "ÖÇ1",
+            "description": "Dijital haberleşme sistemlerinin temel prensiplerini ve modülasyon tekniklerini açıklayabilme",
+            "programOutcomes": [
+              "PÇ2",
+              "PÇ3",
+              "PÇ4"
+            ],
+            "_id": "693ab56a58883461b0be1c84"
+          },
+          {
+            "code": "ÖÇ2",
+            "description": "Sayısal sinyal işleme tekniklerini haberleşme sistemlerinde uygulayabilme",
+            "programOutcomes": [
+              "PÇ1",
+              "PÇ2"
+            ],
+            "_id": "693ab56a58883461b0be1c85"
+          },
+          {
+            "code": "ÖÇ3",
+            "description": "Haberleşme kanallarının karakteristiklerini analiz edebilme ve kanal kodlama tekniklerini kullanabilme",
+            "programOutcomes": [
+              "PÇ2",
+              "PÇ3",
+              "PÇ4"
+            ],
+            "_id": "693ab56a58883461b0be1c86"
+          },
+          {
+            "code": "ÖÇ4",
+            "description": "Modern dijital haberleşme sistemlerini tasarlayıp test edebilme",
+            "programOutcomes": [
+              "PÇ1",
+              "PÇ2"
+            ],
+            "_id": "693ab56a58883461b0be1c87"
+          },
+          {
+            "code": "ÖÇ5",
+            "description": "Haberleşme sistemlerinde gürültü ve hata düzeltme tekniklerini değerlendirebilme",
+            "programOutcomes": [
+              "PÇ4",
+              "PÇ2",
+              "PÇ3"
+            ],
+            "_id": "693ab56a58883461b0be1c88"
+          },
+          {
+            "code": "ÖÇ6",
+            "description": "Haberleşme protokollerini ve standartlarını karşılaştırabilme",
+            "programOutcomes": [
+              "PÇ2"
+            ],
+            "_id": "693ab56a58883461b0be1c89"
+          }
+        ],
+        "midtermExam": {
+          "examCode": "01",
+          "questionCount": 10,
+          "maxScorePerQuestion": 10
+        },
+        "finalExam": {
+          "examCode": "02",
+          "questionCount": 10,
+          "maxScorePerQuestion": 10
+        },
+        "students": [
+          {
+            "studentNumber": "201202520",
+            "fullName": "Mehmet Yıldız",
+            "_id": "693ab50f58883461b0be1a24"
+          },
+          {
+            "studentNumber": "221456893",
+            "fullName": "Alperen Keskin",
+            "_id": "693ab50f58883461b0be1a25"
+          },
+          {
+            "studentNumber": "214568534",
+            "fullName": "Sinem Küçük",
+            "_id": "693ab50f58883461b0be1a26"
+          },
+          {
+            "studentNumber": "211475896",
+            "fullName": "Ayşe Yıldırım",
+            "_id": "693ab50f58883461b0be1a27"
+          },
+          {
+            "studentNumber": "210586374",
+            "fullName": "Fatih Seçkin",
+            "_id": "693ab50f58883461b0be1a28"
+          }
+        ],
+        "createdAt": "2025-12-11T12:11:59.388Z",
+        "updatedAt": "2025-12-11T12:13:30.076Z",
+        "__v": 0
+      }
+    ],
+    "students": [
+      {
+        "_id": "693ab50f58883461b0be1a4f",
+        "studentNumber": "201202520",
+        "name": "Mehmet Yıldız",
+        "department": "693ab1d38e351a6fadda0881",
+        "createdAt": "2025-12-11T12:11:59.432Z",
+        "updatedAt": "2025-12-11T12:11:59.432Z",
+        "__v": 0
+      },
+      {
+        "_id": "693ab50f58883461b0be1a52",
+        "studentNumber": "221456893",
+        "name": "Alperen Keskin",
+        "department": "693ab1d38e351a6fadda0881",
+        "createdAt": "2025-12-11T12:11:59.438Z",
+        "updatedAt": "2025-12-11T12:11:59.438Z",
+        "__v": 0
+      },
+      {
+        "_id": "693ab50f58883461b0be1a55",
+        "studentNumber": "214568534",
+        "name": "Sinem Küçük",
+        "department": "693ab1d38e351a6fadda0881",
+        "createdAt": "2025-12-11T12:11:59.444Z",
+        "updatedAt": "2025-12-11T12:11:59.444Z",
+        "__v": 0
+      },
+      {
+        "_id": "693ab50f58883461b0be1a58",
+        "studentNumber": "211475896",
+        "name": "Ayşe Yıldırım",
+        "department": "693ab1d38e351a6fadda0881",
+        "createdAt": "2025-12-11T12:11:59.446Z",
+        "updatedAt": "2025-12-11T12:11:59.446Z",
+        "__v": 0
+      },
+      {
+        "_id": "693ab50f58883461b0be1a5b",
+        "studentNumber": "210586374",
+        "name": "Fatih Seçkin",
+        "department": "693ab1d38e351a6fadda0881",
+        "createdAt": "2025-12-11T12:11:59.449Z",
+        "updatedAt": "2025-12-11T12:11:59.449Z",
+        "__v": 0
+      }
+    ],
+    "exams": [
+      {
+        "_id": "693ab50f58883461b0be1a36",
+        "courseId": "693ab50f58883461b0be1a1d",
+        "examType": "midterm",
+        "examCode": "01",
+        "questionCount": 10,
+        "maxScorePerQuestion": 10,
+        "questions": [
+          {
+            "questionNumber": 1,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a37"
+          },
+          {
+            "questionNumber": 2,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a38"
+          },
+          {
+            "questionNumber": 3,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a39"
+          },
+          {
+            "questionNumber": 4,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a3a"
+          },
+          {
+            "questionNumber": 5,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a3b"
+          },
+          {
+            "questionNumber": 6,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a3c"
+          },
+          {
+            "questionNumber": 7,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a3d"
+          },
+          {
+            "questionNumber": 8,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a3e"
+          },
+          {
+            "questionNumber": 9,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a3f"
+          },
+          {
+            "questionNumber": 10,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a40"
+          }
+        ],
+        "createdAt": "2025-12-11T12:11:59.420Z",
+        "updatedAt": "2025-12-11T12:11:59.420Z",
+        "__v": 0
+      },
+      {
+        "_id": "693ab50f58883461b0be1a42",
+        "courseId": "693ab50f58883461b0be1a1d",
+        "examType": "final",
+        "examCode": "02",
+        "questionCount": 10,
+        "maxScorePerQuestion": 10,
+        "questions": [
+          {
+            "questionNumber": 1,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a43"
+          },
+          {
+            "questionNumber": 2,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a44"
+          },
+          {
+            "questionNumber": 3,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a45"
+          },
+          {
+            "questionNumber": 4,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a46"
+          },
+          {
+            "questionNumber": 5,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a47"
+          },
+          {
+            "questionNumber": 6,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a48"
+          },
+          {
+            "questionNumber": 7,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a49"
+          },
+          {
+            "questionNumber": 8,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a4a"
+          },
+          {
+            "questionNumber": 9,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a4b"
+          },
+          {
+            "questionNumber": 10,
+            "learningOutcomeCode": "ÖÇ1",
+            "_id": "693ab50f58883461b0be1a4c"
+          }
+        ],
+        "createdAt": "2025-12-11T12:11:59.428Z",
+        "updatedAt": "2025-12-11T12:11:59.428Z",
+        "__v": 0
+      }
+    ],
+    "scores": [],
+    "questions": [],
+    "learningOutcomes": [
+      {
+        "_id": "693ab56a58883461b0be1c78",
+        "courseId": "693ab50f58883461b0be1a1d",
+        "code": "ÖÇ1",
+        "description": "Dijital haberleşme sistemlerinin temel prensiplerini ve modülasyon tekniklerini açıklayabilme",
+        "mappedProgramOutcomes": [],
+        "createdAt": "2025-12-11T12:13:30.061Z",
+        "updatedAt": "2025-12-11T12:13:30.061Z",
+        "__v": 0
+      },
+      {
+        "_id": "693ab56a58883461b0be1c7a",
+        "courseId": "693ab50f58883461b0be1a1d",
+        "code": "ÖÇ2",
+        "description": "Sayısal sinyal işleme tekniklerini haberleşme sistemlerinde uygulayabilme",
+        "mappedProgramOutcomes": [],
+        "createdAt": "2025-12-11T12:13:30.064Z",
+        "updatedAt": "2025-12-11T12:13:30.064Z",
+        "__v": 0
+      },
+      {
+        "_id": "693ab56a58883461b0be1c7c",
+        "courseId": "693ab50f58883461b0be1a1d",
+        "code": "ÖÇ3",
+        "description": "Haberleşme kanallarının karakteristiklerini analiz edebilme ve kanal kodlama tekniklerini kullanabilme",
+        "mappedProgramOutcomes": [],
+        "createdAt": "2025-12-11T12:13:30.066Z",
+        "updatedAt": "2025-12-11T12:13:30.066Z",
+        "__v": 0
+      },
+      {
+        "_id": "693ab56a58883461b0be1c7e",
+        "courseId": "693ab50f58883461b0be1a1d",
+        "code": "ÖÇ4",
+        "description": "Modern dijital haberleşme sistemlerini tasarlayıp test edebilme",
+        "mappedProgramOutcomes": [],
+        "createdAt": "2025-12-11T12:13:30.068Z",
+        "updatedAt": "2025-12-11T12:13:30.068Z",
+        "__v": 0
+      },
+      {
+        "_id": "693ab56a58883461b0be1c80",
+        "courseId": "693ab50f58883461b0be1a1d",
+        "code": "ÖÇ5",
+        "description": "Haberleşme sistemlerinde gürültü ve hata düzeltme tekniklerini değerlendirebilme",
+        "mappedProgramOutcomes": [],
+        "createdAt": "2025-12-11T12:13:30.070Z",
+        "updatedAt": "2025-12-11T12:13:30.070Z",
+        "__v": 0
+      },
+      {
+        "_id": "693ab56a58883461b0be1c82",
+        "courseId": "693ab50f58883461b0be1a1d",
+        "code": "ÖÇ6",
+        "description": "Haberleşme protokollerini ve standartlarını karşılaştırabilme",
+        "mappedProgramOutcomes": [],
+        "createdAt": "2025-12-11T12:13:30.073Z",
+        "updatedAt": "2025-12-11T12:13:30.073Z",
+        "__v": 0
+      }
+    ],
+    "programOutcomes": []
+  }
+}

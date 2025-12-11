@@ -117,6 +117,12 @@ const createCourse = async (req, res) => {
     });
 
     const savedCourse = await course.save();
+    
+    // Veri kaydedildiğini doğrula
+    if (!savedCourse || !savedCourse._id) {
+      throw new Error("Ders kaydedilemedi. Lütfen tekrar deneyin.");
+    }
+    console.log(`✅ Ders kaydedildi: ${savedCourse.code} (ID: ${savedCourse._id})`);
 
     // Create LearningOutcome documents (legacy collection) and link them
     const learningOutcomeIds = [];
@@ -129,7 +135,11 @@ const createCourse = async (req, res) => {
             description: outcome.description,
           });
           const savedOutcome = await learningOutcome.save();
-          learningOutcomeIds.push(savedOutcome._id);
+          if (!savedOutcome || !savedOutcome._id) {
+            console.warn(`⚠️  Öğrenme çıktısı kaydedilemedi: ${outcome.code}`);
+          } else {
+            learningOutcomeIds.push(savedOutcome._id);
+          }
         }
       }
     }
@@ -202,6 +212,10 @@ const createCourse = async (req, res) => {
               department: departmentId || undefined,
             });
             student = await student.save();
+            if (!student || !student._id) {
+              console.warn(`⚠️  Öğrenci kaydedilemedi: ${studentData.studentNumber}`);
+              continue;
+            }
           }
 
           studentIds.push(student._id);

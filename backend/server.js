@@ -14,6 +14,30 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "OK" });
 });
 
+// Gemini API test endpoint
+app.get("/api/test-gemini", async (req, res) => {
+  try {
+    const { testGeminiAPI, listGeminiModels } = await import("./utils/geminiVision.js");
+    
+    // Önce mevcut modelleri listele
+    console.log("📋 Mevcut modelleri listeliyor...");
+    const modelList = await listGeminiModels();
+    
+    // Sonra test et
+    const result = await testGeminiAPI();
+    
+    res.json({ 
+      success: true, 
+      data: {
+        ...result,
+        availableModels: modelList
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 app.get("/api", (req, res) => {
   res.json({
     status: "OK",
@@ -61,8 +85,28 @@ async function startServer() {
   try {
     await mongoose.connect(MONGO_URI, {
       serverSelectionTimeoutMS: 10000,
+      // Veri kaybını önlemek için önemli ayarlar
+      bufferCommands: true, // Bağlantı yokken komutları buffer'la
+      maxPoolSize: 10, // Maksimum bağlantı sayısı
+      minPoolSize: 1, // Minimum bağlantı sayısı
+      socketTimeoutMS: 45000, // Socket timeout
+      family: 4, // IPv4 kullan
     });
     console.log("✅ MongoDB bağlantısı kuruldu");
+    console.log(`📊 Veritabanı: ${MONGO_URI.split('/').pop() || 'mudekdb'}`);
+
+    // Bağlantı olaylarını dinle
+    mongoose.connection.on('error', (err) => {
+      console.error('❌ MongoDB bağlantı hatası:', err);
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      console.warn('⚠️  MongoDB bağlantısı kesildi');
+    });
+
+    mongoose.connection.on('reconnected', () => {
+      console.log('✅ MongoDB yeniden bağlandı');
+    });
 
     app.listen(PORT, () =>
       console.log(`Backend running at http://localhost:${PORT}`)

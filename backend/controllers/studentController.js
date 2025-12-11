@@ -49,6 +49,12 @@ const createStudent = async (req, res) => {
     });
 
     const savedStudent = await student.save();
+    
+    // Veri kaydedildiğini doğrula
+    if (!savedStudent || !savedStudent._id) {
+      throw new Error("Öğrenci kaydedilemedi. Lütfen tekrar deneyin.");
+    }
+    console.log(`✅ Öğrenci kaydedildi: ${savedStudent.studentNumber} (ID: ${savedStudent._id})`);
 
     // Transform department ID to name for response
     const studentObj = savedStudent.toObject();

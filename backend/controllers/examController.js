@@ -72,19 +72,110 @@ const cropQuestionRegions = async (pngBuffer, markers) => {
   }
 
   // Fallback: template koordinatları ile orijinal PNG üzerinden kes
+  // Önce görüntü boyutlarını al
+  const imageMetadata = await sharp(pngBuffer).metadata();
+  const imageWidth = imageMetadata.width || 0;
+  const imageHeight = imageMetadata.height || 0;
+
+  console.log(`📄 Şablon modu aktif - Görüntü boyutu: ${imageWidth}x${imageHeight}px`);
+  console.log(`📋 Template referans boyutu: ${template.templateSize?.width || 2480}x${template.templateSize?.height || 3508}px`);
+
   const fallbackBoxes = template.questionScoreBoxes || [];
   const crops = [];
+  
   for (const box of fallbackBoxes) {
-    const buf = await sharp(pngBuffer)
-      .extract({ left: box.x, top: box.y, width: box.w, height: box.h })
-      .png()
-      .toBuffer();
-    const filePath = saveTempImage(buf, `q${box.number}_${Date.now()}.png`);
-    crops.push({
-      questionNumber: box.number,
-      buffer: buf,
-      imagePath: filePath,
-    });
+    try {
+      // Yüzde bazlı koordinatları kullan (her görüntü boyutunda çalışır)
+      let left, top, width, height;
+      
+      if (box.xPercent !== undefined && box.yPercent !== undefined) {
+        // Yüzde bazlı koordinatlar varsa onları kullan
+        left = Math.round((box.xPercent / 100) * imageWidth);
+        top = Math.round((box.yPercent / 100) * imageHeight);
+        width = Math.round((box.wPercent / 100) * imageWidth);
+        height = Math.round((box.hPercent / 100) * imageHeight);
+        console.log(`   📊 Soru ${box.number} yüzde koordinatları: x=${box.xPercent}%, y=${box.yPercent}%, w=${box.wPercent}%, h=${box.hPercent}%`);
+        console.log(`   📐 Soru ${box.number} pixel koordinatları: left=${left}, top=${top}, width=${width}, height=${height}`);
+      } else if (box.x !== undefined && box.y !== undefined) {
+        // Pixel bazlı koordinatlar varsa ölçeklendir (2480x3508 referans alınarak)
+        const templateWidth = template.templateSize?.width || 2480;
+        const templateHeight = template.templateSize?.height || 3508;
+        const scaleX = imageWidth / templateWidth;
+        const scaleY = imageHeight / templateHeight;
+        left = Math.round(box.x * scaleX);
+        top = Math.round(box.y * scaleY);
+        width = Math.round(box.w * scaleX);
+        height = Math.round(box.h * scaleY);
+      } else {
+        throw new Error(`Soru ${box.number} için geçerli koordinat bulunamadı`);
+      }
+
+      // Koordinatları görüntü sınırları içinde tut
+      left = Math.max(0, Math.min(left, imageWidth - 1));
+      top = Math.max(0, Math.min(top, imageHeight - 1));
+      width = Math.max(1, Math.min(width, imageWidth - left));
+      height = Math.max(1, Math.min(height, imageHeight - top));
+
+      // Geçerlilik kontrolü
+      if (width <= 0 || height <= 0 || left < 0 || top < 0 || 
+          left + width > imageWidth || top + height > imageHeight) {
+        console.warn(`⚠️ Soru ${box.number} için geçersiz koordinatlar: left=${left}, top=${top}, width=${width}, height=${height}, imageSize=${imageWidth}x${imageHeight}`);
+        // Geçersiz koordinatlar için boş bir görüntü oluştur
+        const emptyBuf = await sharp({
+          create: {
+            width: Math.max(1, width),
+            height: Math.max(1, height),
+            channels: 3,
+            background: { r: 255, g: 255, b: 255 }
+          }
+        }).png().toBuffer();
+        const filePath = saveTempImage(emptyBuf, `q${box.number}_${Date.now()}.png`);
+        crops.push({
+          questionNumber: box.number,
+          buffer: emptyBuf,
+          imagePath: filePath,
+        });
+        continue;
+      }
+
+      // Debug: Koordinatları logla
+      console.log(`📐 Soru ${box.number} kesiliyor: left=${left}, top=${top}, width=${width}, height=${height}, imageSize=${imageWidth}x${imageHeight}`);
+
+      const buf = await sharp(pngBuffer)
+        .extract({ left, top, width, height })
+        .png()
+        .toBuffer();
+      
+      // Kesilen görüntünün boyutunu kontrol et
+      const cropMetadata = await sharp(buf).metadata();
+      console.log(`✅ Soru ${box.number} kesildi: ${cropMetadata.width}x${cropMetadata.height}px`);
+      
+      const filePath = saveTempImage(buf, `q${box.number}_${Date.now()}.png`);
+      crops.push({
+        questionNumber: box.number,
+        buffer: buf,
+        imagePath: filePath,
+      });
+    } catch (error) {
+      console.error(`Soru ${box.number} kesilirken hata:`, error.message);
+      // Hata durumunda boş bir görüntü oluştur
+      const fallbackWidth = box.wPercent ? Math.round((box.wPercent / 100) * imageWidth) : (box.w || 350);
+      const fallbackHeight = box.hPercent ? Math.round((box.hPercent / 100) * imageHeight) : (box.h || 120);
+      const emptyBuf = await sharp({
+        create: {
+          width: Math.max(1, fallbackWidth),
+          height: Math.max(1, fallbackHeight),
+          channels: 3,
+          background: { r: 255, g: 255, b: 255 }
+        }
+      }).png().toBuffer();
+      const filePath = saveTempImage(emptyBuf, `q${box.number}_${Date.now()}.png`);
+      crops.push({
+        questionNumber: box.number,
+        buffer: emptyBuf,
+        imagePath: filePath,
+      });
+    }
   }
   return crops;
 };
@@ -596,9 +687,12 @@ const submitExamScores = async (req, res) => {
     const scored = [];
     for (const crop of questionCrops) {
       try {
+        console.log(`🔍 Soru ${crop.questionNumber} için Gemini Vision API çağrılıyor...`);
         const score = await extractNumberFromImage(crop.buffer);
+        console.log(`✅ Soru ${crop.questionNumber} puanı: ${score}`);
         scored.push({ questionNumber: crop.questionNumber, score });
       } catch (err) {
+        console.error(`❌ Soru ${crop.questionNumber} okuma hatası:`, err.message);
         scored.push({ questionNumber: crop.questionNumber, score: 0, error: err.message });
       }
     }
@@ -628,6 +722,8 @@ const submitExamScores = async (req, res) => {
       data: {
         pngPath,
         markers,
+        processingMode: markers?.success ? "marker_based" : "template_fallback",
+        processingMessage: markers?.message || (markers?.success ? "Marker tabanlı işleme başarılı" : "Marker bulunamadı, şablon modunda kesildi"),
         crops: questionCrops.map((c) => ({
           questionNumber: c.questionNumber,
           imagePath: c.imagePath,

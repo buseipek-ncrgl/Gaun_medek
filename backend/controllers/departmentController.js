@@ -23,29 +23,33 @@ export const getDepartments = async (req, res) => {
   }
 };
 
-// Seed departments (one-time use)
+// Seed departments (idempotent - tekrar çalıştırılabilir)
 export const seedDepartments = async (req, res) => {
   try {
-    // Check if departments already exist
-    const existingCount = await Department.countDocuments();
-    if (existingCount > 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Bölümler zaten eklenmiş. Seed işlemi sadece boş veritabanı için kullanılabilir.",
-      });
-    }
-
     // Read seed data
     const seedDataPath = join(__dirname, "../data/departments.json");
     const seedData = JSON.parse(readFileSync(seedDataPath, "utf-8"));
 
-    // Insert departments
-    const departments = await Department.insertMany(seedData);
+    // Upsert each department (name'e göre unique, varsa güncelle yoksa ekle)
+    const results = await Promise.all(
+      seedData.map(async (dept) => {
+        return await Department.findOneAndUpdate(
+          { name: dept.name },
+          { $setOnInsert: dept }, // Sadece yeni kayıt eklerken set et
+          { upsert: true, new: true }
+        );
+      })
+    );
+
+    const addedCount = results.filter((r, i) => {
+      // Yeni eklenen kayıtları say (createdAt ile kontrol et)
+      return r.createdAt && r.createdAt.getTime() === r.updatedAt.getTime();
+    }).length;
 
     return res.status(201).json({
       success: true,
-      message: `${departments.length} bölüm başarıyla eklendi.`,
-      data: departments,
+      message: `${addedCount} yeni bölüm eklendi, ${results.length - addedCount} bölüm zaten mevcuttu.`,
+      data: results,
     });
   } catch (error) {
     console.error("Error seeding departments:", error);
