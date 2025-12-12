@@ -20,6 +20,6 @@
       "dest": "frontend/$1"
     }
   ],
-  "installCommand": "npm install && cd backend && npm install && cd ../frontend && npm install"
+      "installCommand": "npm install && cd backend && npm install && cd ../frontend && npm install && cd ../api && npm install"
 }
 
