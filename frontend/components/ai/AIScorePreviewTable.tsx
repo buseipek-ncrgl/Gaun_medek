@@ -117,13 +117,15 @@ export function AIScorePreviewTable({
       question = questionByNumber || null;
     }
     
+    // Get learning outcome code from question
+    let learningOutcomeCode = answer.learningOutcomeCode || "-";
+    if (question?.mappedLearningOutcomes && Array.isArray(question.mappedLearningOutcomes) && question.mappedLearningOutcomes.length > 0) {
+      learningOutcomeCode = question.mappedLearningOutcomes[0]; // Use first ÖÇ code
+    }
+    
     return {
       maxScore: question?.maxScore || answer.maxScore || 0,
-      learningOutcomeCode: question?.mappedLearningOutcome
-        ? typeof question.mappedLearningOutcome === "string"
-          ? "-"
-          : question.mappedLearningOutcome.code
-        : answer.learningOutcomeCode || "-",
+      learningOutcomeCode,
       hasQuestion: !!question,
       questionId: question?._id || answer.questionId || "",
     };
