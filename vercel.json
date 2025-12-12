@@ -20,6 +20,6 @@
       "dest": "frontend/$1"
     }
   ],
-      "installCommand": "npm install && cp -r backend api/backend && rm -rf api/backend/node_modules && ln -s ../../node_modules api/backend/node_modules || cp -r node_modules api/backend/node_modules && cd frontend && npm install"
+  "installCommand": "npm install && node api/copy-backend.js && cd frontend && npm install"
 }
 
