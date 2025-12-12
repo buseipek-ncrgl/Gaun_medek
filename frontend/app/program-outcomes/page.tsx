@@ -74,8 +74,9 @@ export default function ProgramOutcomesPage() {
       // Count learning outcomes mapped to each program outcome
       const counts: Record<string, number> = {};
       programOutcomes.forEach((po) => {
-        counts[po._id] = allLearningOutcomes.filter((lo) =>
-          lo.mappedProgramOutcomes?.includes(po._id)
+        const poId = po._id || po.code; // Use _id if available, fallback to code
+        counts[poId] = allLearningOutcomes.filter((lo) =>
+          lo.mappedProgramOutcomes?.includes(po._id || po.code)
         ).length;
       });
 
