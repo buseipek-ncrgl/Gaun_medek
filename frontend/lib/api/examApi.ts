@@ -50,6 +50,9 @@ export interface SubmitScoreResponse {
   markers?: any;
   crops?: Array<{ questionNumber: number; imagePath: string }>;
   scores: Array<{ questionNumber: number; score: number; learningOutcomeCode: string | null }>;
+  totalScore?: number;
+  maxTotalScore?: number;
+  percentage?: number;
   resultId?: string;
 }
 

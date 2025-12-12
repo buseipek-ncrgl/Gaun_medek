@@ -904,6 +904,9 @@ const submitExamScores = async (req, res) => {
           imagePath: c.imagePath,
         })),
         scores: mergedScores,
+        totalScore,
+        maxTotalScore,
+        percentage,
         resultId: resultDoc._id,
       },
     });
