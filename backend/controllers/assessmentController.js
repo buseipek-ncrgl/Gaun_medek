@@ -575,6 +575,8 @@ export const getStudentAchievements = async (req, res) => {
             description: loAchievement.description,
           },
           achievedPercentage: Math.round(achievedPercentage * 100) / 100,
+          totalScoreEarned: loAchievement.totalScoreEarned,
+          totalMaxScore: loAchievement.totalMaxScore,
         };
       });
 

@@ -34,6 +34,7 @@ import {
   getStudentAchievements,
   type LOAchievement,
   type POAchievement,
+  type StudentLOAchievement,
 } from "@/lib/api/assessmentApi";
 
 export default function CourseReportPage() {
@@ -46,14 +47,7 @@ export default function CourseReportPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loAchievements, setLOAchievements] = useState<LOAchievement[]>([]);
   const [poAchievements, setPOAchievements] = useState<POAchievement[]>([]);
-  const [studentAchievements, setStudentAchievements] = useState<Record<string, Array<{
-    learningOutcome: {
-      _id: string;
-      code: string;
-      description: string;
-    };
-    achievedPercentage: number;
-  }>>>({});
+  const [studentAchievements, setStudentAchievements] = useState<Record<string, StudentLOAchievement[]>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
