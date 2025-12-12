@@ -125,7 +125,7 @@ export default function ReportsPage() {
   const stats = useMemo(() => {
     return {
       totalCourses: courses.length,
-      totalWithReports: courses.filter(c => c.examCount > 0).length,
+      totalWithReports: courses.filter(c => (c.examCount || 0) > 0).length,
       totalStudents: courses.reduce((sum, c) => sum + (c.studentsCount || 0), 0),
       totalLOs: courses.reduce((sum, c) => sum + (c.learningOutcomesCount || 0), 0),
     };
