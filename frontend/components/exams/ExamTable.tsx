@@ -71,7 +71,10 @@ export function ExamTable({ exams, courses, onDelete }: ExamTableProps) {
           </TableHeader>
           <TableBody>
             {exams.map((exam, index) => {
-              const course = courses[exam.courseId];
+              const courseId = typeof exam.courseId === 'string' 
+                ? exam.courseId 
+                : (exam.courseId as any)?._id || String(exam.courseId);
+              const course = courses[courseId];
               const questionCount = exam.questions?.length || exam.questionCount || 0;
               
               // Check if all questions have ÖÇ mapping
