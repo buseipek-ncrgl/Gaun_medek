@@ -28,6 +28,8 @@ export default function BatchUploadPage() {
   } | null>(null);
   const [consecutiveErrors, setConsecutiveErrors] = useState(0);
   const [isPolling, setIsPolling] = useState(false);
+  const MAX_RETRIES = 10; // Render cold start için daha fazla deneme
+  const POLLING_INTERVAL = 5000; // 5 saniye aralık
 
   const fetchStatus = useCallback(async () => {
     if (!batchId) return;
@@ -64,11 +66,11 @@ export default function BatchUploadPage() {
       const newErrorCount = consecutiveErrors + 1;
       setConsecutiveErrors(newErrorCount);
       
-      // Stop polling after 3 consecutive errors (likely backend is down)
-      if (newErrorCount >= 3) {
+      // Stop polling after MAX_RETRIES consecutive errors (likely backend is down)
+      if (newErrorCount >= MAX_RETRIES) {
         setIsPolling(false);
         const errorMessage = error?.response?.data?.message || error?.message || "Batch durumu okunamadı";
-        toast.error(`${errorMessage} (3 başarısız deneme - polling durduruldu)`);
+        toast.error(`${errorMessage} (${MAX_RETRIES} başarısız deneme - polling durduruldu)`);
         toast.info("Backend sunucusu çalışmıyor olabilir. Lütfen kontrol edin ve sayfayı yenileyin.");
         return;
       }
@@ -85,7 +87,7 @@ export default function BatchUploadPage() {
     let interval: NodeJS.Timeout | null = null;
     if (batchId && isPolling) {
       fetchStatus(); // İlk çağrıyı hemen yap
-      interval = setInterval(fetchStatus, 3000); // 3 saniyede bir (daha az agresif)
+      interval = setInterval(fetchStatus, POLLING_INTERVAL); // 5 saniyede bir (Render cold start için daha uzun)
     }
     return () => {
       if (interval) clearInterval(interval);

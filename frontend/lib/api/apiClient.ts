@@ -1,35 +1,19 @@
 import axios from "axios";
 
-// Backend base URL'i environment variable'dan al (WITHOUT /api suffix)
-// Production: https://gaun-mudek.onrender.com
-// Development: http://localhost:5000
-const getBaseURL = () => {
-  // Environment variable should NOT include /api
-  let base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
-  
-  // Eğer kullanıcı hala /api eklemişse, kaldır
-  if (base.includes('/api')) {
-    base = base.replace(/\/api\/?$/, '');
-    console.warn('⚠️ NEXT_PUBLIC_API_BASE_URL içinde /api bulundu, kaldırıldı. Yeni değer:', base);
-  }
-  
-  // Remove trailing slash if present
-  const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
-  
-  // Always log the final URL (both dev and prod for debugging)
-  if (typeof window !== 'undefined') {
-    const finalURL = `${cleanBase}/api`;
-    console.log('🔗 API Base URL:', finalURL);
-    console.log('🔗 Environment Variable:', process.env.NEXT_PUBLIC_API_BASE_URL || 'Not set (using default)');
-  }
-  
-  return cleanBase;
-};
+// Backend base URL'i environment variable'dan al
+// Vercel env: NEXT_PUBLIC_API_BASE_URL = https://gaun-mudek.onrender.com (sadece domain, /api yok)
+// Local env: NEXT_PUBLIC_API_BASE_URL = http://localhost:5000 (sadece domain, /api yok)
+const raw = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+const baseAPIURL = raw.endsWith("/api") ? raw : `${raw.replace(/\/$/, "")}/api`;
 
-const baseURL = getBaseURL();
+// Log final URL for debugging
+if (typeof window !== 'undefined') {
+  console.log('🔗 API Base URL:', baseAPIURL);
+  console.log('🔗 Environment Variable:', process.env.NEXT_PUBLIC_API_BASE_URL || 'Not set (using default)');
+}
 
 export const apiClient = axios.create({
-  baseURL: `${baseURL}/api`, // Always append /api here
+  baseURL: baseAPIURL,
   timeout: 30000, // 30 seconds timeout
   headers: {
     "Content-Type": "application/json",
