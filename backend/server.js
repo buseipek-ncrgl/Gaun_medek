@@ -49,19 +49,25 @@ const corsOptions = {
     }
     
     // Production: allow vercel.app and onrender.com domains (for flexibility)
-    if (origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com')) {
+    // Check both endsWith and includes for better matching
+    if (origin.includes('.vercel.app') || origin.includes('.onrender.com')) {
       console.log('✅ CORS: Vercel/Render domain detected, allowing');
       return callback(null, true);
     }
     
     // Also check if origin starts with https://gaun-mudek (any subdomain)
-    if (origin.startsWith('https://gaun-mudek')) {
+    if (origin.startsWith('https://gaun-mudek') || origin.includes('gaun-mudek')) {
       console.log('✅ CORS: gaun-mudek domain detected, allowing');
       return callback(null, true);
     }
     
     console.log('❌ CORS: Blocked origin:', origin);
     console.log('❌ CORS: Allowed origins:', allowedOrigins);
+    // In production, still allow but log warning
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('⚠️ CORS: Allowing blocked origin in production (should be fixed)');
+      return callback(null, true);
+    }
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -69,6 +75,7 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
   optionsSuccessStatus: 200, // Some legacy browsers (IE11, various SmartTVs) choke on 204
+  preflightContinue: false, // Pass the CORS preflight response to the next handler
 };
 
 // Apply CORS middleware

@@ -664,11 +664,19 @@ const startBatchScore = async (req, res) => {
           const loMap = new Map(
             (exam.questions || []).map((q) => [Number(q.questionNumber), q.learningOutcomeCode])
           );
-          const mergedScores = scored.map((item) => ({
-            questionNumber: item.questionNumber,
-            score: item.score,
-            learningOutcomeCode: loMap.get(item.questionNumber) || null,
-          }));
+          console.log(`📊 [Batch ${studentNumber}] ÖÇ eşleştirme haritası:`, Array.from(loMap.entries()));
+          const mergedScores = scored.map((item) => {
+            const loCode = loMap.get(item.questionNumber) || loMap.get(Number(item.questionNumber)) || null;
+            if (!loCode) {
+              console.warn(`⚠️ [Batch ${studentNumber}] Soru ${item.questionNumber} için ÖÇ kodu bulunamadı!`);
+            }
+            return {
+              questionNumber: item.questionNumber,
+              score: item.score,
+              learningOutcomeCode: loCode,
+            };
+          });
+          console.log(`📊 [Batch ${studentNumber}] Merged scores (ilk 3):`, mergedScores.slice(0, 3).map(s => `Q${s.questionNumber}:${s.score} (ÖÇ:${s.learningOutcomeCode || 'YOK'})`));
 
           // 7) ÖÇ ve PÇ performansını hesapla
           let outcomePerformance = {};
@@ -801,6 +809,25 @@ const startBatchScore = async (req, res) => {
 // Batch durum
 const getBatchStatus = async (req, res) => {
   try {
+    // Set CORS headers explicitly
+    const origin = req.headers.origin;
+    if (origin) {
+      // Allow Vercel, Render, and localhost
+      const isAllowed = 
+        origin.includes('vercel.app') ||
+        origin.includes('onrender.com') ||
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1') ||
+        origin.startsWith('https://gaun-mudek');
+      
+      if (isAllowed) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+      }
+    }
+    
     const { examId } = req.params;
     const { batchId } = req.query;
     
@@ -848,6 +875,23 @@ const getBatchStatus = async (req, res) => {
     });
   } catch (error) {
     console.error(`[getBatchStatus] Unexpected error:`, error);
+    
+    // Set CORS headers even on error
+    const origin = req.headers.origin;
+    if (origin) {
+      const isAllowed = 
+        origin.includes('vercel.app') ||
+        origin.includes('onrender.com') ||
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1') ||
+        origin.startsWith('https://gaun-mudek');
+      
+      if (isAllowed) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+      }
+    }
+    
     // Ensure we always send a response, even on error
     return res.status(500).json({ 
       success: false, 
@@ -933,11 +977,19 @@ const submitExamScores = async (req, res) => {
     const loMap = new Map(
       (exam.questions || []).map((q) => [Number(q.questionNumber), q.learningOutcomeCode])
     );
-    const mergedScores = scored.map((item) => ({
-      questionNumber: item.questionNumber,
-      score: item.score,
-      learningOutcomeCode: loMap.get(item.questionNumber) || null,
-    }));
+    console.log(`📊 ÖÇ eşleştirme haritası:`, Array.from(loMap.entries()));
+    const mergedScores = scored.map((item) => {
+      const loCode = loMap.get(item.questionNumber) || loMap.get(Number(item.questionNumber)) || null;
+      if (!loCode) {
+        console.warn(`⚠️ Soru ${item.questionNumber} için ÖÇ kodu bulunamadı!`);
+      }
+      return {
+        questionNumber: item.questionNumber,
+        score: item.score,
+        learningOutcomeCode: loCode,
+      };
+    });
+    console.log(`📊 Merged scores (ilk 3):`, mergedScores.slice(0, 3).map(s => `Q${s.questionNumber}:${s.score} (ÖÇ:${s.learningOutcomeCode || 'YOK'})`));
 
     // Calculate total scores
     const totalScore = mergedScores.reduce((sum, s) => sum + (s.score || 0), 0);

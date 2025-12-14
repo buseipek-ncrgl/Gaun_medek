@@ -28,10 +28,10 @@ export function HeatmapChart({
     return "text-white";
   };
 
-  const getCellValue = (studentId: string, loId: string): number => {
+  const getCellValue = (studentId: string, loCode: string): number => {
     const achievements = studentAchievements[studentId] || [];
     const achievement = achievements.find(
-      (a) => a.learningOutcome._id === loId
+      (a) => a.learningOutcome.code === loCode || a.learningOutcome._id === loCode
     );
     return achievement ? achievement.achievedPercentage : 0;
   };
@@ -95,7 +95,7 @@ export function HeatmapChart({
                       {lo.code}
                     </td>
                     {students.map((student) => {
-                      const value = getCellValue(student._id, lo._id);
+                      const value = getCellValue(student._id, lo.code);
                       return (
                         <td
                           key={student._id}

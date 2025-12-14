@@ -33,9 +33,11 @@ import { studentApi, type Student } from "@/lib/api/studentApi";
 import {
   getLOAchievement,
   getPOAchievement,
+  getStudentAchievements,
   type LOAchievement,
   type POAchievement,
 } from "@/lib/api/assessmentApi";
+import { type LOAchievement as ScoreLOAchievement } from "@/lib/api/scoreApi";
 
 export default function CourseReportPage() {
   const params = useParams();
@@ -47,6 +49,7 @@ export default function CourseReportPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loAchievements, setLOAchievements] = useState<LOAchievement[]>([]);
   const [poAchievements, setPOAchievements] = useState<POAchievement[]>([]);
+  const [studentAchievements, setStudentAchievements] = useState<Record<string, Record<string, number>>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -78,9 +81,10 @@ export default function CourseReportPage() {
       setStudents(relevantStudents);
 
       // Fetch aggregated achievements using new assessment API
-      const [loData, poData] = await Promise.all([
+      const [loData, poData, studentAchievementsData] = await Promise.all([
         getLOAchievement(courseId),
         getPOAchievement(courseId),
+        getStudentAchievements(courseId),
       ]);
 
       console.log('📊 ÖÇ Başarı Verileri:', loData);
@@ -101,6 +105,14 @@ export default function CourseReportPage() {
 
       setLOAchievements(loData);
       setPOAchievements(poData);
+      setStudentAchievements(studentAchievementsData);
+      
+      console.log('📊 Öğrenci Başarı Matrisi:', studentAchievementsData);
+      console.log('📊 Öğrenci Başarı Matrisi - Öğrenci sayısı:', Object.keys(studentAchievementsData).length);
+      if (Object.keys(studentAchievementsData).length > 0) {
+        const firstStudent = Object.keys(studentAchievementsData)[0];
+        console.log(`📊 Öğrenci Başarı Matrisi - İlk öğrenci (${firstStudent}):`, studentAchievementsData[firstStudent]);
+      }
     } catch (error: any) {
       toast.error("Rapor verileri yüklenemedi");
       console.error(error);
@@ -108,6 +120,31 @@ export default function CourseReportPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Convert student achievements from studentNumber-based to studentId-based format
+  const convertStudentAchievements = (
+    achievements: Record<string, Record<string, number>>,
+    students: Student[],
+    learningOutcomes: any[]
+  ): Record<string, ScoreLOAchievement[]> => {
+    const result: Record<string, ScoreLOAchievement[]> = {};
+    
+    students.forEach((student) => {
+      const studentAchievements = achievements[student.studentNumber] || {};
+      result[student._id] = learningOutcomes.map((lo) => ({
+        learningOutcome: {
+          _id: lo.code || lo._id || "",
+          code: lo.code || "",
+          description: lo.description || "",
+        },
+        achievedPercentage: studentAchievements[lo.code] || 0,
+        totalScoreEarned: 0, // Not needed for display
+        totalMaxScore: 0, // Not needed for display
+      }));
+    });
+    
+    return result;
   };
 
   if (isLoading) {
@@ -334,10 +371,10 @@ export default function CourseReportPage() {
       )}
 
       {/* Student Comparison Chart */}
-      {students.length > 0 && loAchievements.length > 0 && (
+      {students.length > 0 && loAchievements.length > 0 && course.learningOutcomes && (
         <StudentComparisonChart
           students={students}
-          studentAchievements={{}}
+          studentAchievements={convertStudentAchievements(studentAchievements, students, course.learningOutcomes)}
         />
       )}
 
@@ -349,7 +386,7 @@ export default function CourseReportPage() {
             _id: lo.code,
             code: lo.code,
           }))}
-          studentAchievements={{}}
+          studentAchievements={convertStudentAchievements(studentAchievements, students, course.learningOutcomes)}
         />
       )}
       </div>

@@ -222,8 +222,86 @@ export const getPOAchievement = async (req, res) => {
       });
     }
 
-    // First get ÖÇ achievements
-    const loAchievements = await getLOAchievementData(courseId);
+    // Use the same logic as getLOAchievement but return data for PÇ calculation
+    // Get all exams for this course
+    const exams = await Exam.find({ courseId });
+    const examIds = exams.map((e) => e._id);
+
+    if (examIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        message: "Bu ders için sınav bulunamadı",
+      });
+    }
+
+    // Get all StudentExamResult for this course (yeni sistem)
+    const studentResults = await StudentExamResult.find({ 
+      courseId: courseId,
+      examId: { $in: examIds }
+    });
+
+    // Get all students for this course
+    const studentNumbers = course.students?.map((s) => s.studentNumber) || [];
+    const studentNumberSet = new Set(studentNumbers);
+
+    // Calculate ÖÇ performance (same as getLOAchievement)
+    const loMap = new Map();
+
+    // Initialize with course learning outcomes
+    course.learningOutcomes.forEach((lo) => {
+      loMap.set(lo.code, {
+        code: lo.code,
+        description: lo.description,
+        relatedProgramOutcomes: lo.programOutcomes || lo.relatedProgramOutcomes || [],
+        totalScoreEarned: 0,
+        totalMaxScore: 0,
+        studentsProcessed: new Set(),
+      });
+    });
+
+    // Process StudentExamResult (yeni sistem)
+    studentResults.forEach((result) => {
+      // Sadece bu derse kayıtlı öğrencileri işle
+      if (!studentNumberSet.has(result.studentNumber)) {
+        return;
+      }
+
+      const exam = exams.find(e => e._id.toString() === result.examId.toString());
+      if (!exam) return;
+
+      // Process each question score
+      (result.questionScores || []).forEach((qs) => {
+        const loCode = qs.learningOutcomeCode;
+        if (loCode && loMap.has(loCode)) {
+          const loData = loMap.get(loCode);
+          loData.totalScoreEarned += qs.score || 0;
+          loData.totalMaxScore += exam.maxScorePerQuestion || 0;
+          loData.studentsProcessed.add(result.studentNumber);
+        }
+      });
+    });
+
+    // Calculate ÖÇ achievement percentages
+    const loAchievements = Array.from(loMap.values()).map((loData) => {
+      const studentCount = loData.studentsProcessed?.size || 0;
+      const averageScore = studentCount > 0
+        ? loData.totalScoreEarned / studentCount
+        : 0;
+      const avgMaxScore = studentCount > 0
+        ? loData.totalMaxScore / studentCount
+        : 0;
+      const achievedPercentage = avgMaxScore > 0
+        ? (averageScore / avgMaxScore) * 100
+        : 0;
+
+      return {
+        code: loData.code,
+        description: loData.description,
+        relatedProgramOutcomes: loData.relatedProgramOutcomes,
+        achievedPercentage: Math.round(achievedPercentage * 100) / 100,
+      };
+    });
 
     if (loAchievements.length === 0) {
       return res.status(200).json({
@@ -237,18 +315,13 @@ export const getPOAchievement = async (req, res) => {
     const poMap = new Map();
 
     console.log('🔍 PÇ Hesaplama - ÖÇ Başarı Verileri:', JSON.stringify(loAchievements, null, 2));
-
     console.log('🔍 getPOAchievement - loAchievements count:', loAchievements.length);
-    console.log('🔍 getPOAchievement - loAchievements:', JSON.stringify(loAchievements.map(lo => ({
-      code: lo.code,
-      relatedProgramOutcomes: lo.relatedProgramOutcomes || [],
-      relatedProgramOutcomesLength: (lo.relatedProgramOutcomes || []).length
-    })), null, 2));
 
     loAchievements.forEach((loAchievement) => {
       const relatedPOs = loAchievement.relatedProgramOutcomes || [];
       
       console.log(`  📊 ÖÇ ${loAchievement.code} -> PÇ'ler:`, relatedPOs, `(length: ${relatedPOs.length})`);
+      console.log(`  📊 ÖÇ ${loAchievement.code} -> Başarı: ${loAchievement.achievedPercentage}%`);
       
       if (relatedPOs.length === 0) {
         console.warn(`  ⚠️ ÖÇ ${loAchievement.code} için PÇ eşleştirmesi bulunamadı!`);
@@ -272,12 +345,18 @@ export const getPOAchievement = async (req, res) => {
     });
 
     console.log('📈 Toplam PÇ Sayısı:', poMap.size);
+    
+    if (poMap.size === 0) {
+      console.warn('⚠️ Hiç PÇ eşleştirmesi bulunamadı! Course.learningOutcomes içinde programOutcomes veya relatedProgramOutcomes kontrol edin.');
+    }
 
     // Calculate average PÇ achievement
     const results = Array.from(poMap.values()).map((poData) => {
       const averageAchievement = poData.loAchievements.length > 0
         ? poData.loAchievements.reduce((sum, val) => sum + val, 0) / poData.loAchievements.length
         : 0;
+
+      console.log(`  📈 PÇ ${poData.code}: ${averageAchievement.toFixed(2)}% (${poData.contributingLOs.length} ÖÇ katkısı)`);
 
       return {
         code: poData.code,
@@ -286,6 +365,8 @@ export const getPOAchievement = async (req, res) => {
         contributingLOCount: poData.contributingLOs.length,
       };
     });
+    
+    console.log('📊 PÇ Başarı Özeti:', results.map(po => `${po.code}: ${po.achievedPercentage}%`).join(', '));
 
     return res.status(200).json({
       success: true,
@@ -422,4 +503,157 @@ async function getLOAchievementData(courseId) {
     };
   });
 }
+
+/**
+ * Get student achievements matrix for a course
+ * GET /api/assessments/course/:courseId/student-achievements
+ */
+export const getStudentAchievements = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Ders bulunamadı",
+      });
+    }
+
+    if (!course.learningOutcomes || course.learningOutcomes.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {},
+        message: "Bu ders için öğrenme çıktısı tanımlanmamış",
+      });
+    }
+
+    // Get all exams for this course
+    const exams = await Exam.find({ courseId });
+    const examIds = exams.map((e) => e._id);
+
+    if (examIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {},
+        message: "Bu ders için sınav bulunamadı",
+      });
+    }
+
+    // Get all StudentExamResult for this course
+    const studentResults = await StudentExamResult.find({ 
+      courseId: courseId,
+      examId: { $in: examIds }
+    });
+
+    // Get all students for this course
+    const studentNumbers = course.students?.map((s) => s.studentNumber) || [];
+    const studentNumberSet = new Set(studentNumbers);
+
+    // Build student achievement matrix: studentNumber -> { loCode -> percentage }
+    const studentAchievementMap = new Map();
+
+    // Initialize map for each student
+    studentNumbers.forEach((studentNumber) => {
+      studentAchievementMap.set(studentNumber, new Map());
+      course.learningOutcomes.forEach((lo) => {
+        studentAchievementMap.get(studentNumber).set(lo.code, {
+          earned: 0,
+          max: 0,
+        });
+      });
+    });
+
+    console.log(`📊 getStudentAchievements - Öğrenci sayısı: ${studentNumbers.length}`);
+    console.log(`📊 getStudentAchievements - StudentExamResult sayısı: ${studentResults.length}`);
+    console.log(`📊 getStudentAchievements - ÖÇ sayısı: ${course.learningOutcomes.length}`);
+
+    // Process StudentExamResult
+    studentResults.forEach((result) => {
+      if (!studentNumberSet.has(result.studentNumber)) {
+        return;
+      }
+
+      const exam = exams.find(e => e._id.toString() === result.examId.toString());
+      if (!exam) {
+        console.warn(`⚠️ Exam bulunamadı: ${result.examId}`);
+        return;
+      }
+
+      const studentMap = studentAchievementMap.get(result.studentNumber);
+      if (!studentMap) {
+        console.warn(`⚠️ Öğrenci map'i bulunamadı: ${result.studentNumber}`);
+        return;
+      }
+
+      // Process each question score
+      const questionScoresCount = (result.questionScores || []).length;
+      let processedCount = 0;
+      let missingLOCodeCount = 0;
+      let invalidLOCodeCount = 0;
+      
+      (result.questionScores || []).forEach((qs) => {
+        const loCode = qs.learningOutcomeCode;
+        if (loCode && studentMap.has(loCode)) {
+          const loData = studentMap.get(loCode);
+          loData.earned += qs.score || 0;
+          loData.max += exam.maxScorePerQuestion || 0;
+          processedCount++;
+        } else if (loCode) {
+          console.warn(`⚠️ ÖÇ kodu bulunamadı veya map'te yok: ${loCode} (öğrenci: ${result.studentNumber}, soru: ${qs.questionNumber})`);
+          invalidLOCodeCount++;
+        } else {
+          console.warn(`⚠️ learningOutcomeCode eksik (öğrenci: ${result.studentNumber}, soru: ${qs.questionNumber})`);
+          missingLOCodeCount++;
+        }
+      });
+      
+      if (questionScoresCount > 0 && processedCount === 0) {
+        console.warn(`⚠️ Öğrenci ${result.studentNumber} için hiç soru işlenemedi! (toplam: ${questionScoresCount}, eksik ÖÇ: ${missingLOCodeCount}, geçersiz ÖÇ: ${invalidLOCodeCount})`);
+      }
+    });
+
+    // Convert to response format: { studentNumber: { loCode: percentage } }
+    const achievements = {};
+    let totalStudentsWithData = 0;
+    let totalLOsWithData = 0;
+    
+    studentAchievementMap.forEach((loMap, studentNumber) => {
+      achievements[studentNumber] = {};
+      let hasData = false;
+      
+      loMap.forEach((loData, loCode) => {
+        const percentage = loData.max > 0
+          ? (loData.earned / loData.max) * 100
+          : 0;
+        achievements[studentNumber][loCode] = Math.round(percentage * 100) / 100;
+        
+        if (loData.max > 0) {
+          hasData = true;
+          totalLOsWithData++;
+        }
+      });
+      
+      if (hasData) {
+        totalStudentsWithData++;
+      }
+    });
+
+    console.log(`📊 getStudentAchievements - Sonuç özeti:`);
+    console.log(`   Toplam öğrenci: ${studentNumbers.length}`);
+    console.log(`   Veri olan öğrenci: ${totalStudentsWithData}`);
+    console.log(`   Veri olan ÖÇ-öğrenci kombinasyonu: ${totalLOsWithData}`);
+    console.log(`   Örnek veri (ilk öğrenci):`, studentNumbers.length > 0 ? achievements[studentNumbers[0]] : 'N/A');
+
+    return res.status(200).json({
+      success: true,
+      data: achievements,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
 

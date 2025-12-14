@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, Edit, FileText, Target, GraduationCap } from "lucide-react";
+import { Loader2, ArrowLeft, Edit, FileText, Target, GraduationCap, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { courseApi, type Course } from "@/lib/api/courseApi";
 import { programOutcomeApi, type ProgramOutcome } from "@/lib/api/programOutcomeApi";
 import { examApi, type Exam } from "@/lib/api/examApi";
+import { studentApi, type Student } from "@/lib/api/studentApi";
 import { LearningOutcomeMapping } from "@/components/courses/LearningOutcomeMapping";
 import { MudekMatrixView } from "@/components/courses/MudekMatrixView";
 
@@ -23,6 +24,7 @@ export default function CourseDetailPage() {
 
   const [course, setCourse] = useState<Course | null>(null);
   const [exams, setExams] = useState<Exam[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -41,6 +43,21 @@ export default function CourseDetailPage() {
       ]);
       setCourse(courseData);
       setExams(examsData);
+
+      // Load students if course has students
+      if (courseData.students && courseData.students.length > 0) {
+        try {
+          const allStudents = await studentApi.getAll();
+          const courseStudentNumbers = courseData.students.map(s => s.studentNumber);
+          const relevantStudents = allStudents.filter(s => 
+            courseStudentNumbers.includes(s.studentNumber)
+          );
+          setStudents(relevantStudents);
+        } catch (error) {
+          console.error("Failed to load students:", error);
+          // Don't show error, just log it
+        }
+      }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Ders bilgileri yüklenemedi");
       router.push("/dashboard/courses");
@@ -221,6 +238,71 @@ export default function CourseDetailPage() {
                         </div>
                       </div>
                     )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Students List */}
+            {course.students && course.students.length > 0 && (
+              <Card className="border-2 border-[#0a294e]/20">
+                <CardHeader>
+                  <CardTitle className="text-2xl text-[#0a294e] flex items-center gap-2">
+                    <Users className="h-6 w-6" />
+                    Öğrenci Listesi
+                  </CardTitle>
+                  <CardDescription>
+                    Bu derse kayıtlı {course.students.length} öğrenci
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                    {course.students.map((courseStudent, index) => {
+                      const student = students.find(s => s.studentNumber === courseStudent.studentNumber);
+                      const studentId = student?._id;
+                      const studentName = student?.name || courseStudent.fullName || courseStudent.studentNumber;
+                      
+                      return (
+                        <div
+                          key={index}
+                          className="p-3 border border-gray-200 rounded-lg hover:border-[#0a294e]/30 hover:bg-gray-50 transition-colors flex items-center justify-between cursor-pointer"
+                          onClick={() => {
+                            if (studentId) {
+                              router.push(`/students/${studentId}`);
+                            } else {
+                              router.push(`/students?search=${courseStudent.studentNumber}`);
+                            }
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-[#0a294e]/10 flex items-center justify-center">
+                              <span className="text-sm font-semibold text-[#0a294e]">
+                                {index + 1}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="font-medium text-base">{studentName}</p>
+                              <p className="text-sm text-muted-foreground">{courseStudent.studentNumber}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (studentId) {
+                                router.push(`/students/${studentId}`);
+                              } else {
+                                router.push(`/students?search=${courseStudent.studentNumber}`);
+                              }
+                            }}
+                            className="text-[#0a294e] hover:text-[#0a294e]/80"
+                          >
+                            Detay
+                          </Button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
