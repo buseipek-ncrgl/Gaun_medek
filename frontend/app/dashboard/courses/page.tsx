@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, Loader2, BookOpen, Filter, X } from "lucide-react";
+import { Search, Plus, Loader2, BookOpen, Filter, X, ChevronDown, ChevronUp, Trash2, CheckSquare, Square, Users, FileText, Target } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,9 @@ export default function DashboardCoursesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
+  const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchCourses();
@@ -266,54 +269,130 @@ export default function DashboardCoursesPage() {
     setSelectedCourse(null);
   };
 
+  // Bulk selection handlers
+  const toggleCourseSelection = (courseId: string) => {
+    const newSelected = new Set(selectedCourses);
+    if (newSelected.has(courseId)) {
+      newSelected.delete(courseId);
+    } else {
+      newSelected.add(courseId);
+    }
+    setSelectedCourses(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedCourses.size === filteredCourses.length) {
+      setSelectedCourses(new Set());
+    } else {
+      setSelectedCourses(new Set(filteredCourses.map(c => c._id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedCourses.size === 0) return;
+
+    try {
+      setIsDeleting(true);
+      const deletePromises = Array.from(selectedCourses).map(id => courseApi.remove(id));
+      await Promise.all(deletePromises);
+      toast.success(`${selectedCourses.size} ders başarıyla silindi`);
+      setBulkDeleteDialogOpen(false);
+      setSelectedCourses(new Set());
+      fetchCourses();
+    } catch (error: any) {
+      toast.error("Dersler silinirken bir hata oluştu");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
+  // Calculate stats
+  const totalCourses = courses.length;
+  const totalStudents = courses.reduce((sum, course) => sum + (course.students?.length || 0), 0);
+  const totalExams = courses.reduce((sum, course) => sum + (course.examCount || 0), 0);
+  const totalLearningOutcomes = courses.reduce((sum, course) => sum + (course.learningOutcomes?.length || 0), 0);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <p className="text-muted-foreground text-sm sm:text-base">
-              Oluşturduğunuz derslerin listesi
-            </p>
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-base text-slate-600 dark:text-slate-400">
+                Oluşturduğunuz derslerin listesi ve yönetimi
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              {/* Stats Card - Toplam Ders */}
+              <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 bg-white dark:bg-slate-800/95 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 w-full sm:w-auto sm:min-w-[220px]">
+                <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <CardContent className="relative px-5 py-0 h-11 sm:h-12 flex items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="p-1.5 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-lg transition-all duration-300 flex-shrink-0">
+                      <BookOpen className="h-4 w-4 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors whitespace-nowrap">Toplam Ders</p>
+                      <p className="text-lg font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">{totalCourses}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Button
+                size="lg"
+                onClick={() => setCreateModalOpen(true)}
+                className="w-full sm:w-auto h-11 sm:h-12 text-sm sm:text-base px-4 sm:px-6 font-semibold bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-brand-navy/90 hover:to-[#0f3a6b]/90 text-white shadow-lg hover:shadow-xl transition-all"
+              >
+                <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                <span className="hidden sm:inline">Yeni Ders Oluştur</span>
+                <span className="sm:hidden">Yeni Ders</span>
+              </Button>
+            </div>
           </div>
-          <Button
-            size="lg"
-            onClick={() => setCreateModalOpen(true)}
-            className="w-full sm:w-auto h-11 sm:h-12 text-sm sm:text-base px-4 sm:px-6 font-semibold bg-[#0a294e] hover:bg-[#0a294e]/90 text-white shadow-lg hover:shadow-xl transition-all"
-          >
-            <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-            <span className="hidden sm:inline">Yeni Ders Oluştur</span>
-            <span className="sm:hidden">Yeni Ders</span>
-          </Button>
         </div>
 
         {/* Filters Section */}
-        <Card className="border-2 border-[#0a294e]/20">
-          <CardHeader>
+        <div>
+        <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
+          <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <CardTitle>Filtreler</CardTitle>
-              </div>
+              <button
+                onClick={() => setFiltersExpanded(!filtersExpanded)}
+                className="flex items-center gap-3 flex-1 text-left hover:opacity-80 transition-opacity"
+              >
+                <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+                  <Filter className="h-4 w-4 text-brand-navy dark:text-slate-200" />
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="text-brand-navy dark:text-slate-100">Filtreler</CardTitle>
+                  <CardDescription className="text-sm mt-1">
+                    Dersleri bölüm, program veya arama ile filtreleyin
+                  </CardDescription>
+                </div>
+                {filtersExpanded ? (
+                  <ChevronUp className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                )}
+              </button>
               {hasActiveFilters && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={clearFilters}
-                  className="h-7 px-2 text-xs"
+                  className="h-8 px-3 text-xs hover:bg-brand-navy/10 hover:text-brand-navy dark:hover:bg-brand-navy/20 ml-2"
                 >
                   <X className="h-3 w-3 mr-1" />
-                  Filtreleri Temizle
+                  Temizle
                 </Button>
               )}
             </div>
-            <CardDescription>
-              Dersleri bölüm, program veya arama ile filtreleyin
-            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          {filtersExpanded && (
+            <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Department Filter */}
               <div className="space-y-2">
@@ -420,7 +499,74 @@ export default function DashboardCoursesPage() {
               </div>
             )}
           </CardContent>
+          )}
         </Card>
+        </div>
+
+        {/* Select All Bar - Below Filters */}
+        {!isLoading && filteredCourses.length > 0 && (
+          <div className="flex items-center justify-between p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg border border-brand-navy/10">
+            <button
+              onClick={toggleSelectAll}
+              className="flex items-center gap-2 text-sm font-medium text-brand-navy dark:text-slate-200 hover:opacity-80 transition-opacity"
+            >
+              {selectedCourses.size === filteredCourses.length ? (
+                <CheckSquare className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+              ) : (
+                <Square className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+              )}
+              <span>
+                {selectedCourses.size === filteredCourses.length ? "Tümünü Kaldır" : "Tümünü Seç"}
+              </span>
+            </button>
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              {selectedCourses.size > 0 && `${selectedCourses.size} ders seçili`}
+            </p>
+          </div>
+        )}
+
+        {/* Bulk Actions Bar */}
+        {selectedCourses.size > 0 && (
+          <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-gradient-to-r from-brand-navy/5 to-brand-navy/10 dark:from-brand-navy/20 dark:to-brand-navy/10 shadow-modern">
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-brand-navy/10 dark:bg-brand-navy/20">
+                    <CheckSquare className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-brand-navy dark:text-slate-100">
+                      {selectedCourses.size} ders seçildi
+                    </p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      Toplu işlemler için seçili dersler
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedCourses(new Set())}
+                    className="h-9 px-4 text-sm border-brand-navy/20 hover:bg-brand-navy/10"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Seçimi Kaldır
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setBulkDeleteDialogOpen(true)}
+                    className="h-9 px-4 text-sm"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Seçilenleri Sil
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Loading State */}
         {isLoading && (
@@ -433,42 +579,58 @@ export default function DashboardCoursesPage() {
 
         {/* Empty State */}
         {!isLoading && filteredCourses.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center bg-white dark:bg-slate-800 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 shadow-sm">
-            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mb-4">
-              <BookOpen className="h-8 w-8 text-slate-400" />
-            </div>
-            <p className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-2">
-              {hasActiveFilters
-                ? "Filtre kriterlerinize uygun ders bulunamadı"
-                : "Henüz ders oluşturmadınız"}
-            </p>
-            <p className="text-sm text-muted-foreground mb-6">
-              {hasActiveFilters
-                ? "Farklı bir filtre veya arama terimi deneyin"
-                : "İlk dersinizi oluşturarak başlayın"}
-            </p>
-            {!hasActiveFilters && (
-              <Button
-                size="lg"
-                onClick={() => setCreateModalOpen(true)}
-                className="h-12 text-base px-6 font-semibold bg-[#0a294e] hover:bg-[#0a294e]/90 text-white shadow-lg hover:shadow-xl transition-all"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                Yeni Ders Oluştur
-              </Button>
-            )}
-          </div>
+          <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 flex items-center justify-center mb-6">
+                <BookOpen className="h-10 w-10 text-brand-navy dark:text-slate-200" />
+              </div>
+              <h3 className="text-xl font-bold text-brand-navy dark:text-slate-100 mb-2">
+                {hasActiveFilters
+                  ? "Filtre kriterlerinize uygun ders bulunamadı"
+                  : "Henüz ders oluşturmadınız"}
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 max-w-md">
+                {hasActiveFilters
+                  ? "Farklı bir filtre veya arama terimi deneyin"
+                  : "İlk dersinizi oluşturarak başlayın"}
+              </p>
+              {!hasActiveFilters && (
+                <Button
+                  size="lg"
+                  onClick={() => setCreateModalOpen(true)}
+                  className="h-12 text-base px-6 font-semibold bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-brand-navy/90 hover:to-[#0f3a6b]/90 text-white shadow-lg hover:shadow-xl transition-all"
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  Yeni Ders Oluştur
+                </Button>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {/* Course Cards Grid - Responsive */}
         {!isLoading && filteredCourses.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredCourses.map((course) => (
-              <CourseCard
-                key={course._id}
-                course={course}
-                onDelete={handleDeleteClick}
-              />
+              <div key={course._id} className="relative">
+                {/* Checkbox - Top Right */}
+                <div className="absolute top-3 right-3 z-10">
+                  <button
+                    onClick={() => toggleCourseSelection(course._id)}
+                    className="p-1.5 rounded-md bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-brand-navy/20 shadow-md hover:bg-brand-navy/10 transition-all"
+                  >
+                    {selectedCourses.has(course._id) ? (
+                      <CheckSquare className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                    ) : (
+                      <Square className="h-5 w-5 text-brand-navy/50 dark:text-slate-400" />
+                    )}
+                  </button>
+                </div>
+                <CourseCard
+                  course={course}
+                  onDelete={handleDeleteClick}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -527,6 +689,60 @@ export default function DashboardCoursesPage() {
                   </>
                 ) : (
                   "Sil"
+                )}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Bulk Delete Confirmation Dialog */}
+        <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+          <AlertDialogContent onClose={() => setBulkDeleteDialogOpen(false)} className="max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-2xl">
+                Seçili Dersleri Sil
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-base">
+                {selectedCourses.size} ders silinecek. Bu işlemi geri alamazsınız. Dersler ve tüm ilişkili sınav verileri silinecek.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="my-4 p-4 bg-muted rounded-lg max-h-48 overflow-y-auto">
+              <p className="text-sm font-semibold mb-2">Silinecek dersler:</p>
+              <ul className="space-y-1">
+                {Array.from(selectedCourses).map((courseId) => {
+                  const course = courses.find(c => c._id === courseId);
+                  return course ? (
+                    <li key={courseId} className="text-sm text-muted-foreground">
+                      • {course.name} ({course.code})
+                    </li>
+                  ) : null;
+                })}
+              </ul>
+            </div>
+            <AlertDialogFooter>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => setBulkDeleteDialogOpen(false)}
+                disabled={isDeleting}
+                className="h-12 text-base px-6"
+              >
+                İptal
+              </Button>
+              <Button
+                variant="destructive"
+                size="lg"
+                onClick={handleBulkDelete}
+                disabled={isDeleting}
+                className="h-12 text-base px-6"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Siliniyor...
+                  </>
+                ) : (
+                  `${selectedCourses.size} Dersi Sil`
                 )}
               </Button>
             </AlertDialogFooter>

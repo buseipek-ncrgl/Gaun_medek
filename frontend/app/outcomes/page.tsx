@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Filter, X } from "lucide-react";
+import { Plus, Search, Filter, X, Target, ChevronDown, ChevronUp, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { OutcomeTable } from "@/components/outcomes/OutcomeTable";
 import { learningOutcomeApi, type LearningOutcome } from "@/lib/api/learningOutcomeApi";
 import { courseApi, type Course } from "@/lib/api/courseApi";
@@ -24,11 +25,13 @@ export default function OutcomesPage() {
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
   const [selectedProgramId, setSelectedProgramId] = useState("");
   const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "mapped" | "unmapped">("all");
   const [departments, setDepartments] = useState<Department[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
 
   useEffect(() => {
     fetchAllOutcomes();
@@ -61,7 +64,7 @@ export default function OutcomesPage() {
 
   useEffect(() => {
     applyFilters();
-  }, [searchQuery, selectedDepartmentId, selectedProgramId, selectedCourseId, outcomes]);
+  }, [searchQuery, selectedDepartmentId, selectedProgramId, selectedCourseId, filterType, outcomes]);
 
   const loadDepartments = async () => {
     try {
@@ -75,14 +78,10 @@ export default function OutcomesPage() {
   const loadPrograms = async (deptId: string) => {
     try {
       setLoadingPrograms(true);
-      console.log("🔍 [Outcomes Page] Loading programs for department:", deptId);
       const data = await programApi.getAll(deptId);
-      console.log("📦 [Outcomes Page] Programs received:", data);
       setPrograms(data || []);
-      console.log(`✅ [Outcomes Page] ${data?.length || 0} program(s) loaded`);
     } catch (error: any) {
-      console.error("❌ [Outcomes Page] Programlar yüklenemedi:", error);
-      console.error("Error details:", error.response?.data || error.message);
+      console.error("Programlar yüklenemedi:", error);
       setPrograms([]);
     } finally {
       setLoadingPrograms(false);
@@ -108,7 +107,6 @@ export default function OutcomesPage() {
         return deptId === departmentId;
       });
       setCourses(deptCourses);
-      // Reset course selection if selected course is not in new list
       if (selectedCourseId && !deptCourses.find((c: any) => c._id === selectedCourseId)) {
         setSelectedCourseId("");
       }
@@ -127,7 +125,6 @@ export default function OutcomesPage() {
         return progId === programId;
       });
       setCourses(programCourses);
-      // Reset course selection if selected course is not in new list
       if (selectedCourseId && !programCourses.find((c: any) => c._id === selectedCourseId)) {
         setSelectedCourseId("");
       }
@@ -167,6 +164,19 @@ export default function OutcomesPage() {
       });
     }
 
+    // Filter by mapping status
+    if (filterType === "mapped") {
+      filtered = filtered.filter((outcome: any) => {
+        const mappedPOs = outcome.mappedProgramOutcomes || (outcome as any).programOutcomes || [];
+        return mappedPOs.length > 0;
+      });
+    } else if (filterType === "unmapped") {
+      filtered = filtered.filter((outcome: any) => {
+        const mappedPOs = outcome.mappedProgramOutcomes || (outcome as any).programOutcomes || [];
+        return mappedPOs.length === 0;
+      });
+    }
+
     // Filter by search query
     if (searchQuery && searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase().trim();
@@ -196,18 +206,18 @@ export default function OutcomesPage() {
 
   const clearFilters = () => {
     setSelectedDepartmentId("");
+    setSelectedProgramId("");
     setSelectedCourseId("");
     setSearchQuery("");
+    setFilterType("all");
   };
 
   const fetchAllOutcomes = async () => {
     try {
       setIsLoading(true);
-      // Fetch all courses and then get outcomes for each
       const courses = await courseApi.getAll();
       const allOutcomes: (LearningOutcome & { course?: any; department?: any })[] = [];
 
-      // Create a map of courseId to course for quick lookup
       const courseMap = new Map();
       courses.forEach((course: any) => {
         courseMap.set(course._id, course);
@@ -216,27 +226,22 @@ export default function OutcomesPage() {
       for (const course of courses) {
         try {
           const courseOutcomes = await learningOutcomeApi.getByCourse(course._id);
-          // Add course and department info to each outcome
-          // Also check Course's embedded learningOutcomes for programOutcomes
           const enrichedOutcomes = courseOutcomes.map((outcome) => {
-            // Check if course has embedded learningOutcomes with programOutcomes
             const embeddedLO = (course as any).learningOutcomes?.find(
               (lo: any) => lo.code === outcome.code
             );
             
-            // Use programOutcomes from embedded LO if available, otherwise use mappedProgramOutcomes
             const programOutcomes = embeddedLO?.programOutcomes || outcome.mappedProgramOutcomes || [];
             
             return {
               ...outcome,
               course: course,
               department: (course as any).department || (typeof (course as any).department === 'string' ? null : (course as any).department),
-              mappedProgramOutcomes: programOutcomes, // Ensure we use the correct field
+              mappedProgramOutcomes: programOutcomes,
             };
           });
           allOutcomes.push(...enrichedOutcomes);
         } catch (error) {
-          // Skip courses without outcomes
           console.error(`Failed to fetch outcomes for course ${course._id}`);
         }
       }
@@ -254,190 +259,337 @@ export default function OutcomesPage() {
     }
   };
 
+  // Calculate statistics
+  const totalOutcomes = outcomes.length;
+  const mappedOutcomes = outcomes.filter((outcome: any) => {
+    const mappedPOs = outcome.mappedProgramOutcomes || (outcome as any).programOutcomes || [];
+    return mappedPOs.length > 0;
+  }).length;
+  const unmappedOutcomes = totalOutcomes - mappedOutcomes;
+  const mappingPercentage = totalOutcomes > 0 ? ((mappedOutcomes / totalOutcomes) * 100).toFixed(0) : "0";
+
+  const hasActiveFilters = selectedDepartmentId || selectedProgramId || selectedCourseId || searchQuery.trim() !== "" || filterType !== "all";
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <p className="text-muted-foreground text-sm sm:text-base">
-          Tüm derslerin öğrenme çıktılarını görüntüleyin, yönetin ve program çıktıları ile eşleştirin
-        </p>
-        <Button 
-          onClick={() => router.push("/outcomes/new")}
-          className="w-full sm:w-auto h-11 sm:h-12 px-4 sm:px-6 text-sm sm:text-base"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          <span className="hidden sm:inline">Yeni Öğrenme Çıktısı</span>
-          <span className="sm:hidden">Yeni ÖÇ</span>
-        </Button>
-      </div>
+      {/* Header - Outside Card */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+             
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-slate-600 dark:text-slate-400">Tüm derslerin öğrenme çıktılarını görüntüleyin, yönetin ve program çıktıları ile eşleştirin</p>
+              </div>
+            </div>
+          </div>
+          <Button 
+            onClick={() => router.push("/outcomes/new")}
+            className="h-11 sm:h-12 px-4 sm:px-6 bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-brand-navy/90 hover:to-[#0f3a6b]/90 text-white shadow-lg hover:shadow-xl transition-all flex-shrink-0"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Yeni Öğrenme Çıktısı</span>
+            <span className="sm:hidden">Yeni ÖÇ</span>
+          </Button>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Öğrenme Çıktıları Listesi</CardTitle>
-          <CardDescription>
-            Sistemdeki tüm öğrenme çıktıları. Her ÖÇ kodu yanında ders adı ve bölüm bilgisi gösterilmektedir.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Filters Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Label className="text-sm font-medium">Filtreler</Label>
-              {(selectedDepartmentId || selectedProgramId || selectedCourseId || searchQuery.trim() !== "") && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearFilters}
-                  className="h-7 px-2 text-xs"
-                >
-                  <X className="h-3 w-3 mr-1" />
-                  Filtreleri Temizle
-                </Button>
-              )}
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
+                <Target className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Toplam ÖÇ</p>
+                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                  {totalOutcomes}
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
+                <CheckCircle2 className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Eşleşen</p>
+                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                  {mappedOutcomes}
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
+                <AlertCircle className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Eşleşmeyen</p>
+                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                  {unmappedOutcomes}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Filters Card - Collapsible */}
+        <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
+          <CardContent className="p-0">
+            <div 
+              className="p-4 cursor-pointer hover:bg-brand-navy/5 dark:hover:bg-brand-navy/10 transition-colors flex items-center justify-between"
+              onClick={() => setFiltersExpanded(!filtersExpanded)}
+            >
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-brand-navy dark:text-slate-200" />
+                <span className="font-semibold text-brand-navy dark:text-slate-100">Filtreler</span>
+                {hasActiveFilters && (
+                  <Badge variant="outline" className="text-xs border-brand-navy/30 text-brand-navy dark:text-slate-300">
+                    Aktif
+                  </Badge>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFiltersExpanded(!filtersExpanded);
+                }}
+              >
+                {filtersExpanded ? (
+                  <ChevronUp className="h-4 w-4 text-brand-navy dark:text-slate-200" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-brand-navy dark:text-slate-200" />
+                )}
+              </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Department Filter */}
-              <div className="space-y-2">
-                <Label htmlFor="department-filter" className="text-sm font-medium">
-                  Bölüm
-                </Label>
-                <Select
-                  id="department-filter"
-                  value={selectedDepartmentId}
-                  onChange={(e) => setSelectedDepartmentId(e.target.value)}
-                  className="h-10 text-sm"
-                >
-                  <option value="">Tüm Bölümler</option>
-                  {departments.map((dept) => (
-                    <option key={dept._id} value={dept._id}>
-                      {dept.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-
-              {/* Program Filter */}
-              <div className="space-y-2">
-                <Label htmlFor="program-filter" className="text-sm font-medium">
-                  Program
-                </Label>
-                <Select
-                  id="program-filter"
-                  value={selectedProgramId}
-                  onChange={(e) => setSelectedProgramId(e.target.value)}
-                  disabled={!selectedDepartmentId || loadingPrograms}
-                  className="h-10 text-sm"
-                >
-                  <option value="">
-                    {!selectedDepartmentId 
-                      ? "Önce bölüm seçin" 
-                      : loadingPrograms
-                      ? "Yükleniyor..."
-                      : "Tüm Programlar"}
-                  </option>
-                  {programs.map((prog) => (
-                    <option key={prog._id} value={prog._id}>
-                      {prog.name} {prog.code ? `(${prog.code})` : ""}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-
-              {/* Course Filter */}
-              <div className="space-y-2">
-                <Label htmlFor="course-filter" className="text-sm font-medium">
-                  Ders
-                </Label>
-                <Select
-                  id="course-filter"
-                  value={selectedCourseId}
-                  onChange={(e) => setSelectedCourseId(e.target.value)}
-                  className="h-10 text-sm"
-                  disabled={!selectedDepartmentId && departments.length > 0}
-                >
-                  <option value="">Tüm Dersler</option>
-                  {courses.map((course) => (
-                    <option key={course._id} value={course._id}>
-                      {course.code} - {course.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-
-              {/* Search */}
-              <div className="space-y-2">
-                <Label htmlFor="search-input" className="text-sm font-medium">
-                  Arama
-                </Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="search-input"
-                    placeholder="Kod, açıklama, ders veya bölüm ara..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 h-10 text-sm"
-                  />
+            {filtersExpanded && (
+              <div className="px-4 pb-4 space-y-4 border-t border-brand-navy/10 dark:border-slate-700/50 pt-4">
+                {/* Quick Filter Buttons */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Hızlı Filtreler:</span>
+                  <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFilterType("all")}
+                      className={cn(
+                        "h-8 px-3 text-xs",
+                        filterType === "all" 
+                          ? "bg-white dark:bg-slate-600 text-brand-navy dark:text-white shadow-sm" 
+                          : "text-slate-600 dark:text-slate-300"
+                      )}
+                    >
+                      Tümü
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFilterType("mapped")}
+                      className={cn(
+                        "h-8 px-3 text-xs",
+                        filterType === "mapped" 
+                          ? "bg-white dark:bg-slate-600 text-brand-navy dark:text-white shadow-sm" 
+                          : "text-slate-600 dark:text-slate-300"
+                      )}
+                    >
+                      Eşleşen
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFilterType("unmapped")}
+                      className={cn(
+                        "h-8 px-3 text-xs",
+                        filterType === "unmapped" 
+                          ? "bg-white dark:bg-slate-600 text-brand-navy dark:text-white shadow-sm" 
+                          : "text-slate-600 dark:text-slate-300"
+                      )}
+                    >
+                      Eşleşmeyen
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Active Filters Badges */}
-            {(selectedDepartmentId || selectedProgramId || selectedCourseId || searchQuery.trim() !== "") && (
-              <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
-                <span className="text-xs text-muted-foreground">Aktif Filtreler:</span>
-                {selectedDepartmentId && (
-                  <Badge variant="secondary" className="text-xs">
-                    Bölüm: {departments.find(d => d._id === selectedDepartmentId)?.name}
-                    <button
-                      onClick={() => setSelectedDepartmentId("")}
-                      className="ml-2 hover:text-destructive"
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {/* Department Filter */}
+                  <div className="space-y-2">
+                    <Label htmlFor="department-filter" className="text-sm font-medium text-brand-navy dark:text-slate-200">
+                      Bölüm
+                    </Label>
+                    <Select
+                      id="department-filter"
+                      value={selectedDepartmentId}
+                      onChange={(e) => setSelectedDepartmentId(e.target.value)}
+                      className="h-10 text-sm border-brand-navy/20 focus:border-brand-navy"
                     >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                {selectedProgramId && (
-                  <Badge variant="secondary" className="text-xs">
-                    Program: {programs.find(p => p._id === selectedProgramId)?.name || selectedProgramId}
-                    <button
-                      onClick={() => setSelectedProgramId("")}
-                      className="ml-2 hover:text-destructive"
+                      <option value="">Tüm Bölümler</option>
+                      {departments.map((dept) => (
+                        <option key={dept._id} value={dept._id}>
+                          {dept.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+
+                  {/* Program Filter */}
+                  <div className="space-y-2">
+                    <Label htmlFor="program-filter" className="text-sm font-medium text-brand-navy dark:text-slate-200">
+                      Program
+                    </Label>
+                    <Select
+                      id="program-filter"
+                      value={selectedProgramId}
+                      onChange={(e) => setSelectedProgramId(e.target.value)}
+                      disabled={!selectedDepartmentId || loadingPrograms}
+                      className="h-10 text-sm border-brand-navy/20 focus:border-brand-navy"
                     >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                {selectedCourseId && (
-                  <Badge variant="secondary" className="text-xs">
-                    Ders: {courses.find(c => c._id === selectedCourseId)?.code}
-                    <button
-                      onClick={() => setSelectedCourseId("")}
-                      className="ml-2 hover:text-destructive"
+                      <option value="">
+                        {!selectedDepartmentId 
+                          ? "Önce bölüm seçin" 
+                          : loadingPrograms
+                          ? "Yükleniyor..."
+                          : "Tüm Programlar"}
+                      </option>
+                      {programs.map((prog) => (
+                        <option key={prog._id} value={prog._id}>
+                          {prog.name} {prog.code ? `(${prog.code})` : ""}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+
+                  {/* Course Filter */}
+                  <div className="space-y-2">
+                    <Label htmlFor="course-filter" className="text-sm font-medium text-brand-navy dark:text-slate-200">
+                      Ders
+                    </Label>
+                    <Select
+                      id="course-filter"
+                      value={selectedCourseId}
+                      onChange={(e) => setSelectedCourseId(e.target.value)}
+                      className="h-10 text-sm border-brand-navy/20 focus:border-brand-navy"
+                      disabled={!selectedDepartmentId && departments.length > 0}
                     >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-                {searchQuery.trim() !== "" && (
-                  <Badge variant="secondary" className="text-xs">
-                    Arama: "{searchQuery}"
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="ml-2 hover:text-destructive"
+                      <option value="">Tüm Dersler</option>
+                      {courses.map((course) => (
+                        <option key={course._id} value={course._id}>
+                          {course.code} - {course.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+
+                  {/* Search */}
+                  <div className="space-y-2">
+                    <Label htmlFor="search-input" className="text-sm font-medium text-brand-navy dark:text-slate-200">
+                      Arama
+                    </Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        id="search-input"
+                        placeholder="Kod, açıklama, ders..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 h-10 text-sm border-brand-navy/20 focus:border-brand-navy"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Active Filters Badges */}
+                {hasActiveFilters && (
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-brand-navy/10 dark:border-slate-700/50">
+                    <span className="text-xs text-slate-600 dark:text-slate-400">Aktif Filtreler:</span>
+                    {selectedDepartmentId && (
+                      <Badge variant="outline" className="text-xs border-brand-navy/30 text-brand-navy dark:text-slate-300">
+                        Bölüm: {departments.find(d => d._id === selectedDepartmentId)?.name}
+                        <button
+                          onClick={() => setSelectedDepartmentId("")}
+                          className="ml-2 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    )}
+                    {selectedProgramId && (
+                      <Badge variant="outline" className="text-xs border-brand-navy/30 text-brand-navy dark:text-slate-300">
+                        Program: {programs.find(p => p._id === selectedProgramId)?.name || selectedProgramId}
+                        <button
+                          onClick={() => setSelectedProgramId("")}
+                          className="ml-2 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    )}
+                    {selectedCourseId && (
+                      <Badge variant="outline" className="text-xs border-brand-navy/30 text-brand-navy dark:text-slate-300">
+                        Ders: {courses.find(c => c._id === selectedCourseId)?.code}
+                        <button
+                          onClick={() => setSelectedCourseId("")}
+                          className="ml-2 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    )}
+                    {filterType !== "all" && (
+                      <Badge variant="outline" className="text-xs border-brand-navy/30 text-brand-navy dark:text-slate-300">
+                        {filterType === "mapped" ? "Eşleşen" : "Eşleşmeyen"}
+                        <button
+                          onClick={() => setFilterType("all")}
+                          className="ml-2 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    )}
+                    {searchQuery.trim() !== "" && (
+                      <Badge variant="outline" className="text-xs border-brand-navy/30 text-brand-navy dark:text-slate-300">
+                        Arama: "{searchQuery}"
+                        <button
+                          onClick={() => setSearchQuery("")}
+                          className="ml-2 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="h-7 px-2 text-xs text-slate-600 dark:text-slate-400 hover:text-brand-navy dark:hover:text-brand-navy"
                     >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
+                      <X className="h-3 w-3 mr-1" />
+                      Tümünü Temizle
+                    </Button>
+                  </div>
                 )}
               </div>
             )}
-          </div>
+          </CardContent>
+        </Card>
+      </div>
 
+      {/* Table Card */}
+      <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
+        <CardContent className="p-0">
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Öğrenme çıktıları yükleniyor...
+            <div className="text-center py-12 text-muted-foreground">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-brand-navy mb-4"></div>
+              <p>Öğrenme çıktıları yükleniyor...</p>
             </div>
           ) : (
             <OutcomeTable outcomes={filteredOutcomes} onDelete={fetchAllOutcomes} />
@@ -447,9 +599,3 @@ export default function OutcomesPage() {
     </div>
   );
 }
-
-
-
-
-
-

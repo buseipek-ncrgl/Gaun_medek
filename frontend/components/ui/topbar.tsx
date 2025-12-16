@@ -87,7 +87,7 @@ export function Topbar({ title }: TopbarProps) {
   const { isOpen, toggle } = useSidebar();
 
   return (
-    <header className="sticky top-0 z-30 h-14 sm:h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-30 h-14 sm:h-16 border-b border-slate-200/50 dark:border-slate-700/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/70 dark:supports-[backdrop-filter]:bg-slate-900/70 shadow-sm">
       <div className="flex h-full items-center justify-between px-3 sm:px-4 lg:px-6">
         <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
           {/* Mobile hamburger menu button */}
@@ -95,26 +95,26 @@ export function Topbar({ title }: TopbarProps) {
             variant="ghost"
             size="icon"
             onClick={toggle}
-            className="lg:hidden h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 -ml-1 sm:ml-0"
+            className="lg:hidden h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 -ml-1 sm:ml-0 hover:bg-slate-100 dark:hover:bg-slate-800"
             title={isOpen ? "Menüyü Kapat" : "Menüyü Aç"}
           >
-            <Menu className="h-5 w-5 text-foreground" />
+            <Menu className="h-5 w-5 text-slate-700 dark:text-slate-200" />
           </Button>
-          <h1 className="text-base sm:text-xl lg:text-2xl font-semibold truncate text-foreground ml-0 sm:ml-0">{pageTitle}</h1>
+          <h1 className="text-base sm:text-xl lg:text-2xl font-semibold truncate text-slate-900 dark:text-slate-100 ml-0 sm:ml-0">{pageTitle}</h1>
         </div>
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           <NotificationDropdown />
           <Button 
             variant="ghost" 
             size="icon"
-            className="h-9 w-9 sm:h-10 sm:w-10"
+            className="h-9 w-9 sm:h-10 sm:w-10 hover:bg-slate-100 dark:hover:bg-slate-800"
             onClick={() => router.push("/dashboard/settings")}
             title="Ayarlar"
           >
-            <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-foreground" />
+            <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-slate-700 dark:text-slate-200" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10">
-            <User className="h-4 w-4 sm:h-5 sm:w-5 text-foreground" />
+          <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10 hover:bg-slate-100 dark:hover:bg-slate-800">
+            <User className="h-4 w-4 sm:h-5 sm:w-5 text-slate-700 dark:text-slate-200" />
           </Button>
         </div>
       </div>

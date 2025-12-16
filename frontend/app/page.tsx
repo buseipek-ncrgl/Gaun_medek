@@ -86,127 +86,135 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">MEDEK Yönetim Paneli</h1>
-          <p className="text-muted-foreground text-base">
+        <div className="mb-6">
+          <h1 className="text-3xl md:text-4xl font-bold text-brand-navy dark:text-slate-100 mb-2">
+            MEDEK Yönetim Paneli
+          </h1>
+          <p className="text-base text-slate-600 dark:text-slate-400">
             Sistem genelinde özet bilgiler ve hızlı erişim
           </p>
         </div>
 
         {/* Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <Card className="border-2 border-slate-200 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 bg-white dark:bg-slate-800/95 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <CardContent className="relative p-5">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Toplam Ders</p>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide mb-2 transition-colors">Toplam Ders</p>
                   {isLoading ? (
-                    <Skeleton className="h-8 w-16 mb-1" />
+                    <Skeleton className="h-8 w-16 mb-2" />
                   ) : (
-                    <p className="text-3xl font-bold text-slate-900">{stats.totalCourses}</p>
+                    <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white mb-1 transition-colors">{stats.totalCourses}</p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">Aktif dersler</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-white/70 transition-colors">Aktif dersler</p>
                 </div>
-                <div className="p-3 bg-[#0a294e]/10 dark:bg-[#0a294e]/20 rounded-lg">
-                  <BookOpen className="h-6 w-6 text-[#0a294e] dark:text-foreground" />
+                <div className="p-2.5 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-lg transition-all duration-300">
+                  <BookOpen className="h-5 w-5 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-slate-200 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 bg-white dark:bg-slate-800/95 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <CardContent className="relative p-5">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Öğrenme Çıktıları</p>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide mb-2 transition-colors">Öğrenme Çıktıları</p>
                   {isLoading ? (
-                    <Skeleton className="h-8 w-16 mb-1" />
+                    <Skeleton className="h-8 w-16 mb-2" />
                   ) : (
-                    <p className="text-3xl font-bold text-slate-900 dark:text-foreground">{stats.totalLearningOutcomes}</p>
+                    <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white mb-1 transition-colors">{stats.totalLearningOutcomes}</p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">Tanımlı ÖÇ</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-white/70 transition-colors">Tanımlı ÖÇ</p>
                 </div>
-                <div className="p-3 bg-slate-100 dark:bg-slate-700 rounded-lg">
-                  <Target className="h-6 w-6 text-slate-700 dark:text-foreground" />
+                <div className="p-2.5 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-lg transition-all duration-300">
+                  <Target className="h-5 w-5 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-slate-200 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 bg-white dark:bg-slate-800/95 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <CardContent className="relative p-5">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Toplam Sınav</p>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide mb-2 transition-colors">Toplam Sınav</p>
                   {isLoading ? (
-                    <Skeleton className="h-8 w-16 mb-1" />
+                    <Skeleton className="h-8 w-16 mb-2" />
                   ) : (
-                    <p className="text-3xl font-bold text-slate-900 dark:text-foreground">{stats.totalExams}</p>
+                    <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white mb-1 transition-colors">{stats.totalExams}</p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">Oluşturulan sınavlar</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-white/70 transition-colors">Oluşturulan sınavlar</p>
                 </div>
-                <div className="p-3 bg-slate-100 dark:bg-slate-700 rounded-lg">
-                  <FileText className="h-6 w-6 text-slate-700 dark:text-foreground" />
+                <div className="p-2.5 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-lg transition-all duration-300">
+                  <FileText className="h-5 w-5 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-slate-200 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 bg-white dark:bg-slate-800/95 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <CardContent className="relative p-5">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Öğrenciler</p>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide mb-2 transition-colors">Öğrenciler</p>
                   {isLoading ? (
-                    <Skeleton className="h-8 w-16 mb-1" />
+                    <Skeleton className="h-8 w-16 mb-2" />
                   ) : (
-                    <p className="text-3xl font-bold text-slate-900 dark:text-foreground">{stats.totalStudents}</p>
+                    <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white mb-1 transition-colors">{stats.totalStudents}</p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">Kayıtlı öğrenciler</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-white/70 transition-colors">Kayıtlı öğrenciler</p>
                 </div>
-                <div className="p-3 bg-slate-100 dark:bg-slate-700 rounded-lg">
-                  <Users className="h-6 w-6 text-slate-700 dark:text-foreground" />
+                <div className="p-2.5 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-lg transition-all duration-300">
+                  <Users className="h-5 w-5 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-slate-200 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 bg-white dark:bg-slate-800/95 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <CardContent className="relative p-5">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Bölümler</p>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide mb-2 transition-colors">Bölümler</p>
                   {isLoading ? (
-                    <Skeleton className="h-8 w-16 mb-1" />
+                    <Skeleton className="h-8 w-16 mb-2" />
                   ) : (
-                    <p className="text-3xl font-bold text-slate-900 dark:text-foreground">{stats.totalDepartments}</p>
+                    <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white mb-1 transition-colors">{stats.totalDepartments}</p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">Farklı bölüm</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-white/70 transition-colors">Farklı bölüm</p>
                 </div>
-                <div className="p-3 bg-slate-100 dark:bg-slate-700 rounded-lg">
-                  <GraduationCap className="h-6 w-6 text-slate-700 dark:text-foreground" />
+                <div className="p-2.5 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-lg transition-all duration-300">
+                  <GraduationCap className="h-5 w-5 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-slate-200 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 bg-white dark:bg-slate-800/95 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <CardContent className="relative p-5">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Program Çıktıları</p>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide mb-2 transition-colors">Program Çıktıları</p>
                   {isLoading ? (
-                    <Skeleton className="h-8 w-16 mb-1" />
+                    <Skeleton className="h-8 w-16 mb-2" />
                   ) : (
-                    <p className="text-3xl font-bold text-slate-900 dark:text-foreground">{stats.totalProgramOutcomes}</p>
+                    <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white mb-1 transition-colors">{stats.totalProgramOutcomes}</p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">Tanımlı PÇ</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-white/70 transition-colors">Tanımlı PÇ</p>
                 </div>
-                <div className="p-3 bg-slate-100 dark:bg-slate-700 rounded-lg">
-                  <BarChart3 className="h-6 w-6 text-slate-700 dark:text-foreground" />
+                <div className="p-2.5 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-lg transition-all duration-300">
+                  <BarChart3 className="h-5 w-5 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
                 </div>
               </div>
             </CardContent>
@@ -215,143 +223,164 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-2 border-slate-200 hover:border-[#0a294e] transition-colors cursor-pointer"
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 bg-white dark:bg-slate-800/95 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 cursor-pointer hover:-translate-y-1"
             onClick={() => router.push("/dashboard/courses")}>
-            <CardContent className="p-6">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <CardContent className="relative p-5">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Derslerim</p>
-                  <p className="text-lg font-semibold text-slate-900 dark:text-foreground">Dersleri Yönet</p>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide mb-1 transition-colors">Derslerim</p>
+                  <p className="text-lg font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">Dersleri Yönet</p>
                 </div>
-                <ArrowRight className="h-5 w-5 text-[#0a294e] dark:text-foreground" />
+                <ArrowRight className="h-5 w-5 text-brand-navy dark:text-slate-200 group-hover:text-white group-hover:translate-x-1 transition-all" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-slate-200 hover:border-[#0a294e] transition-colors cursor-pointer"
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 bg-white dark:bg-slate-800/95 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 cursor-pointer hover:-translate-y-1"
             onClick={() => router.push("/exams")}>
-            <CardContent className="p-6">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <CardContent className="relative p-5">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Sınavlar</p>
-                  <p className="text-lg font-semibold text-slate-900 dark:text-foreground">Sınavları Yönet</p>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide mb-1 transition-colors">Sınavlar</p>
+                  <p className="text-lg font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">Sınavları Yönet</p>
                 </div>
-                <ArrowRight className="h-5 w-5 text-[#0a294e] dark:text-foreground" />
+                <ArrowRight className="h-5 w-5 text-brand-navy dark:text-slate-200 group-hover:text-white group-hover:translate-x-1 transition-all" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-slate-200 hover:border-[#0a294e] transition-colors cursor-pointer"
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 bg-white dark:bg-slate-800/95 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 cursor-pointer hover:-translate-y-1"
             onClick={() => router.push("/students")}>
-            <CardContent className="p-6">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <CardContent className="relative p-5">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Öğrenciler</p>
-                  <p className="text-lg font-semibold text-slate-900 dark:text-foreground">Öğrencileri Yönet</p>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide mb-1 transition-colors">Öğrenciler</p>
+                  <p className="text-lg font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">Öğrencileri Yönet</p>
                 </div>
-                <ArrowRight className="h-5 w-5 text-[#0a294e] dark:text-foreground" />
+                <ArrowRight className="h-5 w-5 text-brand-navy dark:text-slate-200 group-hover:text-white group-hover:translate-x-1 transition-all" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-slate-200 hover:border-[#0a294e] transition-colors cursor-pointer"
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 bg-white dark:bg-slate-800/95 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 cursor-pointer hover:-translate-y-1"
             onClick={() => router.push("/reports")}>
-            <CardContent className="p-6">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <CardContent className="relative p-5">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Raporlar</p>
-                  <p className="text-lg font-semibold text-slate-900 dark:text-foreground">Raporları Görüntüle</p>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide mb-1 transition-colors">Raporlar</p>
+                  <p className="text-lg font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">Raporları Görüntüle</p>
                 </div>
-                <ArrowRight className="h-5 w-5 text-[#0a294e] dark:text-foreground" />
+                <ArrowRight className="h-5 w-5 text-brand-navy dark:text-slate-200 group-hover:text-white group-hover:translate-x-1 transition-all" />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Recent Activity */}
-        <Card className="border-2 border-slate-200">
-          <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-700 border-b border-slate-200 dark:border-slate-700">
-            <CardTitle className="text-xl text-slate-900 dark:text-foreground">Hızlı Erişim</CardTitle>
-            <CardDescription className="text-sm">
-              Sık kullanılan işlemlere hızlıca erişin
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Quick Access */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
+            <div>
+              <h2 className="text-xl font-bold text-brand-navy dark:text-slate-100">Hızlı Erişim</h2>
+              <p className="text-sm text-slate-600 dark:text-slate-400">Sık kullanılan işlemlere hızlıca erişin</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Button
                 variant="outline"
-                className="h-auto p-4 justify-start hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="group relative overflow-hidden h-auto p-4 justify-start border border-brand-navy/20 dark:border-slate-700 hover:border-brand-navy/50 transition-all duration-300 hover:shadow-md"
                 onClick={() => router.push("/dashboard/courses")}
               >
-                <Plus className="h-5 w-5 mr-3 text-[#0a294e] dark:text-foreground" />
-                <div className="text-left">
-                  <p className="font-semibold dark:text-foreground">Yeni Ders Oluştur</p>
-                  <p className="text-xs text-muted-foreground">Yeni bir ders ekleyin</p>
+                <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 group-hover:from-white/20 group-hover:to-white/10 transition-all duration-300 mr-3">
+                  <Plus className="h-4 w-4 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+                </div>
+                <div className="text-left relative">
+                  <p className="text-sm font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">Yeni Ders Oluştur</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-white/70 transition-colors">Yeni bir ders ekleyin</p>
                 </div>
               </Button>
 
               <Button
                 variant="outline"
-                className="h-auto p-4 justify-start hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="group relative overflow-hidden h-auto p-4 justify-start border border-brand-navy/20 dark:border-slate-700 hover:border-brand-navy/50 transition-all duration-300 hover:shadow-md"
                 onClick={() => router.push("/exams/new")}
               >
-                <Plus className="h-5 w-5 mr-3 text-[#0a294e] dark:text-foreground" />
-                <div className="text-left">
-                  <p className="font-semibold dark:text-foreground">Yeni Sınav Oluştur</p>
-                  <p className="text-xs text-muted-foreground">Yeni bir sınav ekleyin</p>
+                <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 group-hover:from-white/20 group-hover:to-white/10 transition-all duration-300 mr-3">
+                  <Plus className="h-4 w-4 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+                </div>
+                <div className="text-left relative">
+                  <p className="text-sm font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">Yeni Sınav Oluştur</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-white/70 transition-colors">Yeni bir sınav ekleyin</p>
                 </div>
               </Button>
 
               <Button
                 variant="outline"
-                className="h-auto p-4 justify-start hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="group relative overflow-hidden h-auto p-4 justify-start border border-brand-navy/20 dark:border-slate-700 hover:border-brand-navy/50 transition-all duration-300 hover:shadow-md"
                 onClick={() => router.push("/students/new")}
               >
-                <Plus className="h-5 w-5 mr-3 text-[#0a294e] dark:text-foreground" />
-                <div className="text-left">
-                  <p className="font-semibold dark:text-foreground">Yeni Öğrenci Ekle</p>
-                  <p className="text-xs text-muted-foreground">Sisteme öğrenci ekleyin</p>
+                <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 group-hover:from-white/20 group-hover:to-white/10 transition-all duration-300 mr-3">
+                  <Plus className="h-4 w-4 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+                </div>
+                <div className="text-left relative">
+                  <p className="text-sm font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">Yeni Öğrenci Ekle</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-white/70 transition-colors">Sisteme öğrenci ekleyin</p>
                 </div>
               </Button>
 
               <Button
                 variant="outline"
-                className="h-auto p-4 justify-start hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="group relative overflow-hidden h-auto p-4 justify-start border border-brand-navy/20 dark:border-slate-700 hover:border-brand-navy/50 transition-all duration-300 hover:shadow-md"
                 onClick={() => router.push("/outcomes/new")}
               >
-                <Plus className="h-5 w-5 mr-3 text-[#0a294e] dark:text-foreground" />
-                <div className="text-left">
-                  <p className="font-semibold dark:text-foreground">Yeni Öğrenme Çıktısı</p>
-                  <p className="text-xs text-muted-foreground">ÖÇ tanımlayın</p>
+                <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 group-hover:from-white/20 group-hover:to-white/10 transition-all duration-300 mr-3">
+                  <Plus className="h-4 w-4 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+                </div>
+                <div className="text-left relative">
+                  <p className="text-sm font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">Yeni Öğrenme Çıktısı</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-white/70 transition-colors">ÖÇ tanımlayın</p>
                 </div>
               </Button>
 
               <Button
                 variant="outline"
-                className="h-auto p-4 justify-start hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="group relative overflow-hidden h-auto p-4 justify-start border border-brand-navy/20 dark:border-slate-700 hover:border-brand-navy/50 transition-all duration-300 hover:shadow-md"
                 onClick={() => router.push("/dashboard/program-outcomes")}
               >
-                <Plus className="h-5 w-5 mr-3 text-[#0a294e] dark:text-foreground" />
-                <div className="text-left">
-                  <p className="font-semibold dark:text-foreground">Program Çıktıları</p>
-                  <p className="text-xs text-muted-foreground">PÇ yönetimi</p>
+                <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 group-hover:from-white/20 group-hover:to-white/10 transition-all duration-300 mr-3">
+                  <Plus className="h-4 w-4 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+                </div>
+                <div className="text-left relative">
+                  <p className="text-sm font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">Program Çıktıları</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-white/70 transition-colors">PÇ yönetimi</p>
                 </div>
               </Button>
 
               <Button
                 variant="outline"
-                className="h-auto p-4 justify-start hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="group relative overflow-hidden h-auto p-4 justify-start border border-brand-navy/20 dark:border-slate-700 hover:border-brand-navy/50 transition-all duration-300 hover:shadow-md"
                 onClick={() => router.push("/reports")}
               >
-                <BarChart3 className="h-5 w-5 mr-3 text-[#0a294e] dark:text-foreground" />
-                <div className="text-left">
-                  <p className="font-semibold">Raporları Görüntüle</p>
-                  <p className="text-xs text-muted-foreground">Analiz ve raporlar</p>
+                <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 group-hover:from-white/20 group-hover:to-white/10 transition-all duration-300 mr-3">
+                  <BarChart3 className="h-4 w-4 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+                </div>
+                <div className="text-left relative">
+                  <p className="text-sm font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">Raporları Görüntüle</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-white/70 transition-colors">Analiz ve raporlar</p>
                 </div>
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
       </div>
     </div>
   );

@@ -3,13 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, Loader2, GraduationCap, Edit, Building2, Target, Info } from "lucide-react";
+import { Plus, Search, Loader2, GraduationCap, Building2, Target, Info, ChevronDown, ChevronUp, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { departmentApi, type Department } from "@/lib/api/departmentApi";
 import { programApi, type Program } from "@/lib/api/programApi";
 import { programOutcomeApi, type ProgramOutcome } from "@/lib/api/programOutcomeApi";
@@ -29,6 +30,8 @@ export default function ProgramOutcomesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPOs, setLoadingPOs] = useState(false);
   const [learningOutcomeCounts, setLearningOutcomeCounts] = useState<Record<string, number>>({});
+  const [selectionExpanded, setSelectionExpanded] = useState(true);
+  const [formExpanded, setFormExpanded] = useState(false);
 
   // New PO form
   const [newPOCode, setNewPOCode] = useState("");
@@ -118,12 +121,10 @@ export default function ProgramOutcomesPage() {
     try {
       const counts: Record<string, number> = {};
       
-      // Initialize counts for all POs
       pos.forEach((po) => {
         counts[po.code] = 0;
       });
       
-      // Get all courses for the selected program
       const { courseApi } = await import("@/lib/api/courseApi");
       const allCourses = await courseApi.getAll();
       const programCourses = allCourses.filter((c: any) => {
@@ -137,7 +138,6 @@ export default function ProgramOutcomesPage() {
         try {
           const outcomes = await learningOutcomeApi.getByCourse(course._id);
           for (const outcome of outcomes) {
-            // mappedProgramOutcomes (backend) veya programOutcomes (ders içi gömülü) olabilir
             const mappedPOsRaw =
               (outcome as any).mappedProgramOutcomes ||
               (outcome as any).programOutcomes ||
@@ -155,7 +155,6 @@ export default function ProgramOutcomesPage() {
               .map((c: string) => c?.trim().toLowerCase())
               .filter(Boolean);
 
-            // Eğer mappedPOs boş geldiyse, dersin gömülü learningOutcomes içinden de kontrol et
             let fallbackPOCodes: string[] = [];
             if (mappedPOCodes.length === 0 && Array.isArray((course as any).learningOutcomes)) {
               const embeddedLO = (course as any).learningOutcomes.find(
@@ -173,7 +172,6 @@ export default function ProgramOutcomesPage() {
 
             for (const po of pos) {
               const poCodeNormalized = (po.code || "").trim().toLowerCase();
-              // Check if this PO is mapped to this outcome
               if (allPOCodes.includes(poCodeNormalized)) {
                 counts[po.code] = (counts[po.code] || 0) + 1;
               }
@@ -209,6 +207,7 @@ export default function ProgramOutcomesPage() {
       toast.success("Program çıktısı eklendi");
       setNewPOCode("");
       setNewPODescription("");
+      setFormExpanded(false);
       await loadProgramOutcomes();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Program çıktısı eklenemedi");
@@ -225,143 +224,179 @@ export default function ProgramOutcomesPage() {
   const selectedProgram = programs.find((p) => p._id === selectedProgramId);
   const totalPOs = programOutcomes.length;
   const totalMappedLOs = Object.values(learningOutcomeCounts).reduce((sum, count) => sum + count, 0);
+  const avgMappingsPerPO = totalPOs > 0 ? (totalMappedLOs / totalPOs).toFixed(1) : "0";
 
   return (
     <div className="space-y-6">
-      {/* Header Section */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-muted-foreground text-base">
-            Her program için program çıktılarını tanımlayın, yönetin ve öğrenme çıktıları ile eşleştirin
-          </p>
+      {/* Header - Outside Card */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            
+            <div>
+              <p className="text-sm text-slate-600 dark:text-slate-400">Her program için program çıktılarını tanımlayın, yönetin ve öğrenme çıktıları ile eşleştirin</p>
+            </div>
+          </div>
         </div>
+
+        {/* Stats Cards - Show when program is selected */}
+        {selectedProgramId && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
+                  <Target className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Toplam PÇ</p>
+                  <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                    {totalPOs}
+                  </p>
+                </div>
+              </div>
+            </Card>
+            <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
+                  <CheckCircle2 className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Eşlenen ÖÇ</p>
+                  <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                    {totalMappedLOs}
+                  </p>
+                </div>
+              </div>
+            </Card>
+            <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
+                  <Info className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Ortalama Eşleme</p>
+                  <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                    {avgMappingsPerPO}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
 
-      {/* Stats Cards - Show when program is selected */}
-      {selectedProgramId && (
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Toplam Program Çıktısı</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalPOs}</div>
-              <p className="text-xs text-muted-foreground">
-                {selectedDepartment?.name} bölümü için tanımlı PÇ sayısı
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Eşlenen Öğrenme Çıktıları</CardTitle>
-              <GraduationCap className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalMappedLOs}</div>
-              <p className="text-xs text-muted-foreground">
-                Bu PÇ'lere eşlenen toplam ÖÇ sayısı
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Program</CardTitle>
-              <GraduationCap className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{selectedProgram?.name || "-"}</div>
-              <p className="text-xs text-muted-foreground">
-                Seçili program
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Department and Program Selection */}
-      <Card className="border-2">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-[#0a294e]" />
-            <CardTitle>Bölüm ve Program Seç</CardTitle>
-          </div>
-          <CardDescription>
-            Program çıktılarını yönetmek istediğiniz bölüm ve programı seçin
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="department-select" className="text-sm font-medium">
-                Bölüm <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                id="department-select"
-                value={selectedDepartmentId}
-                onChange={(e) => {
-                  setSelectedDepartmentId(e.target.value);
-                  setSelectedProgramId("");
-                  setProgramOutcomes([]);
-                  setFilteredProgramOutcomes([]);
-                }}
-                className="h-10 text-sm"
-              >
-                <option value="">Bölüm Seçin</option>
-                {departments.map((dept) => (
-                  <option key={dept._id} value={dept._id}>
-                    {dept.name}
-                  </option>
-                ))}
-              </Select>
+      {/* Department and Program Selection - Collapsible */}
+      <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
+        <CardContent className="p-0">
+          <div 
+            className="p-4 cursor-pointer hover:bg-brand-navy/5 dark:hover:bg-brand-navy/10 transition-colors flex items-center justify-between"
+            onClick={() => setSelectionExpanded(!selectionExpanded)}
+          >
+            <div className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+              <span className="font-semibold text-brand-navy dark:text-slate-100">Bölüm ve Program Seç</span>
+              {selectedDepartmentId && selectedProgramId && (
+                <Badge variant="outline" className="text-xs border-brand-navy/30 text-brand-navy dark:text-slate-300">
+                  {selectedDepartment?.name} / {selectedProgram?.name}
+                </Badge>
+              )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="program-select" className="text-sm font-medium">
-                Program <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                id="program-select"
-                value={selectedProgramId}
-                onChange={(e) => setSelectedProgramId(e.target.value)}
-                disabled={!selectedDepartmentId || loadingPrograms}
-                className="h-10 text-sm"
-              >
-                <option value="">
-                  {!selectedDepartmentId 
-                    ? "Önce bölüm seçin" 
-                    : loadingPrograms
-                    ? "Yükleniyor..."
-                    : "Program Seçin"}
-                </option>
-                {programs.map((prog) => (
-                  <option key={prog._id} value={prog._id}>
-                    {prog.name} {prog.code ? `(${prog.code})` : ""}
-                  </option>
-                ))}
-              </Select>
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectionExpanded(!selectionExpanded);
+              }}
+            >
+              {selectionExpanded ? (
+                <ChevronUp className="h-4 w-4 text-brand-navy dark:text-slate-200" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-brand-navy dark:text-slate-200" />
+              )}
+            </Button>
           </div>
+
+          {selectionExpanded && (
+            <div className="px-4 pb-4 space-y-4 border-t border-brand-navy/10 dark:border-slate-700/50 pt-4">
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Program çıktılarını yönetmek istediğiniz bölüm ve programı seçin
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="department-select" className="text-sm font-medium text-brand-navy dark:text-slate-200">
+                    Bölüm <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    id="department-select"
+                    value={selectedDepartmentId}
+                    onChange={(e) => {
+                      setSelectedDepartmentId(e.target.value);
+                      setSelectedProgramId("");
+                      setProgramOutcomes([]);
+                      setFilteredProgramOutcomes([]);
+                    }}
+                    className="h-10 text-sm border-brand-navy/20 focus:border-brand-navy"
+                  >
+                    <option value="">Bölüm Seçin</option>
+                    {departments.map((dept) => (
+                      <option key={dept._id} value={dept._id}>
+                        {dept.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="program-select" className="text-sm font-medium text-brand-navy dark:text-slate-200">
+                    Program <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    id="program-select"
+                    value={selectedProgramId}
+                    onChange={(e) => setSelectedProgramId(e.target.value)}
+                    disabled={!selectedDepartmentId || loadingPrograms}
+                    className="h-10 text-sm border-brand-navy/20 focus:border-brand-navy"
+                  >
+                    <option value="">
+                      {!selectedDepartmentId 
+                        ? "Önce bölüm seçin" 
+                        : loadingPrograms
+                        ? "Yükleniyor..."
+                        : "Program Seçin"}
+                    </option>
+                    {programs.map((prog) => (
+                      <option key={prog._id} value={prog._id}>
+                        {prog.name} {prog.code ? `(${prog.code})` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Empty State - When no department is selected */}
       {!selectedDepartmentId && (
-        <Card className="border-2 border-dashed">
+        <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <div className="w-20 h-20 rounded-full bg-[#0a294e]/10 flex items-center justify-center mb-4">
-              <GraduationCap className="h-10 w-10 text-[#0a294e]" />
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 flex items-center justify-center mb-4">
+              <GraduationCap className="h-10 w-10 text-brand-navy dark:text-slate-200" />
             </div>
-            <h3 className="text-xl font-semibold text-slate-700 mb-2">
+            <h3 className="text-xl font-semibold text-brand-navy dark:text-slate-100 mb-2">
               Program Çıktıları Yönetimi
             </h3>
-            <p className="text-sm text-muted-foreground text-center max-w-md mb-4">
+            <p className="text-sm text-slate-600 dark:text-slate-400 text-center max-w-md mb-4">
               Program çıktılarını görüntülemek ve yönetmek için lütfen yukarıdan bir bölüm ve program seçin.
             </p>
-            <div className="flex items-start gap-2 p-4 bg-blue-50 rounded-lg border border-blue-200 max-w-md">
-              <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-blue-800">
+            <div className="flex items-start gap-2 p-4 bg-gradient-to-br from-brand-navy/5 to-brand-navy/10 dark:from-brand-navy/20 dark:to-brand-navy/10 rounded-lg border border-brand-navy/20 dark:border-slate-700/50 max-w-md">
+              <Info className="h-5 w-5 text-brand-navy dark:text-slate-200 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-brand-navy dark:text-slate-200">
                 <p className="font-medium mb-1">MEDEK Program Çıktıları</p>
                 <p>
                   Program çıktıları (PÇ), mezunların sahip olması gereken yetkinlikleri tanımlar. 
@@ -375,115 +410,138 @@ export default function ProgramOutcomesPage() {
 
       {selectedDepartmentId && (
         <>
-          {/* Add New PO */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Plus className="h-5 w-5 text-[#0a294e]" />
-                <CardTitle>Yeni Program Çıktısı Ekle</CardTitle>
-              </div>
-              <CardDescription>
-                {selectedDepartment?.name} bölümü için yeni bir program çıktısı ekleyin
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="po-code" className="text-sm font-medium">
-                    PÇ Kodu <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="po-code"
-                    value={newPOCode}
-                    onChange={(e) => setNewPOCode(e.target.value.toUpperCase())}
-                    placeholder="Örn: PÇ1"
-                    disabled={isLoading}
-                    className="h-10 text-sm"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="po-description" className="text-sm font-medium">
-                    Açıklama <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="po-description"
-                    value={newPODescription}
-                    onChange={(e) => setNewPODescription(e.target.value)}
-                    placeholder="Örn: Matematiksel analiz yapabilme"
-                    disabled={isLoading}
-                    className="h-10 text-sm"
-                  />
-                </div>
-              </div>
-              <Button
-                onClick={handleAddPO}
-                disabled={isLoading || !newPOCode.trim() || !newPODescription.trim()}
-                className="h-10 px-6 bg-[#0a294e] hover:bg-[#0a294e]/90 text-white"
+          {/* Add New PO - Collapsible */}
+          <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
+            <CardContent className="p-0">
+              <div 
+                className="p-4 cursor-pointer hover:bg-brand-navy/5 dark:hover:bg-brand-navy/10 transition-colors flex items-center justify-between"
+                onClick={() => setFormExpanded(!formExpanded)}
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Ekleniyor...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Program Çıktısı Ekle
-                  </>
-                )}
-              </Button>
+                <div className="flex items-center gap-2">
+                  <Plus className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                  <span className="font-semibold text-brand-navy dark:text-slate-100">Yeni Program Çıktısı Ekle</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFormExpanded(!formExpanded);
+                  }}
+                >
+                  {formExpanded ? (
+                    <ChevronUp className="h-4 w-4 text-brand-navy dark:text-slate-200" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-brand-navy dark:text-slate-200" />
+                  )}
+                </Button>
+              </div>
+
+              {formExpanded && (
+                <div className="px-4 pb-4 space-y-4 border-t border-brand-navy/10 dark:border-slate-700/50 pt-4">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    {selectedDepartment?.name} bölümü için yeni bir program çıktısı ekleyin
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="po-code" className="text-sm font-medium text-brand-navy dark:text-slate-200">
+                        PÇ Kodu <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="po-code"
+                        value={newPOCode}
+                        onChange={(e) => setNewPOCode(e.target.value.toUpperCase())}
+                        placeholder="Örn: PÇ1"
+                        disabled={isLoading || !selectedProgramId}
+                        className="h-10 text-sm border-brand-navy/20 focus:border-brand-navy"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="po-description" className="text-sm font-medium text-brand-navy dark:text-slate-200">
+                        Açıklama <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="po-description"
+                        value={newPODescription}
+                        onChange={(e) => setNewPODescription(e.target.value)}
+                        placeholder="Örn: Matematiksel analiz yapabilme"
+                        disabled={isLoading || !selectedProgramId}
+                        className="h-10 text-sm border-brand-navy/20 focus:border-brand-navy"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleAddPO}
+                    disabled={isLoading || !newPOCode.trim() || !newPODescription.trim() || !selectedProgramId}
+                    className="h-10 px-6 bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-brand-navy/90 hover:to-[#0f3a6b]/90 text-white shadow-lg hover:shadow-xl transition-all"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Ekleniyor...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Program Çıktısı Ekle
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* PO List */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Target className="h-5 w-5 text-[#0a294e]" />
-                    <CardTitle>Program Çıktıları Listesi</CardTitle>
-                    {totalPOs > 0 && (
-                      <Badge variant="outline" className="ml-2">
-                        {totalPOs} adet
-                      </Badge>
-                    )}
+          {selectedProgramId && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+                    <Target className="h-5 w-5 text-brand-navy dark:text-slate-200" />
                   </div>
-                  <CardDescription>
-                    {selectedProgram?.name} programı için tanımlı program çıktıları. Her PÇ kodunun yanında kaç öğrenme çıktısına eşlendiği gösterilmektedir.
-                  </CardDescription>
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">Program Çıktıları Listesi</h2>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      {selectedProgram?.name} programı için tanımlı program çıktıları. Her PÇ kodunun yanında kaç öğrenme çıktısına eşlendiği gösterilmektedir.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="PÇ kodu veya açıklamaya göre ara..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
               </div>
 
-              {loadingPOs ? (
-                <div className="flex items-center justify-center py-12 text-muted-foreground">
-                  <Loader2 className="h-6 w-6 animate-spin mr-3" />
-                  Program çıktıları yükleniyor...
-                </div>
-              ) : (
-                <ProgramOutcomeTable
-                  programOutcomes={filteredProgramOutcomes}
-                  learningOutcomeCounts={learningOutcomeCounts}
-                  programId={selectedProgramId}
-                  onDelete={handleDeleteSuccess}
-                />
-              )}
-            </CardContent>
-          </Card>
+              <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
+                <CardContent className="p-4 sm:p-6 space-y-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="PÇ kodu veya açıklamaya göre ara..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 border-brand-navy/20 focus:border-brand-navy"
+                    />
+                  </div>
+
+                  {loadingPOs ? (
+                    <div className="flex items-center justify-center py-12 text-muted-foreground">
+                      <Loader2 className="h-6 w-6 animate-spin mr-3 text-brand-navy" />
+                      Program çıktıları yükleniyor...
+                    </div>
+                  ) : (
+                    <ProgramOutcomeTable
+                      programOutcomes={filteredProgramOutcomes}
+                      learningOutcomeCounts={learningOutcomeCounts}
+                      programId={selectedProgramId}
+                      onDelete={handleDeleteSuccess}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </>
       )}
     </div>
   );
 }
-

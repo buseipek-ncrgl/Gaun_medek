@@ -14,10 +14,16 @@ import {
   GraduationCap,
   Loader2,
   ArrowLeft,
+  Download,
+  Printer,
+  Home,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { LOAchievementTable } from "@/components/reports/LOAchievementTable";
 import { POAchievementTable } from "@/components/reports/POAchievementTable";
 import { LOProgressCard } from "@/components/reports/LOProgressCard";
@@ -51,6 +57,7 @@ export default function CourseReportPage() {
   const [poAchievements, setPOAchievements] = useState<POAchievement[]>([]);
   const [studentAchievements, setStudentAchievements] = useState<Record<string, Record<string, number>>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     if (courseId) {
@@ -149,12 +156,14 @@ export default function CourseReportPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 sm:p-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin text-[#0a294e] mx-auto mb-4" />
-              <p className="text-muted-foreground">Rapor verileri yükleniyor...</p>
+              <div className="p-4 rounded-full bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 w-fit mx-auto mb-4">
+                <Loader2 className="h-8 w-8 animate-spin text-brand-navy dark:text-slate-200" />
+              </div>
+              <p className="text-brand-navy/70 dark:text-slate-400">Rapor verileri yükleniyor...</p>
             </div>
           </div>
         </div>
@@ -170,227 +179,475 @@ export default function CourseReportPage() {
     ? course.department.name
     : course.department || "Bilinmiyor";
 
+  // Calculate statistics
+  const avgLOAchievement = loAchievements.length > 0
+    ? loAchievements.reduce((sum, lo) => sum + lo.achievedPercentage, 0) / loAchievements.length
+    : 0;
+  const avgPOAchievement = poAchievements.length > 0
+    ? poAchievements.reduce((sum, po) => sum + po.achievedPercentage, 0) / poAchievements.length
+    : 0;
+  const loAboveThreshold = loAchievements.filter(lo => lo.achievedPercentage >= 60).length;
+  const poAboveThreshold = poAchievements.filter(po => po.achievedPercentage >= 60).length;
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleExportPDF = () => {
+    toast.info("PDF export özelliği yakında eklenecek");
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-3 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/reports")}
+            className="h-7 px-2 text-xs hover:text-brand-navy"
+          >
+            <Home className="h-3 w-3 mr-1" />
+            Raporlar
+          </Button>
+          <ChevronRight className="h-4 w-4" />
+          <span className="text-brand-navy dark:text-slate-200 font-medium">{course.code}</span>
+        </div>
+
         {/* Header */}
-        <div className="mb-4 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
-            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push("/reports")}
-                className="px-2 h-9 sm:h-10 flex-shrink-0"
-              >
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                <span className="hidden sm:inline">Geri</span>
-              </Button>
-              <div className="p-2 bg-[#0a294e] rounded-lg flex-shrink-0">
-                <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-foreground truncate">
-                  <span className="whitespace-nowrap">{course.code}</span>
-                  <span className="hidden sm:inline"> - </span>
-                  <span className="block sm:inline break-words">{course.name}</span>
-                </h1>
-                <p className="text-muted-foreground text-xs sm:text-sm md:text-base mt-1">
-                  MEDEK Akreditasyon Raporu
-                </p>
-              </div>
+        <div className="flex items-center gap-3">
+          <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
+          <div className="flex items-center gap-3 flex-1">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+              <BarChart3 className="h-5 w-5 text-brand-navy dark:text-slate-200" />
             </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100 truncate">
+                {course.code} - {course.name}
+              </h1>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                MEDEK Akreditasyon Raporu
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              onClick={() => router.push("/reports")}
-              className="h-9 sm:h-11 px-4 sm:px-6 text-sm sm:text-base w-full sm:w-auto"
+              size="sm"
+              onClick={handleExportPDF}
+              className="h-9 px-3 text-sm border-brand-navy/20 hover:border-brand-navy/50"
             >
-              Raporlara Dön
+              <Download className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">PDF</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePrint}
+              className="h-9 px-3 text-sm border-brand-navy/20 hover:border-brand-navy/50"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Yazdır</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/reports")}
+              className="h-9 px-3 text-sm"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Geri</span>
             </Button>
           </div>
         </div>
 
-      {/* Course Summary Card */}
-      <CourseSummaryCard
-        loAchievements={loAchievements}
-        poAchievements={poAchievements}
-        course={course}
-      />
-
-      {/* Course Info Header */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="border-2 border-slate-200">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Ders Kodu</p>
-                <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-foreground truncate">{course.code}</p>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1 truncate">{course.name}</p>
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
+                <Users className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
               </div>
-              <div className="p-2 sm:p-3 bg-[#0a294e]/10 rounded-lg flex-shrink-0">
-                <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-[#0a294e]" />
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Öğrenciler</p>
+                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                  {students.length}
+                </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </Card>
 
-        <Card className="border-2 border-slate-200">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Öğrenciler</p>
-                <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-foreground">{students.length}</p>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">Kayıtlı öğrenciler</p>
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
+                <FileText className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
               </div>
-              <div className="p-2 sm:p-3 bg-slate-100 dark:bg-slate-700 rounded-lg flex-shrink-0">
-                <Users className="h-5 w-5 sm:h-6 sm:w-6 text-slate-700 dark:text-foreground" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-slate-200">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Sınavlar</p>
-                <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-foreground">{exams.length}</p>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">Toplam sınav</p>
-              </div>
-              <div className="p-2 sm:p-3 bg-slate-100 dark:bg-slate-700 rounded-lg flex-shrink-0">
-                <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-slate-700 dark:text-foreground" />
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Sınavlar</p>
+                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                  {exams.length}
+                </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </Card>
 
-        <Card className="border-2 border-slate-200">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Öğrenme Çıktıları</p>
-                <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-foreground">{course.learningOutcomes?.length || 0}</p>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">Toplam ÖÇ</p>
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
+                <Target className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
               </div>
-              <div className="p-2 sm:p-3 bg-slate-100 dark:bg-slate-700 rounded-lg flex-shrink-0">
-                <Target className="h-5 w-5 sm:h-6 sm:w-6 text-slate-700 dark:text-foreground" />
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Öğrenme Çıktıları</p>
+                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                  {course.learningOutcomes?.length || 0}
+                </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </Card>
 
-      {/* LO Achievement Bar Chart */}
-      {loAchievements.length > 0 && (
-        <LOAchievementBarChart achievements={loAchievements} />
-      )}
-
-      {/* LO Achievement Table */}
-      <Card className="rounded-xl shadow-sm border-2 border-slate-200 dark:border-slate-700">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-700 border-b border-slate-200 dark:border-slate-700">
-          <CardTitle className="flex items-center gap-2 text-xl text-slate-900 dark:text-foreground">
-            <TrendingUp className="h-5 w-5 text-[#0a294e] dark:text-foreground" />
-            Öğrenme Çıktıları (ÖÇ) Başarı Detayları
-          </CardTitle>
-          <CardDescription className="text-sm">
-            Her öğrenme çıktısı için tüm öğrenciler üzerinden ortalama başarı yüzdeleri
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6">
-          {loAchievements.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Target className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-              <p className="text-lg font-medium">Henüz öğrenme çıktısı başarı verisi yok</p>
-              <p className="text-sm mt-2">Sınav puanları eklendikten sonra burada görünecektir</p>
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
+                <TrendingUp className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Ortalama Başarı</p>
+                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                  {avgLOAchievement.toFixed(1)}%
+                </p>
+              </div>
             </div>
-          ) : (
-            <LOAchievementTable achievements={loAchievements} />
-          )}
-        </CardContent>
-      </Card>
+          </Card>
+        </div>
 
-      {/* LO Progress Cards */}
-      {loAchievements.length > 0 && (
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-base sm:text-lg md:text-xl">ÖÇ Başarı Özeti</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Öğrenme çıktıları başarılarının görsel gösterimi</CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-              {loAchievements.map((achievement) => (
-                <LOProgressCard key={achievement.code} achievement={achievement} />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* PO Achievement Bar Chart */}
-      {poAchievements.length > 0 && (
-        <POAchievementBarChart achievements={poAchievements} />
-      )}
-
-      {/* PO Achievement Table */}
-      <Card className="rounded-xl shadow-sm border-2 border-slate-200">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-700 border-b border-slate-200 dark:border-slate-700">
-          <CardTitle className="flex items-center gap-2 text-xl text-slate-900 dark:text-foreground">
-            <BarChart3 className="h-5 w-5 text-[#0a294e] dark:text-foreground" />
-            Program Çıktıları (PÇ) Başarı Detayları
-          </CardTitle>
-          <CardDescription className="text-sm">
-            Her program çıktısı için ortalama başarı yüzdeleri
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6">
-          {poAchievements.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <GraduationCap className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-              <p className="text-lg font-medium">Henüz program çıktısı başarı verisi yok</p>
-              <p className="text-sm mt-2">Öğrenme çıktıları ve sınav puanları eklendikten sonra burada görünecektir</p>
-            </div>
-          ) : (
-            <POAchievementTable achievements={poAchievements} />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* PO Progress Cards */}
-      {poAchievements.length > 0 && (
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-base sm:text-lg md:text-xl">PÇ Başarı Özeti</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Program çıktıları başarılarının görsel gösterimi</CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-              {poAchievements.map((achievement) => (
-                <POProgressCard key={achievement.code} achievement={achievement} />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Student Comparison Chart */}
-      {students.length > 0 && loAchievements.length > 0 && course.learningOutcomes && (
-        <StudentComparisonChart
-          students={students}
-          studentAchievements={convertStudentAchievements(studentAchievements, students, course.learningOutcomes)}
+        {/* Course Summary Card */}
+        <CourseSummaryCard
+          loAchievements={loAchievements}
+          poAchievements={poAchievements}
+          course={course}
         />
-      )}
 
-      {/* Heatmap Chart */}
-      {students.length > 0 && course.learningOutcomes && course.learningOutcomes.length > 0 && (
-        <HeatmapChart
-          students={students}
-          learningOutcomes={course.learningOutcomes.map((lo) => ({
-            _id: lo.code,
-            code: lo.code,
-          }))}
-          studentAchievements={convertStudentAchievements(studentAchievements, students, course.learningOutcomes)}
-        />
-      )}
+        {/* Tabs Navigation */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto bg-slate-100/50 dark:bg-slate-800/50 p-1 rounded-lg">
+            <TabsTrigger
+              value="overview"
+              className={`${
+                activeTab === "overview"
+                  ? "!bg-gradient-to-r !from-brand-navy !to-[#0f3a6b] !text-white !shadow-lg"
+                  : "text-brand-navy dark:text-slate-300 hover:bg-brand-navy/10 !bg-transparent"
+              } transition-all`}
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Genel Bakış</span>
+              <span className="sm:hidden">Genel</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="lo"
+              className={`${
+                activeTab === "lo"
+                  ? "!bg-gradient-to-r !from-brand-navy !to-[#0f3a6b] !text-white !shadow-lg"
+                  : "text-brand-navy dark:text-slate-300 hover:bg-brand-navy/10 !bg-transparent"
+              } transition-all`}
+            >
+              <Target className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">ÖÇ Analizi</span>
+              <span className="sm:hidden">ÖÇ</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="po"
+              className={`${
+                activeTab === "po"
+                  ? "!bg-gradient-to-r !from-brand-navy !to-[#0f3a6b] !text-white !shadow-lg"
+                  : "text-brand-navy dark:text-slate-300 hover:bg-brand-navy/10 !bg-transparent"
+              } transition-all`}
+            >
+              <GraduationCap className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">PÇ Analizi</span>
+              <span className="sm:hidden">PÇ</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="students"
+              className={`${
+                activeTab === "students"
+                  ? "!bg-gradient-to-r !from-brand-navy !to-[#0f3a6b] !text-white !shadow-lg"
+                  : "text-brand-navy dark:text-slate-300 hover:bg-brand-navy/10 !bg-transparent"
+              } transition-all`}
+            >
+              <Users className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Öğrenci Karşılaştırması</span>
+              <span className="sm:hidden">Öğrenci</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="heatmap"
+              className={`${
+                activeTab === "heatmap"
+                  ? "!bg-gradient-to-r !from-brand-navy !to-[#0f3a6b] !text-white !shadow-lg"
+                  : "text-brand-navy dark:text-slate-300 hover:bg-brand-navy/10 !bg-transparent"
+              } transition-all`}
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Heatmap</span>
+              <span className="sm:hidden">Map</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-4 sm:space-y-6 mt-4">
+            {/* Course Info Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 rounded-xl">
+                    <BookOpen className="h-6 w-6 text-brand-navy dark:text-slate-200" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 uppercase tracking-wide mb-1">Ders Kodu</p>
+                    <p className="text-lg font-bold text-brand-navy dark:text-slate-100 truncate">{course.code}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate mt-1">{course.name}</p>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 rounded-xl">
+                    <Target className="h-6 w-6 text-brand-navy dark:text-slate-200" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 uppercase tracking-wide mb-1">Başarılı ÖÇ</p>
+                    <p className="text-lg font-bold text-brand-navy dark:text-slate-100">
+                      {loAboveThreshold} / {loAchievements.length}
+                    </p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">≥60% eşiği</p>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 rounded-xl">
+                    <GraduationCap className="h-6 w-6 text-brand-navy dark:text-slate-200" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 uppercase tracking-wide mb-1">Başarılı PÇ</p>
+                    <p className="text-lg font-bold text-brand-navy dark:text-slate-100">
+                      {poAboveThreshold} / {poAchievements.length}
+                    </p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">≥60% eşiği</p>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 rounded-xl">
+                    <TrendingUp className="h-6 w-6 text-brand-navy dark:text-slate-200" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 uppercase tracking-wide mb-1">PÇ Ortalama</p>
+                    <p className="text-lg font-bold text-brand-navy dark:text-slate-100">
+                      {avgPOAchievement.toFixed(1)}%
+                    </p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">Ortalama başarı</p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* LO Analysis Tab */}
+          <TabsContent value="lo" className="space-y-4 sm:space-y-6 mt-4">
+            {/* LO Achievement Bar Chart */}
+            {loAchievements.length > 0 && (
+              <LOAchievementBarChart achievements={loAchievements} />
+            )}
+
+            {/* LO Achievement Table */}
+            <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-brand-navy to-[#0f3a6b] text-white rounded-t-xl">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <TrendingUp className="h-5 w-5" />
+                  Öğrenme Çıktıları (ÖÇ) Başarı Detayları
+                </CardTitle>
+                <CardDescription className="text-white/80 text-sm">
+                  Her öğrenme çıktısı için tüm öğrenciler üzerinden ortalama başarı yüzdeleri
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                {loAchievements.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="p-4 rounded-full bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 w-fit mx-auto mb-4">
+                      <Target className="h-8 w-8 text-brand-navy/60 dark:text-slate-400" />
+                    </div>
+                    <p className="text-lg font-semibold text-brand-navy dark:text-slate-100">Henüz öğrenme çıktısı başarı verisi yok</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">Sınav puanları eklendikten sonra burada görünecektir</p>
+                  </div>
+                ) : (
+                  <LOAchievementTable achievements={loAchievements} />
+                )}
+              </CardContent>
+            </Card>
+
+            {/* LO Progress Cards */}
+            {loAchievements.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+                      <Target className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">ÖÇ Başarı Özeti</h2>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">Öğrenme çıktıları başarılarının görsel gösterimi</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {loAchievements.map((achievement) => (
+                    <LOProgressCard key={achievement.code} achievement={achievement} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* PO Analysis Tab */}
+          <TabsContent value="po" className="space-y-4 sm:space-y-6 mt-4">
+            {/* PO Achievement Bar Chart */}
+            {poAchievements.length > 0 && (
+              <POAchievementBarChart achievements={poAchievements} />
+            )}
+
+            {/* PO Achievement Table */}
+            <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-brand-navy to-[#0f3a6b] text-white rounded-t-xl">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <BarChart3 className="h-5 w-5" />
+                  Program Çıktıları (PÇ) Başarı Detayları
+                </CardTitle>
+                <CardDescription className="text-white/80 text-sm">
+                  Her program çıktısı için ortalama başarı yüzdeleri
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                {poAchievements.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="p-4 rounded-full bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 w-fit mx-auto mb-4">
+                      <GraduationCap className="h-8 w-8 text-brand-navy/60 dark:text-slate-400" />
+                    </div>
+                    <p className="text-lg font-semibold text-brand-navy dark:text-slate-100">Henüz program çıktısı başarı verisi yok</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">Öğrenme çıktıları ve sınav puanları eklendikten sonra burada görünecektir</p>
+                  </div>
+                ) : (
+                  <POAchievementTable achievements={poAchievements} />
+                )}
+              </CardContent>
+            </Card>
+
+            {/* PO Progress Cards */}
+            {poAchievements.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+                      <GraduationCap className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">PÇ Başarı Özeti</h2>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">Program çıktıları başarılarının görsel gösterimi</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {poAchievements.map((achievement) => (
+                    <POProgressCard key={achievement.code} achievement={achievement} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Student Comparison Tab */}
+          <TabsContent value="students" className="space-y-4 sm:space-y-6 mt-4">
+            {students.length > 0 && loAchievements.length > 0 && course.learningOutcomes ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+                      <Users className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">Öğrenci Karşılaştırması</h2>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">Öğrencilerin ÖÇ başarılarının karşılaştırmalı analizi</p>
+                    </div>
+                  </div>
+                </div>
+                <StudentComparisonChart
+                  students={students}
+                  studentAchievements={convertStudentAchievements(studentAchievements, students, course.learningOutcomes)}
+                />
+              </div>
+            ) : (
+              <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern rounded-xl">
+                <CardContent className="p-12 text-center">
+                  <div className="p-4 rounded-full bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 w-fit mx-auto mb-4">
+                    <Users className="h-8 w-8 text-brand-navy/60 dark:text-slate-400" />
+                  </div>
+                  <p className="text-lg font-semibold text-brand-navy dark:text-slate-100">Öğrenci karşılaştırma verisi yok</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">Öğrenci ve sınav verileri eklendikten sonra burada görünecektir</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Heatmap Tab */}
+          <TabsContent value="heatmap" className="space-y-4 sm:space-y-6 mt-4">
+            {students.length > 0 && course.learningOutcomes && course.learningOutcomes.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+                      <BarChart3 className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">Öğrenci-ÖÇ Başarı Heatmap</h2>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">Öğrencilerin ÖÇ başarılarının görsel haritası</p>
+                    </div>
+                  </div>
+                </div>
+                <HeatmapChart
+                  students={students}
+                  learningOutcomes={course.learningOutcomes.map((lo) => ({
+                    _id: lo.code,
+                    code: lo.code,
+                  }))}
+                  studentAchievements={convertStudentAchievements(studentAchievements, students, course.learningOutcomes)}
+                />
+              </div>
+            ) : (
+              <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern rounded-xl">
+                <CardContent className="p-12 text-center">
+                  <div className="p-4 rounded-full bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 w-fit mx-auto mb-4">
+                    <BarChart3 className="h-8 w-8 text-brand-navy/60 dark:text-slate-400" />
+                  </div>
+                  <p className="text-lg font-semibold text-brand-navy dark:text-slate-100">Heatmap verisi yok</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">Öğrenci ve ÖÇ verileri eklendikten sonra burada görünecektir</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+
       </div>
     </div>
   );

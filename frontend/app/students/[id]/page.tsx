@@ -4,11 +4,14 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useMemo, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { User, Hash, Building2, GraduationCap, Edit, BookOpen, ExternalLink, ArrowLeft } from "lucide-react";
+import { User, Hash, Building2, GraduationCap, Edit, BookOpen, ExternalLink, ArrowLeft, FileText, Target, TrendingUp, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { StudentForm } from "@/components/students/StudentForm";
 import { StudentExamScoreTable } from "@/components/students/StudentExamScoreTable";
 import { StudentLOAchievementCard } from "@/components/students/StudentLOAchievementCard";
@@ -17,7 +20,6 @@ import { studentApi, type Student } from "@/lib/api/studentApi";
 import { scoreApi, type Score, type LOAchievement, type POAchievement } from "@/lib/api/scoreApi";
 import { examApi } from "@/lib/api/examApi";
 import { courseApi, type Course } from "@/lib/api/courseApi";
-import { Loader2 } from "lucide-react";
 
 function StudentDetailContent() {
   const params = useParams();
@@ -42,8 +44,11 @@ function StudentDetailContent() {
   }, [studentId]);
 
   useEffect(() => {
-    if (studentId && selectedCourseId) {
+    if (studentId && selectedCourseId && selectedCourseId.trim() !== "") {
       fetchAchievements();
+    } else {
+      setLOAchievements([]);
+      setPOAchievements([]);
     }
   }, [studentId, selectedCourseId]);
 
@@ -67,13 +72,18 @@ function StudentDetailContent() {
           setExamResults(resultsData);
         } catch (error) {
           console.error("Failed to load exam results", error);
-          // Don't show error, just log it
         }
       }
 
-      // Set first course as default if available
-      if (coursesData.length > 0 && !selectedCourseId) {
-        setSelectedCourseId(coursesData[0]._id);
+      // Set first enrolled course as default if available
+      const enrolled = coursesData.filter((course) => {
+        const courseStudents = course.students || [];
+        return courseStudents.some(
+          (s) => s.studentNumber === studentData.studentNumber
+        );
+      });
+      if (enrolled.length > 0 && !selectedCourseId) {
+        setSelectedCourseId(enrolled[0]._id);
       }
     } catch (error: any) {
       toast.error("Öğrenci verileri yüklenirken hata oluştu");
@@ -84,19 +94,30 @@ function StudentDetailContent() {
   };
 
   const fetchAchievements = async () => {
-    if (!selectedCourseId) return;
+    if (!selectedCourseId || !studentId || selectedCourseId.trim() === "") {
+      setLOAchievements([]);
+      setPOAchievements([]);
+      return;
+    }
 
     try {
+      console.log("Fetching achievements for student:", studentId, "course:", selectedCourseId);
       const [loData, poData] = await Promise.all([
         scoreApi.calculateLOAchievement(studentId, selectedCourseId),
         scoreApi.calculatePOAchievement(studentId, selectedCourseId),
       ]);
 
-      setLOAchievements(loData);
-      setPOAchievements(poData);
+      console.log("LO Achievements:", loData);
+      console.log("PO Achievements:", poData);
+
+      setLOAchievements(Array.isArray(loData) ? loData : []);
+      setPOAchievements(Array.isArray(poData) ? poData : []);
     } catch (error: any) {
       console.error("Failed to load achievements", error);
-      // Don't show error toast, just log it
+      console.error("Error details:", error.response?.data || error.message);
+      toast.error(error?.response?.data?.message || "ÖÇ ve PÇ başarıları yüklenirken hata oluştu");
+      setLOAchievements([]);
+      setPOAchievements([]);
     }
   };
 
@@ -105,7 +126,7 @@ function StudentDetailContent() {
     router.push(`/students/${studentId}`);
   };
 
-  // Find courses where this student is enrolled (must be before conditional returns)
+  // Find courses where this student is enrolled
   const enrolledCourses = useMemo(() => {
     if (!student) return [];
     return courses.filter((course) => {
@@ -116,12 +137,66 @@ function StudentDetailContent() {
     });
   }, [courses, student]);
 
+  // Get program name for student from enrolled courses
+  const studentProgram = useMemo(() => {
+    if (!student || enrolledCourses.length === 0) return null;
+    
+    const firstCourse = enrolledCourses[0];
+    const program = (firstCourse as any).program;
+    
+    if (!program) return null;
+    
+    if (typeof program === "object" && program !== null) {
+      return program.name || program.nameEn || program.code || null;
+    }
+    
+    return null;
+  }, [enrolledCourses, student]);
+
   const selectedCourse = courses.find((c) => c._id === selectedCourseId);
+
+  // Statistics calculations
+  const stats = useMemo(() => {
+    if (!examResults.length) {
+      return {
+        totalExams: 0,
+        averageScore: 0,
+        successRate: 0,
+        totalCourses: enrolledCourses.length,
+      };
+    }
+
+    const scores = examResults.map((result: any) => {
+      const exam = typeof result.examId === 'object' ? result.examId : null;
+      const totalScore = result.questionScores?.reduce((sum: number, qs: any) => sum + (qs.score || 0), 0) || 0;
+      const maxScorePerQuestion = exam?.maxScorePerQuestion || 0;
+      const questionCount = result.questionScores?.length || 0;
+      const totalMaxScore = questionCount * maxScorePerQuestion;
+      const percentage = totalMaxScore > 0 ? (totalScore / totalMaxScore) * 100 : 0;
+      return { totalScore, totalMaxScore, percentage };
+    });
+
+    const totalScore = scores.reduce((sum, s) => sum + s.totalScore, 0);
+    const totalMaxScore = scores.reduce((sum, s) => sum + s.totalMaxScore, 0);
+    const averageScore = totalMaxScore > 0 ? (totalScore / totalMaxScore) * 100 : 0;
+    const successCount = scores.filter((s) => s.percentage >= 60).length;
+    const successRate = scores.length > 0 ? (successCount / scores.length) * 100 : 0;
+
+    return {
+      totalExams: examResults.length,
+      averageScore: Math.round(averageScore * 10) / 10,
+      successRate: Math.round(successRate * 10) / 10,
+      totalCourses: enrolledCourses.length,
+    };
+  }, [examResults, enrolledCourses]);
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <p className="text-muted-foreground">Öğrenci verileri yükleniyor...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-navy" />
+          <p className="text-sm text-slate-600 dark:text-slate-400">Öğrenci verileri yükleniyor...</p>
+        </div>
       </div>
     );
   }
@@ -132,316 +207,488 @@ function StudentDetailContent() {
 
   if (isEditMode) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => router.push(`/students/${studentId}`)} className="px-2">
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Geri
-          </Button>
-          <p className="text-muted-foreground">
-            Öğrenci bilgilerini güncelleyin
-          </p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => router.push(`/students/${studentId}`)} className="h-9 w-9 hover:bg-brand-navy/10">
+              <ArrowLeft className="h-4 w-4 text-brand-navy dark:text-slate-200" />
+            </Button>
+            <p className="text-slate-600 dark:text-slate-400">
+              Öğrenci bilgilerini güncelleyin
+            </p>
+          </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Öğrenci Bilgileri</CardTitle>
-            <CardDescription>
-              Aşağıdaki öğrenci ayrıntılarını güncelleyin. * işaretli alanlar zorunludur.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <StudentForm
-              mode="edit"
-              studentId={studentId}
-              initialData={student}
-              onSuccess={handleEditSuccess}
-            />
-          </CardContent>
-        </Card>
+          <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
+            <CardContent className="p-6">
+              <StudentForm
+                mode="edit"
+                studentId={studentId}
+                initialData={student}
+                onSuccess={handleEditSuccess}
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => router.push("/students")} className="px-2">
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Geri
-          </Button>
-          <p className="text-muted-foreground">
-            Öğrenci bilgilerini ve akademik performansını görüntüleyin
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          onClick={() => router.push(`/students/${studentId}?edit=true`)}
-        >
-          <Edit className="mr-2 h-4 w-4" />
-          Öğrenciyi Düzenle
-        </Button>
-      </div>
-
-      {/* Student Info Card */}
-      <Card className="rounded-xl shadow-sm">
-        <CardHeader>
-          <CardTitle>Öğrenci Bilgileri</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="flex items-center gap-3">
-              <User className="h-5 w-5 text-muted-foreground" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.push("/students")}
+              className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 hover:bg-brand-navy/10"
+            >
+              <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5 text-brand-navy dark:text-slate-200" />
+            </Button>
+            <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+                <User className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+              </div>
               <div>
-                <p className="text-sm text-muted-foreground">İsim</p>
-                <p className="font-semibold">{student.name}</p>
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-brand-navy dark:text-slate-100">
+                  {student.name}
+                </h1>
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">
+                  {student.studentNumber}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Hash className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Öğrenci Numarası</p>
-                <p className="font-semibold">{student.studentNumber}</p>
-              </div>
-            </div>
-            {student.department && (
-              <div className="flex items-center gap-3">
-                <Building2 className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Bölüm</p>
-                  <p className="font-semibold">{student.department}</p>
-                </div>
-              </div>
-            )}
-            {student.classLevel && (
-              <div className="flex items-center gap-3">
-                <GraduationCap className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Sınıf Seviyesi</p>
-                  <p className="font-semibold">{student.classLevel}</p>
-                </div>
-              </div>
-            )}
           </div>
-        </CardContent>
-      </Card>
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/students/${studentId}?edit=true`)}
+            className="h-10 sm:h-11 px-4 sm:px-6 hover:bg-brand-navy/10 hover:border-brand-navy/50 transition-all"
+          >
+            <Edit className="mr-2 h-4 w-4" />
+            Düzenle
+          </Button>
+        </div>
 
-      {/* Enrolled Courses Card */}
-      <Card className="rounded-xl shadow-sm border-2 border-slate-200">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-700 border-b border-slate-200 dark:border-slate-700">
-          <CardTitle className="text-xl text-slate-900 dark:text-foreground flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-foreground" />
-            Kayıtlı Olduğu Dersler
-          </CardTitle>
-          <CardDescription className="text-sm">
-            Bu öğrencinin kayıtlı olduğu dersler. Ders oluştururken öğrenci listesine eklendiğinde burada görünecektir.
-            {enrolledCourses.length > 0 && (
-              <span className="ml-2 font-medium text-slate-700">
-                ({enrolledCourses.length} ders)
-              </span>
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6">
-          {enrolledCourses.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-              <BookOpen className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-              <p className="text-lg font-medium">Bu öğrenci henüz hiçbir derse kayıtlı değil</p>
-              <p className="text-sm mt-2">
-                Ders oluştururken öğrenci listesine eklendiğinde burada görünecektir
-              </p>
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
+                <FileText className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Toplam Sınav</p>
+                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                  {stats.totalExams}
+                </p>
+              </div>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {enrolledCourses.map((course) => {
-                const department = typeof course.department === 'object' && course.department !== null
-                  ? course.department.name
-                  : course.department || "Bilinmiyor";
-                
-                return (
-                  <Card
-                    key={course._id}
-                    className="border-2 border-slate-200 hover:border-[#0a294e] transition-colors cursor-pointer"
-                    onClick={() => router.push(`/dashboard/courses/${course._id}`)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline" className="font-mono text-xs">
-                              {course.code}
-                            </Badge>
-                            {course.semester && (
-                              <Badge variant="secondary" className="text-xs">
-                                {course.semester}
-                              </Badge>
-                            )}
-                          </div>
-                          <h3 className="font-semibold text-slate-900 mb-1 line-clamp-2">
-                            {course.name}
-                          </h3>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            {department}
-                          </p>
-                        </div>
-                        <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t border-slate-200">
-                        <span>
-                          <span className="font-semibold text-slate-700">
-                            {course.learningOutcomes?.length || 0}
-                          </span>{" "}
-                          ÖÇ
-                        </span>
-                        <span>
-                          <span className="font-semibold text-slate-700">
-                            {course.students?.length || 0}
-                          </span>{" "}
-                          Öğrenci
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+          </Card>
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
+                <TrendingUp className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Ortalama Puan</p>
+                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                  {stats.averageScore}%
+                </p>
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </Card>
+          {/* Başarı Oranı Kartı - Şimdilik yorum satırında */}
+          {/* <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
+                <CheckCircle2 className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Başarı Oranı</p>
+                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                  {stats.successRate}%
+                </p>
+              </div>
+            </div>
+          </Card> */}
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
+                <BookOpen className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Toplam Ders</p>
+                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                  {stats.totalCourses}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
 
-      {/* Exam Score Table */}
-      <Card className="rounded-xl shadow-sm border-2 border-slate-200">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-700 border-b border-slate-200 dark:border-slate-700">
-          <CardTitle className="text-xl text-slate-900 dark:text-foreground">Sınav Sonuçları</CardTitle>
-          <CardDescription className="text-sm">
-            Bu öğrencinin tüm sınav sonuçları, sınavlara göre gruplandırılmış olarak gösterilmektedir.
-            {examResults.length > 0 && (
-              <span className="ml-2 font-medium text-slate-700 dark:text-foreground">
-                ({examResults.length} sınav sonucu bulundu)
-              </span>
-            )}
-            {examResults.length === 0 && scores.length > 0 && (
-              <span className="ml-2 font-medium text-slate-700">
-                ({scores.length} puan kaydı bulundu)
-              </span>
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6">
-          {examResults.length > 0 ? (
-            <div className="space-y-4">
-              {examResults.map((result: any) => {
-                const exam = typeof result.examId === 'object' ? result.examId : null;
-                const course = typeof result.courseId === 'object' ? result.courseId : null;
-                const totalScore = result.questionScores?.reduce((sum: number, qs: any) => sum + (qs.score || 0), 0) || 0;
-                const maxScorePerQuestion = exam?.maxScorePerQuestion || 0;
-                const totalMaxScore = result.questionScores?.length * maxScorePerQuestion || 0;
-                const percentage = totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0;
-                
-                return (
-                  <div key={result._id} className="border rounded-lg p-4 space-y-3 bg-white">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-lg">
-                            {exam?.examCode || "Bilinmeyen Sınav"}
-                          </h3>
-                          <Badge variant={exam?.examType === "midterm" ? "default" : "secondary"} className={exam?.examType === "midterm" ? "bg-[#0a294e]" : ""}>
-                            {exam?.examType === "midterm" ? "Vize" : "Final"}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {course ? `${course.code} - ${course.name}` : "Bilinmeyen Ders"}
-                        </p>
-                        {result.createdAt && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(result.createdAt).toLocaleDateString("tr-TR", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric"
-                            })}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-[#0a294e]">{percentage}%</p>
-                        <p className="text-sm text-muted-foreground">
-                          {totalScore.toFixed(1)} / {totalMaxScore}
-                        </p>
-                      </div>
+        {/* Student Info Card */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+                <User className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">Öğrenci Bilgileri</h2>
+            </div>
+          </div>
+          <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
+            <CardContent className="p-5 sm:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 rounded-lg">
+                    <User className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mb-1">İsim</p>
+                    <p className="font-semibold text-brand-navy dark:text-slate-100">{student.name}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 rounded-lg">
+                    <Hash className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mb-1">Öğrenci Numarası</p>
+                    <p className="font-semibold text-brand-navy dark:text-slate-100">{student.studentNumber}</p>
+                  </div>
+                </div>
+                {student.department && (
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 rounded-lg">
+                      <Building2 className="h-5 w-5 text-brand-navy dark:text-slate-200" />
                     </div>
+                    <div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mb-1">Bölüm</p>
+                      <p className="font-semibold text-brand-navy dark:text-slate-100">{student.department}</p>
+                    </div>
+                  </div>
+                )}
+                {studentProgram && (
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 rounded-lg">
+                      <GraduationCap className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mb-1">Program</p>
+                      <p className="font-semibold text-brand-navy dark:text-slate-100">{studentProgram}</p>
+                    </div>
+                  </div>
+                )}
+                {student.classLevel && (
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 rounded-lg">
+                      <GraduationCap className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mb-1">Sınıf Seviyesi</p>
+                      <p className="font-semibold text-brand-navy dark:text-slate-100">{student.classLevel}. Sınıf</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Enrolled Courses Card */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+                <BookOpen className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+              </div>
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">Kayıtlı Olduğu Dersler</h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Bu öğrencinin kayıtlı olduğu dersler ({enrolledCourses.length} ders)
+                </p>
+              </div>
+            </div>
+          </div>
+          <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
+            <CardContent className="p-4 sm:p-6">
+              {enrolledCourses.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+                  <BookOpen className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+                  <p className="text-lg font-medium">Bu öğrenci henüz hiçbir derse kayıtlı değil</p>
+                  <p className="text-sm mt-2">
+                    Ders oluştururken öğrenci listesine eklendiğinde burada görünecektir
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {enrolledCourses.map((course) => {
+                    const department = typeof course.department === 'object' && course.department !== null
+                      ? course.department.name
+                      : course.department || "Bilinmiyor";
                     
-                    {result.questionScores && result.questionScores.length > 0 && (
-                      <div className="border-t pt-3">
-                        <p className="text-xs font-medium text-muted-foreground mb-2">Soru Puanları:</p>
-                        <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-                          {result.questionScores.map((qs: any, idx: number) => {
-                            const qsPercentage = maxScorePerQuestion > 0 ? Math.round((qs.score / maxScorePerQuestion) * 100) : 0;
-                            return (
-                              <div key={idx} className="text-center border rounded p-2 bg-slate-50">
-                                <div className="text-xs text-muted-foreground mb-1">S{qs.questionNumber}</div>
-                                <div className="font-semibold text-lg">{qs.score}</div>
-                                {qs.learningOutcomeCode && (
-                                  <div className="text-xs text-[#0a294e] mt-1 font-medium">{qs.learningOutcomeCode}</div>
+                    return (
+                      <Card
+                        key={course._id}
+                        className="group border border-brand-navy/20 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 cursor-pointer"
+                        onClick={() => router.push(`/dashboard/courses/${course._id}`)}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
+                        <CardContent className="relative p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="outline" className="font-mono text-xs bg-brand-navy/10 text-brand-navy border-brand-navy/30 group-hover:bg-white/20 group-hover:text-white group-hover:border-white/30 transition-colors">
+                                  {course.code}
+                                </Badge>
+                                {course.semester && (
+                                  <Badge variant="secondary" className="text-xs group-hover:bg-white/20 group-hover:text-white transition-colors">
+                                    {course.semester}
+                                  </Badge>
                                 )}
                               </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                              <h3 className="font-semibold text-brand-navy dark:text-slate-100 mb-1 line-clamp-2 group-hover:text-white transition-colors">
+                                {course.name}
+                              </h3>
+                              <p className="text-xs text-slate-600 dark:text-slate-400 mb-2 group-hover:text-white/80 transition-colors">
+                                {department}
+                              </p>
+                            </div>
+                            <ExternalLink className="h-4 w-4 text-slate-400 group-hover:text-white transition-colors flex-shrink-0 mt-1" />
+                          </div>
+                          <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400 pt-2 border-t border-brand-navy/10 dark:border-slate-700/50 group-hover:border-white/20 transition-colors">
+                            <span className="group-hover:text-white/80 transition-colors">
+                              <span className="font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                                {course.learningOutcomes?.length || 0}
+                              </span>{" "}
+                              ÖÇ
+                            </span>
+                            <span className="group-hover:text-white/80 transition-colors">
+                              <span className="font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                                {course.students?.length || 0}
+                              </span>{" "}
+                              Öğrenci
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Exam Score Table */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+                <FileText className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+              </div>
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">Sınav Sonuçları</h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Bu öğrencinin tüm sınav sonuçları
+                  {examResults.length > 0 && ` (${examResults.length} sınav sonucu)`}
+                </p>
+              </div>
             </div>
-          ) : (
-            <StudentExamScoreTable scores={scores} />
-          )}
-        </CardContent>
-      </Card>
+          </div>
+          <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
+            <CardContent className="p-4 sm:p-6">
+              {examResults.length > 0 ? (
+                <div className="space-y-4">
+                  {examResults.map((result: any) => {
+                    const exam = typeof result.examId === 'object' ? result.examId : null;
+                    const course = typeof result.courseId === 'object' ? result.courseId : null;
+                    const totalScore = result.questionScores?.reduce((sum: number, qs: any) => sum + (qs.score || 0), 0) || 0;
+                    const maxScorePerQuestion = exam?.maxScorePerQuestion || 0;
+                    const totalMaxScore = result.questionScores?.length * maxScorePerQuestion || 0;
+                    const percentage = totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0;
+                    const successColor = percentage >= 60 ? "green" : percentage >= 40 ? "amber" : "red";
+                    
+                    return (
+                      <div
+                        key={result._id}
+                        className="group border border-brand-navy/20 dark:border-slate-700/50 rounded-lg p-4 sm:p-5 space-y-3 bg-white/50 dark:bg-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-semibold text-lg text-brand-navy dark:text-slate-100">
+                                {exam?.examCode || "Bilinmeyen Sınav"}
+                              </h3>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "text-xs",
+                                  exam?.examType === "midterm"
+                                    ? "bg-gradient-to-r from-brand-navy to-[#0f3a6b] text-white border-brand-navy"
+                                    : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200"
+                                )}
+                              >
+                                {exam?.examType === "midterm" ? "Vize" : "Final"}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
+                              {course ? `${course.code} - ${course.name}` : "Bilinmeyen Ders"}
+                            </p>
+                            {result.createdAt && (
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                {new Date(result.createdAt).toLocaleDateString("tr-TR", {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric"
+                                })}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right sm:text-left sm:min-w-[120px]">
+                            <div className="flex items-center gap-2 justify-end sm:justify-start mb-2">
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "text-sm font-semibold",
+                                  successColor === "green"
+                                    ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-500/30"
+                                    : successColor === "amber"
+                                    ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                                    : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-500/30"
+                                )}
+                              >
+                                {percentage}%
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-slate-600 dark:text-slate-400">
+                              {totalScore.toFixed(1)} / {totalMaxScore}
+                            </p>
+                            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 mt-2">
+                              <div
+                                className={cn(
+                                  "h-2 rounded-full transition-all",
+                                  successColor === "green"
+                                    ? "bg-green-500"
+                                    : successColor === "amber"
+                                    ? "bg-amber-500"
+                                    : "bg-red-500"
+                                )}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {result.questionScores && result.questionScores.length > 0 && (
+                          <div className="border-t border-brand-navy/10 dark:border-slate-700/50 pt-3">
+                            <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">Soru Puanları:</p>
+                            <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                              {result.questionScores.map((qs: any, idx: number) => {
+                                const qsPercentage = maxScorePerQuestion > 0 ? Math.round((qs.score / maxScorePerQuestion) * 100) : 0;
+                                const qsColor = qsPercentage >= 60 ? "green" : qsPercentage >= 40 ? "amber" : "red";
+                                return (
+                                  <div
+                                    key={idx}
+                                    className={cn(
+                                      "text-center border rounded-lg p-2 transition-all",
+                                      qsColor === "green"
+                                        ? "bg-green-50 dark:bg-green-900/10 border-green-500/30"
+                                        : qsColor === "amber"
+                                        ? "bg-amber-50 dark:bg-amber-900/10 border-amber-500/30"
+                                        : "bg-red-50 dark:bg-red-900/10 border-red-500/30"
+                                    )}
+                                  >
+                                    <div className="text-xs text-slate-600 dark:text-slate-400 mb-1">S{qs.questionNumber}</div>
+                                    <div className="font-semibold text-base text-brand-navy dark:text-slate-100">{qs.score}</div>
+                                    {qs.learningOutcomeCode && (
+                                      <div className="text-xs text-brand-navy dark:text-slate-300 mt-1 font-medium">{qs.learningOutcomeCode}</div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <StudentExamScoreTable scores={scores} />
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Course Selection for Achievements */}
-      {courses.length > 0 && (
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader>
-            <CardTitle>Ders Seçimi</CardTitle>
-            <CardDescription>
-              Öğrenme Çıktısı ve Program Çıktısı başarılarını görüntülemek için bir ders seçin
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <select
-              value={selectedCourseId}
-              onChange={(e) => setSelectedCourseId(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <option value="">Bir ders seçin</option>
-              {courses.map((course) => (
-                <option key={course._id} value={course._id}>
-                  {course.code} - {course.name}
-                </option>
-              ))}
-            </select>
-          </CardContent>
-        </Card>
-      )}
+        {/* Course Selection for Achievements - Şimdilik yorum satırında */}
+        {/* {courses.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+                  <Target className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                </div>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">ÖÇ ve PÇ Başarıları</h2>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Öğrenme Çıktısı ve Program Çıktısı başarılarını görüntülemek için bir ders seçin
+                  </p>
+                </div>
+              </div>
+            </div>
+            <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
+              <CardContent className="p-4 sm:p-6">
+                <div className="space-y-2">
+                  <Label htmlFor="course-select" className="text-sm font-medium text-brand-navy dark:text-slate-200">
+                    Ders Seçimi
+                  </Label>
+                  <Select
+                    id="course-select"
+                    value={selectedCourseId}
+                    onChange={(e) => setSelectedCourseId(e.target.value)}
+                    className="h-10 sm:h-11 text-sm border-brand-navy/20 focus:border-brand-navy/50"
+                  >
+                    <option value="">Bir ders seçin</option>
+                    {courses.map((course) => (
+                      <option key={course._id} value={course._id}>
+                        {course.code} - {course.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )} */}
 
-      {/* LO Achievement */}
-      {selectedCourseId && loAchievements.length > 0 && (
-        <StudentLOAchievementCard
-          achievements={loAchievements}
-          courseName={selectedCourse?.name}
-        />
-      )}
+        {/* LO Achievement - Şimdilik yorum satırında */}
+        {/* {selectedCourseId && selectedCourseId.trim() !== "" && (
+          <StudentLOAchievementCard
+            achievements={loAchievements}
+            courseName={selectedCourse?.name}
+          />
+        )} */}
 
-      {/* PO Achievement */}
-      {selectedCourseId && poAchievements.length > 0 && (
-        <StudentPOAchievementCard
-          achievements={poAchievements}
-          courseName={selectedCourse?.name}
-        />
-      )}
+        {/* PO Achievement - Şimdilik yorum satırında */}
+        {/* {selectedCourseId && selectedCourseId.trim() !== "" && (
+          <StudentPOAchievementCard
+            achievements={poAchievements}
+            courseName={selectedCourse?.name}
+          />
+        )} */}
+      </div>
     </div>
   );
 }
@@ -449,12 +696,11 @@ function StudentDetailContent() {
 export default function StudentDetailPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-navy" />
       </div>
     }>
       <StudentDetailContent />
     </Suspense>
   );
 }
-

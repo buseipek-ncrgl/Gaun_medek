@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { type Student } from "@/lib/api/studentApi";
 import { type Course } from "@/lib/api/courseApi";
 import { DeleteStudentDialog } from "./DeleteStudentDialog";
@@ -80,6 +81,16 @@ export function StudentTable({ students, courses = [], onDelete }: StudentTableP
     return null;
   };
 
+  // Get color for class level
+  const getClassLevelColor = (classLevel?: number) => {
+    if (!classLevel) return "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200";
+    if (classLevel === 1) return "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-500/30";
+    if (classLevel === 2) return "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-500/30";
+    if (classLevel === 3) return "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-500/30";
+    if (classLevel === 4) return "bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-500/30";
+    return "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200";
+  };
+
   if (students.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
@@ -90,84 +101,89 @@ export function StudentTable({ students, courses = [], onDelete }: StudentTableP
 
   return (
     <>
-      <div className="rounded-md border border-slate-200 overflow-hidden">
+      <div className="rounded-md border border-brand-navy/20 dark:border-slate-700/50 overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-slate-50">
-              <TableHead className="font-semibold text-slate-900">Öğrenci Numarası</TableHead>
-              <TableHead className="font-semibold text-slate-900">İsim</TableHead>
-              <TableHead className="font-semibold text-slate-900">Bölüm</TableHead>
-              <TableHead className="font-semibold text-slate-900">Program</TableHead>
-              <TableHead className="font-semibold text-slate-900">Sınıf Seviyesi</TableHead>
-              <TableHead className="text-right font-semibold text-slate-900">İşlemler</TableHead>
+            <TableRow className="bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-brand-navy hover:to-[#0f3a6b]">
+              <TableHead className="text-white font-semibold">Öğrenci Numarası</TableHead>
+              <TableHead className="text-white font-semibold">İsim</TableHead>
+              <TableHead className="text-white font-semibold">Bölüm</TableHead>
+              <TableHead className="text-white font-semibold">Program</TableHead>
+              <TableHead className="text-white font-semibold">Sınıf Seviyesi</TableHead>
+              <TableHead className="text-right text-white font-semibold">İşlemler</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {students.map((student, index) => (
+            {students.map((student) => (
               <TableRow
                 key={student._id}
-                className={index % 2 === 0 ? "bg-background hover:bg-slate-50" : "bg-muted/30 hover:bg-slate-50"}
+                className="hover:bg-brand-navy/5 dark:hover:bg-slate-800/50 transition-colors"
               >
-                <TableCell className="font-medium text-slate-900">
-                  <Badge variant="outline" className="font-mono">
+                <TableCell className="font-medium">
+                  <Badge variant="outline" className="font-mono bg-brand-navy/10 text-brand-navy border-brand-navy/30">
                     {student.studentNumber}
                   </Badge>
                 </TableCell>
-                <TableCell className="font-medium text-slate-700">{student.name}</TableCell>
+                <TableCell className="font-medium text-brand-navy dark:text-slate-100">
+                  {student.name}
+                </TableCell>
                 <TableCell>
                   {student.department ? (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="outline" className="bg-brand-navy/10 text-brand-navy border-brand-navy/30 text-xs">
                       {student.department}
                     </Badge>
                   ) : (
-                    <span className="text-muted-foreground">-</span>
+                    <span className="text-slate-400">-</span>
                   )}
                 </TableCell>
                 <TableCell>
                   {getStudentProgram(student) ? (
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600 text-xs">
                       {getStudentProgram(student)}
                     </Badge>
                   ) : (
-                    <span className="text-muted-foreground">-</span>
+                    <span className="text-slate-400">-</span>
                   )}
                 </TableCell>
                 <TableCell>
                   {student.classLevel ? (
-                    <Badge variant="outline" className="text-xs">
+                    <Badge 
+                      variant="outline" 
+                      className={cn("text-xs", getClassLevelColor(student.classLevel))}
+                    >
                       {student.classLevel}. Sınıf
                     </Badge>
                   ) : (
-                    <span className="text-muted-foreground">-</span>
+                    <span className="text-slate-400">-</span>
                   )}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
                       asChild
-                      className="h-8 w-8"
+                      className="h-8 w-8 hover:bg-brand-navy/10 hover:text-brand-navy"
                     >
                       <Link href={`/students/${student._id}`}>
                         <Eye className="h-4 w-4" />
                       </Link>
                     </Button>
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
                       asChild
-                      className="h-8 w-8"
+                      className="h-8 w-8 hover:bg-brand-navy/10 hover:text-brand-navy"
                     >
                       <Link href={`/students/${student._id}?edit=true`}>
                         <Edit className="h-4 w-4" />
                       </Link>
                     </Button>
                     <Button
-                      variant="destructive"
+                      variant="ghost"
                       size="icon"
                       onClick={() => handleDeleteClick(student)}
-                      className="h-8 w-8"
+                      className="h-8 w-8 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -191,4 +207,3 @@ export function StudentTable({ students, courses = [], onDelete }: StudentTableP
     </>
   );
 }
-
