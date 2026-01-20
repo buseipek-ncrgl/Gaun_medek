@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -37,6 +38,7 @@ const settingsNav = [
 export function Sidebar() {
   const { isOpen, setIsOpen } = useSidebar();
   const pathname = usePathname();
+  const [logoError, setLogoError] = React.useState(false);
 
   return (
     <>
@@ -60,11 +62,28 @@ export function Sidebar() {
         <div className="flex flex-col h-full">
           {/* Logo/Brand */}
           <div className="flex flex-col px-4 lg:px-6 py-4 lg:py-5 border-b border-white/10 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <GraduationCap className="h-6 w-6 text-white" />
-              <h1 className="text-xl lg:text-2xl font-bold text-white">MEDEK</h1>
+            <div className="flex items-center gap-3">
+              <div className="relative h-10 w-10 flex-shrink-0">
+                {logoError ? (
+                  <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">NT</span>
+                  </div>
+                ) : (
+                  <Image 
+                    src="/logo.png" 
+                    alt="NTMYO Logo" 
+                    width={40}
+                    height={40}
+                    className="object-contain"
+                    onError={() => setLogoError(true)}
+                  />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-sm lg:text-base font-bold text-white leading-tight">NTMYO</h1>
+                <p className="text-xs text-white/80 mt-0.5">Ölçme Değerlendirme</p>
+              </div>
             </div>
-            <p className="text-xs text-white/70 mt-1 ml-8">YÖNETİM SİSTEMİ</p>
           </div>
 
           {/* Navigation */}

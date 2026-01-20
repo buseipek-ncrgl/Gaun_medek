@@ -1,7 +1,7 @@
 {
-  "name": "gaun-mudek",
+  "name": "ntmyo-olcme-degerlendirme",
   "version": "1.0.0",
-  "description": "MEDEK Exam Automation System - Full Stack",
+  "description": "NTMYO Ölçme Değerlendirme Yönetim Sistemi - Full Stack",
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",

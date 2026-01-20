@@ -10,8 +10,8 @@ import { SidebarProvider } from "@/components/providers/SidebarProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "MEDEK Yönetim Paneli",
-  description: "Sınav değerlendirme ve çıktı analiz sistemi",
+  title: "NTMYO Ölçme Değerlendirme Yönetim Sistemi",
+  description: "Naci Topçuoğlu Meslek Yüksekokulu Ölçme Değerlendirme ve Çıktı Analiz Sistemi",
 };
 
 export default function RootLayout({

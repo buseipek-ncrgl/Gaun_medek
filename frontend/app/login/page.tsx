@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,10 +40,34 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#0a294e] flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
         {/* Sol panel */}
-        <div className="text-white space-y-4">
+        <div className="text-white space-y-6">
+          {/* Logo */}
+          <div className="flex items-center gap-4">
+            <div className="relative h-16 w-16 flex-shrink-0">
+              {logoError ? (
+                <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center border-2 border-white/30">
+                  <span className="text-white font-bold text-xl">NT</span>
+                </div>
+              ) : (
+                <Image 
+                  src="/logo.png" 
+                  alt="NTMYO Logo" 
+                  width={64}
+                  height={64}
+                  className="object-contain"
+                  onError={() => setLogoError(true)}
+                />
+              )}
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold">Naci Topçuoğlu</h2>
+              <p className="text-lg text-white/90">Meslek Yüksekokulu</p>
+            </div>
+          </div>
+          
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 bg-white/10 backdrop-blur">
             <ShieldCheck className="h-4 w-4" />
-            <span className="text-sm font-semibold">MEDEK Uyumlu Değerlendirme</span>
+            <span className="text-sm font-semibold">Ölçme Değerlendirme Yönetim Sistemi</span>
           </div>
           <h1 className="text-4xl lg:text-5xl font-bold leading-tight">
             Eğitmenler için basit, güvenli ve hızlı sınav yönetimi.
@@ -66,7 +92,7 @@ export default function LoginPage() {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-[#0a294e]">Giriş Yap</CardTitle>
             <p className="text-sm text-gray-600">
-              Kurumsal e-posta ve şifrenizle oturum açın.
+              NTMYO Ölçme Değerlendirme Yönetim Sistemi
             </p>
           </CardHeader>
           <CardContent>
