@@ -16,24 +16,15 @@ const ExamSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    questionCount: {
+    maxScore: {
       type: Number,
       required: true,
+      default: 100,
     },
-    maxScorePerQuestion: {
-      type: Number,
-      required: true,
-    },
-    questions: [
+    // Sınav bazlı ÖÇ eşleme - bu sınav hangi ÖÇ'lere eşlenecek
+    learningOutcomes: [
       {
-        questionNumber: {
-          type: Number,
-          required: true,
-        },
-        learningOutcomeCode: {
-          type: String, // e.g., "ÖÇ1"
-          required: true,
-        },
+        type: String, // ÖÇ kodu (örn: "ÖÇ1", "ÖÇ2")
       },
     ],
   },

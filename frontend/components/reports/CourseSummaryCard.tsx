@@ -44,10 +44,10 @@ export function CourseSummaryCard({
   const avgPO = calculateAverage(poAchievements);
 
   const loAboveThreshold = loAchievements.filter(
-    (a) => a.achievedPercentage >= 60
+    (a) => a.achievedPercentage >= 50 // 50 puan eşiği
   ).length;
   const poAboveThreshold = poAchievements.filter(
-    (a) => a.achievedPercentage >= 60
+    (a) => a.achievedPercentage >= 50 // 50 puan eşiği
   ).length;
 
   const loSuccessRate = loAchievements.length > 0
@@ -58,20 +58,17 @@ export function CourseSummaryCard({
     : 0;
 
   const getStatusColor = (percentage: number) => {
-    if (percentage >= 80) return "bg-green-500";
-    if (percentage >= 60) return "bg-yellow-500";
+    if (percentage >= 50) return "bg-green-500"; // 50 puan eşiği
     return "bg-red-500";
   };
 
   const getStatusText = (percentage: number) => {
-    if (percentage >= 80) return "Mükemmel";
-    if (percentage >= 60) return "Yeterli";
-    return "Yetersiz";
+    if (percentage >= 50) return "Başarılı"; // 50 puan eşiği
+    return "Başarısız";
   };
 
   const getTrendIcon = (percentage: number) => {
-    if (percentage >= 80) return <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />;
-    if (percentage >= 60) return <Minus className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />;
+    if (percentage >= 50) return <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />; // 50 puan eşiği
     return <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />;
   };
 
@@ -111,10 +108,8 @@ export function CourseSummaryCard({
                 <span className="text-muted-foreground">Durum:</span>
                 <Badge
                   className={
-                    avgLO >= 80
+                    avgLO >= 50
                       ? "bg-green-500"
-                      : avgLO >= 60
-                      ? "bg-yellow-500"
                       : "bg-red-500"
                   }
                 >
@@ -123,7 +118,7 @@ export function CourseSummaryCard({
               </div>
               <div className="pt-2 border-t">
                 <p className="text-sm text-muted-foreground">
-                  <strong>{loAboveThreshold}</strong> / {loAchievements.length} ÖÇ hedef eşiğini (≥60%) geçti
+                  <strong>{loAboveThreshold}</strong> / {loAchievements.length} ÖÇ hedef eşiğini (≥50%) geçti
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Başarı oranı: {loSuccessRate.toFixed(1)}%
@@ -158,10 +153,8 @@ export function CourseSummaryCard({
                 <span className="text-muted-foreground">Durum:</span>
                 <Badge
                   className={
-                    avgPO >= 80
+                    avgPO >= 50
                       ? "bg-green-500 text-xs sm:text-sm"
-                      : avgPO >= 60
-                      ? "bg-yellow-500 text-xs sm:text-sm"
                       : "bg-red-500 text-xs sm:text-sm"
                   }
                 >
@@ -170,7 +163,7 @@ export function CourseSummaryCard({
               </div>
               <div className="pt-2 border-t">
                 <p className="text-xs sm:text-sm text-muted-foreground break-words">
-                  <strong>{poAboveThreshold}</strong> / {displayPCCount} PÇ hedef eşiğini (≥60%) geçti
+                  <strong>{poAboveThreshold}</strong> / {displayPCCount} PÇ hedef eşiğini (≥50%) geçti
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Başarı oranı: {poSuccessRate.toFixed(1)}%

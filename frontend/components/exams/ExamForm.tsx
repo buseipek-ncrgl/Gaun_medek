@@ -48,14 +48,8 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
     initialData?.examType || "midterm"
   );
   const [examCode, setExamCode] = useState(initialData?.examCode || "");
-  const [questionCount, setQuestionCount] = useState<number>(
-    initialData?.questionCount || 0
-  );
-  const [maxScorePerQuestion, setMaxScorePerQuestion] = useState<number>(
-    initialData?.maxScorePerQuestion || 0
-  );
-  const [questions, setQuestions] = useState<QuestionRow[]>(
-    initialData?.questions || []
+  const [maxScore, setMaxScore] = useState<number>(
+    initialData?.maxScore || 100
   );
   const [existingExams, setExistingExams] = useState<Exam[]>([]);
   const [examCodeError, setExamCodeError] = useState("");
@@ -90,23 +84,7 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
     }
   }, [mode, initialData]);
 
-  useEffect(() => {
-    // questionCount değiştiğinde satırları otomatik üret
-    if (questionCount < 0 || Number.isNaN(questionCount)) return;
-    setQuestions((prev) => {
-      const updated: QuestionRow[] = [];
-      for (let i = 0; i < questionCount; i++) {
-        const existing = prev.find((q) => q.questionNumber === i + 1);
-        updated.push(
-          existing || {
-            questionNumber: i + 1,
-            learningOutcomeCode: "",
-          }
-        );
-      }
-      return updated;
-    });
-  }, [questionCount]);
+  // Soru bazlı işlem kaldırıldı - artık genel puan kullanılıyor
 
   const fetchCourses = async () => {
     try {
@@ -188,12 +166,8 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
       toast.error(examCodeError);
       return false;
     }
-    if (!questionCount || questionCount <= 0) {
-      toast.error("Soru sayısı 1 veya daha büyük olmalıdır");
-      return false;
-    }
-    if (!maxScorePerQuestion || maxScorePerQuestion <= 0) {
-      toast.error("Soru başına maksimum puan zorunludur");
+    if (!maxScore || maxScore <= 0) {
+      toast.error("Maksimum puan 1 veya daha büyük olmalıdır");
       return false;
     }
     for (const q of questions) {
@@ -218,9 +192,7 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
         courseId,
         examType,
         examCode: examCode.trim(),
-        questionCount: Number(questionCount),
-        maxScorePerQuestion: Number(maxScorePerQuestion),
-        questions: questions.filter((q) => q.learningOutcomeCode.trim() !== ""),
+        maxScore: Number(maxScore),
       };
 
       if (mode === "create") {
@@ -314,32 +286,21 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
           )}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="questionCount">
-            Soru Sayısı <span className="text-red-500">*</span>
+          <Label htmlFor="maxScore">
+            Maksimum Puan <span className="text-red-500">*</span>
           </Label>
           <Input
-            id="questionCount"
+            id="maxScore"
             type="number"
             min={1}
-            value={questionCount}
-            onChange={(e) => setQuestionCount(Number(e.target.value))}
+            value={maxScore}
+            onChange={(e) => setMaxScore(Number(e.target.value))}
             disabled={isSubmitting}
             className="h-12 text-base"
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="maxScorePerQuestion">
-            Soru Başına Max Puan <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="maxScorePerQuestion"
-            type="number"
-            min={1}
-            value={maxScorePerQuestion}
-            onChange={(e) => setMaxScorePerQuestion(Number(e.target.value))}
-            disabled={isSubmitting}
-            className="h-12 text-base"
-          />
+          <p className="text-sm text-muted-foreground">
+            Sınav için maksimum toplam puan
+          </p>
         </div>
       </div>
 

@@ -1,11 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Image optimization
-  images: {
-    unoptimized: false,
-    formats: ['image/avif', 'image/webp'],
-  },
   // Webpack cache sorunlarını önlemek için
   webpack: (config, { isServer }) => {
     // Cache ayarlarını optimize et

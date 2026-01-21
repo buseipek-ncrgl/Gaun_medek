@@ -1,4 +1,6 @@
 import sharp from "sharp";
+import fs from "fs";
+import path from "path";
 
 // Check if OpenCV is enabled via environment variable
 const ENABLE_OPENCV = process.env.ENABLE_OPENCV === "true";
@@ -93,24 +95,19 @@ async function warpAndDefineROIs(imageBuffer, markers) {
       { x: 1120, y: 1350, w: 140, h: 140 },
     ];
 
-    const questionScoreBoxes = [
-      { number: 1, x: 1500, y: 1650, w: 350, h: 120 },
-      { number: 2, x: 1500, y: 1770, w: 350, h: 120 },
-      { number: 3, x: 1500, y: 1890, w: 350, h: 120 },
-      { number: 4, x: 1500, y: 2010, w: 350, h: 120 },
-      { number: 5, x: 1500, y: 2130, w: 350, h: 120 },
-      { number: 6, x: 1500, y: 2250, w: 350, h: 120 },
-      { number: 7, x: 1500, y: 2370, w: 350, h: 120 },
-      { number: 8, x: 1500, y: 2490, w: 350, h: 120 },
-      { number: 9, x: 1500, y: 2610, w: 350, h: 120 },
-      { number: 10, x: 1500, y: 2730, w: 350, h: 120 },
-    ];
+    // Genel puan kutusu - tek bir kutu (soru bazlı değil)
+    const totalScoreBox = {
+      x: 1500,
+      y: 1650,
+      w: 350,
+      h: 120,
+    };
 
     return {
       warpedImage: warpedBuffer,
       studentNumberBoxes,
       examIdBoxes,
-      questionScoreBoxes,
+      totalScoreBox, // Soru bazlı kutular yerine tek genel puan kutusu
     };
   } catch (error) {
     throw new Error(`ROI warping failed: ${error.message}`);
@@ -141,5 +138,104 @@ async function cropROI(warpedImageBuffer, roi) {
   }
 }
 
-export { warpAndDefineROIs, cropROI };
+/**
+ * Crop genel puan kutusunu kes (marker varsa warp ile, yoksa template fallback)
+ * @param {Buffer} pngBuffer - PNG image buffer
+ * @param {Object} markers - Marker detection result
+ * @returns {Promise<Object>} Cropped image buffer and file path
+ */
+async function cropTotalScoreBox(pngBuffer, markers) {
+  // Save temp image helper
+  const saveTempImage = (buffer, filename) => {
+    const tempDir = path.join(process.cwd(), "temp", "exam_crops");
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    const filePath = path.join(tempDir, filename);
+    fs.writeFileSync(filePath, buffer);
+    return filePath;
+  };
+
+  // Marker başarıyla bulunmuşsa warp + totalScoreBox
+  if (markers?.success) {
+    try {
+      const { warpedImage, totalScoreBox } = await warpAndDefineROIs(pngBuffer, markers);
+      const buf = await cropROI(warpedImage, totalScoreBox);
+      const filePath = saveTempImage(buf, `total_score_${Date.now()}.png`);
+      return {
+        buffer: buf,
+        imagePath: filePath,
+      };
+    } catch (warpError) {
+      console.warn("⚠️ Warp failed, falling back to template coordinates:", warpError.message);
+      // Fall through to template fallback below
+    }
+  }
+
+  // Fallback: template koordinatları ile orijinal PNG üzerinden kes
+  const imageMetadata = await sharp(pngBuffer).metadata();
+  const imageWidth = imageMetadata.width || 2480;
+  const imageHeight = imageMetadata.height || 3508;
+  
+  console.log(`📐 Image dimensions: ${imageWidth}x${imageHeight}`);
+  console.log(`📋 Using template fallback for total score box`);
+  
+  // Genel puan kutusu koordinatları (fallback)
+  const totalScoreBox = {
+    x: 1500,
+    y: 1650,
+    w: 350,
+    h: 120,
+  };
+  
+  // Yüzde değerlerini piksel değerlerine çevir (eğer yüzde kullanılıyorsa)
+  const x = totalScoreBox.x !== undefined ? totalScoreBox.x : Math.round((totalScoreBox.xPercent || 60) * imageWidth / 100);
+  const y = totalScoreBox.y !== undefined ? totalScoreBox.y : Math.round((totalScoreBox.yPercent || 47) * imageHeight / 100);
+  const w = totalScoreBox.w !== undefined ? totalScoreBox.w : Math.round((totalScoreBox.wPercent || 14) * imageWidth / 100);
+  const h = totalScoreBox.h !== undefined ? totalScoreBox.h : Math.round((totalScoreBox.hPercent || 3.4) * imageHeight / 100);
+  
+  // Koordinatları doğrula
+  if (x === undefined || y === undefined || w === undefined || h === undefined || 
+      isNaN(x) || isNaN(y) || isNaN(w) || isNaN(h) || x < 0 || y < 0 || w <= 0 || h <= 0) {
+    throw new Error(`Invalid coordinates for total score box: x=${x}, y=${y}, w=${w}, h=${h}`);
+  }
+  
+  // Koordinatların görüntü sınırları içinde olduğunu kontrol et
+  if (x + w > imageWidth || y + h > imageHeight) {
+    console.warn(`⚠️ Total score box coordinates exceed image bounds. Adjusting...`);
+    const adjustedW = Math.min(w, imageWidth - x);
+    const adjustedH = Math.min(h, imageHeight - y);
+    if (adjustedW <= 0 || adjustedH <= 0) {
+      throw new Error(`Total score box cannot be cropped (out of bounds)`);
+    }
+    
+    const buf = await sharp(pngBuffer)
+      .extract({ left: x, top: y, width: adjustedW, height: adjustedH })
+      .png()
+      .toBuffer();
+    const filePath = saveTempImage(buf, `total_score_${Date.now()}.png`);
+    console.log(`✅ Cropped total score box (adjusted): x=${x}, y=${y}, w=${adjustedW}, h=${adjustedH}`);
+    return {
+      buffer: buf,
+      imagePath: filePath,
+    };
+  }
+  
+  try {
+    const buf = await sharp(pngBuffer)
+      .extract({ left: x, top: y, width: w, height: h })
+      .png()
+      .toBuffer();
+    const filePath = saveTempImage(buf, `total_score_${Date.now()}.png`);
+    console.log(`✅ Cropped total score box: x=${x}, y=${y}, w=${w}, h=${h}`);
+    return {
+      buffer: buf,
+      imagePath: filePath,
+    };
+  } catch (error) {
+    throw new Error(`Failed to crop total score box: ${error.message}`);
+  }
+}
+
+export { warpAndDefineROIs, cropROI, cropTotalScoreBox };
 

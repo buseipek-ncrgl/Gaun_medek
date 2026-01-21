@@ -32,12 +32,13 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    /* Brand Colors */
+    /* Brand Colors - NTMYO Logo Colors */
     --brand-navy: 215 78% 16%;
     --brand-navy-light: 215 78% 20%;
     --brand-navy-dark: 215 78% 12%;
-    --brand-red: 0 72% 51%;
-    --brand-red-light: 0 72% 55%;
+    --brand-red: 0 72% 45%; /* #bf1e1d */
+    --brand-red-light: 0 72% 50%; /* #dc2626 */
+    --brand-red-dark: 0 72% 40%; /* #991b1a */
     --brand-gray: 215 16% 47%;
     --brand-gray-light: 215 16% 52%;
     --brand-gray-dark: 215 16% 42%;
@@ -73,12 +74,13 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    /* Brand Colors - Dark Mode */
+    /* Brand Colors - Dark Mode - NTMYO Logo Colors */
     --brand-navy: 215 78% 20%;
     --brand-navy-light: 215 78% 24%;
     --brand-navy-dark: 215 78% 16%;
-    --brand-red: 0 72% 55%;
-    --brand-red-light: 0 72% 60%;
+    --brand-red: 0 72% 50%; /* #bf1e1d */
+    --brand-red-light: 0 72% 55%; /* #dc2626 */
+    --brand-red-dark: 0 72% 45%; /* #991b1a */
     --brand-gray: 215 16% 52%;
     --brand-gray-light: 215 16% 57%;
     --brand-gray-dark: 215 16% 47%;

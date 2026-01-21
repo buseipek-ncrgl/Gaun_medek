@@ -10,9 +10,10 @@ export interface AIProcessResponse {
   sessionId: string;
   studentNumber: string;
   examId: string;
-  answers: AIAnswer[];
+  totalScore: number; // Tek genel puan (soru bazlı değil)
 }
 
+// Deprecated: Artık kullanılmıyor, totalScore kullanılıyor
 export interface AIAnswer {
   questionId?: string;
   number: number;

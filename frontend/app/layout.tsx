@@ -11,7 +11,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "NTMYO Ölçme Değerlendirme Yönetim Sistemi",
-  description: "Naci Topçuoğlu Meslek Yüksekokulu Ölçme Değerlendirme ve Çıktı Analiz Sistemi",
+  description: "NTMYO Ölçme Değerlendirme Yönetim Sistemi - Sınav değerlendirme ve çıktı analiz sistemi",
 };
 
 export default function RootLayout({

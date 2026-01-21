@@ -227,7 +227,7 @@ export default function CourseReportPage() {
                 {course.code} - {course.name}
               </h1>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                MEDEK Akreditasyon Raporu
+                NTMYO Akreditasyon Raporu
               </p>
             </div>
           </div>

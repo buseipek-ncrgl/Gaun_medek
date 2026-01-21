@@ -11,7 +11,7 @@ import Question from "../models/Question.js";
 import { createNotification } from "./notificationController.js";
 import { pdfToPng } from "../utils/pdfToPng.js";
 import { detectMarkers } from "../utils/markerDetect.js";
-import { warpAndDefineROIs, cropROI } from "../utils/roiCrop.js";
+import { warpAndDefineROIs, cropROI, cropTotalScoreBox } from "../utils/roiCrop.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -63,116 +63,7 @@ const saveTempImage = (buffer, filename) => {
   return filePath;
 };
 
-// Yardımcı: Soru bölgelerini kes (marker varsa warp ile, yoksa template fallback)
-const cropQuestionRegions = async (pngBuffer, markers) => {
-  // Marker başarıyla bulunmuşsa warp + questionScoreBoxes
-  if (markers?.success) {
-    try {
-      const { warpedImage, questionScoreBoxes } = await warpAndDefineROIs(pngBuffer, markers);
-      const crops = [];
-      for (const box of questionScoreBoxes) {
-        const buf = await cropROI(warpedImage, box);
-        const filePath = saveTempImage(buf, `q${box.number}_${Date.now()}.png`);
-        crops.push({
-          questionNumber: box.number,
-          buffer: buf,
-          imagePath: filePath,
-        });
-      }
-      return crops;
-    } catch (warpError) {
-      console.warn("⚠️ Warp failed, falling back to template coordinates:", warpError.message);
-      // Fall through to template fallback below
-    }
-  }
-
-  // Fallback: template koordinatları ile orijinal PNG üzerinden kes
-  // Template'te koordinatlar yüzde olarak saklanıyor, piksel değerlerine çevir
-  const imageMetadata = await sharp(pngBuffer).metadata();
-  const imageWidth = imageMetadata.width || template.templateSize.width;
-  const imageHeight = imageMetadata.height || template.templateSize.height;
-  
-  console.log(`📐 Image dimensions: ${imageWidth}x${imageHeight}`);
-  console.log(`📋 Using template fallback (OpenCV not available or markers not found)`);
-  
-  const fallbackBoxes = template.questionScoreBoxes || [];
-  
-  if (fallbackBoxes.length === 0) {
-    throw new Error("Template'te soru koordinatları bulunamadı.");
-  }
-  
-  const crops = [];
-  
-  for (const box of fallbackBoxes) {
-    // Yüzde değerlerini piksel değerlerine çevir
-    const x = box.x !== undefined ? box.x : Math.round((box.xPercent || 0) * imageWidth / 100);
-    const y = box.y !== undefined ? box.y : Math.round((box.yPercent || 0) * imageHeight / 100);
-    const w = box.w !== undefined ? box.w : Math.round((box.wPercent || 0) * imageWidth / 100);
-    const h = box.h !== undefined ? box.h : Math.round((box.hPercent || 0) * imageHeight / 100);
-    
-    // Koordinatları doğrula
-    if (x === undefined || y === undefined || w === undefined || h === undefined || 
-        isNaN(x) || isNaN(y) || isNaN(w) || isNaN(h) || x < 0 || y < 0 || w <= 0 || h <= 0) {
-      console.error(`⚠️ Invalid coordinates for question ${box.number}:`, { x, y, w, h, box });
-      continue; // Bu soruyu atla
-    }
-    
-    // Koordinatların görüntü sınırları içinde olduğunu kontrol et
-    if (x + w > imageWidth || y + h > imageHeight) {
-      console.warn(`⚠️ Question ${box.number} coordinates exceed image bounds. Adjusting...`);
-      // Sınırları ayarla
-      const adjustedW = Math.min(w, imageWidth - x);
-      const adjustedH = Math.min(h, imageHeight - y);
-      if (adjustedW <= 0 || adjustedH <= 0) {
-        console.error(`❌ Question ${box.number} cannot be cropped (out of bounds)`);
-        continue;
-      }
-      
-      try {
-        const buf = await sharp(pngBuffer)
-          .extract({ left: x, top: y, width: adjustedW, height: adjustedH })
-          .png()
-          .toBuffer();
-        const filePath = saveTempImage(buf, `q${box.number}_${Date.now()}.png`);
-        crops.push({
-          questionNumber: box.number,
-          buffer: buf,
-          imagePath: filePath,
-        });
-        continue;
-      } catch (error) {
-        console.error(`❌ Failed to crop question ${box.number} (adjusted):`, error.message);
-        continue;
-      }
-    }
-    
-    try {
-      const buf = await sharp(pngBuffer)
-        .extract({ left: x, top: y, width: w, height: h })
-        .png()
-        .toBuffer();
-      const filePath = saveTempImage(buf, `q${box.number}_${Date.now()}.png`);
-      crops.push({
-        questionNumber: box.number,
-        buffer: buf,
-        imagePath: filePath,
-      });
-      console.log(`✅ Cropped question ${box.number}: x=${x}, y=${y}, w=${w}, h=${h}`);
-    } catch (error) {
-      console.error(`❌ Failed to crop question ${box.number}:`, error.message);
-      console.error(`   Coordinates: x=${x}, y=${y}, w=${w}, h=${h}`);
-      console.error(`   Image size: ${imageWidth}x${imageHeight}`);
-      // Devam et, diğer soruları işle
-    }
-  }
-  
-  if (crops.length === 0) {
-    throw new Error("Hiçbir soru bölgesi kesilemedi. Template koordinatlarını ve görüntü boyutlarını kontrol edin.");
-  }
-  
-  console.log(`✅ Successfully cropped ${crops.length}/${fallbackBoxes.length} questions`);
-  return crops;
-};
+// cropTotalScoreBox artık utils/roiCrop.js'de tanımlı
 
 // Yardımcı: Dosya adından veya template koordinatlarından öğrenci no çıkar
 const extractStudentNumberFromFile = async (fileName, pngBuffer) => {
@@ -258,22 +149,21 @@ const createExam = async (req, res) => {
       courseId,
       examType,
       examCode,
-      questionCount,
-      maxScorePerQuestion,
-      questions,
+      maxScore,
+      learningOutcomes, // Sınav bazlı ÖÇ eşleme array'i
     } = req.body;
 
-    if (!courseId || !examType || !examCode || !questionCount || !maxScorePerQuestion) {
+    if (!courseId || !examType || !examCode || !maxScore) {
       return res.status(400).json({
         success: false,
-        message: "courseId, examType, examCode, questionCount, maxScorePerQuestion zorunludur",
+        message: "courseId, examType, examCode, maxScore zorunludur",
       });
     }
 
-    if (Number(questionCount) <= 0 || Number(maxScorePerQuestion) <= 0) {
+    if (Number(maxScore) <= 0) {
       return res.status(400).json({
         success: false,
-        message: "questionCount ve maxScorePerQuestion pozitif olmalıdır",
+        message: "maxScore pozitif olmalıdır",
       });
     }
 
@@ -309,35 +199,26 @@ const createExam = async (req, res) => {
       });
     }
 
-    if (!Array.isArray(questions) || questions.length !== Number(questionCount)) {
-      return res.status(400).json({
-        success: false,
-        message: "questions dizisi questionCount ile aynı uzunlukta olmalıdır",
-      });
+    // ÖÇ eşleme validasyonu
+    let normalizedLOs = [];
+    if (learningOutcomes && Array.isArray(learningOutcomes) && learningOutcomes.length > 0) {
+      const loCodes = course.learningOutcomes.map((lo) => lo.code);
+      normalizedLOs = learningOutcomes.filter((loCode) => loCodes.includes(loCode));
+      
+      if (normalizedLOs.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Seçilen ÖÇ kodları geçersiz veya bu ders için tanımlı değil",
+        });
+      }
     }
-
-    const loCodes = course.learningOutcomes.map((lo) => lo.code);
-    const normalizedQuestions = questions.map((q, idx) => {
-      const qNum = q?.questionNumber ?? idx + 1;
-      if (!q.learningOutcomeCode) {
-        throw new Error(`Soru ${qNum}: learningOutcomeCode gereklidir`);
-      }
-      if (!loCodes.includes(q.learningOutcomeCode)) {
-        throw new Error(`Soru ${qNum}: learningOutcomeCode geçersiz (${q.learningOutcomeCode})`);
-      }
-      return {
-        questionNumber: qNum,
-        learningOutcomeCode: q.learningOutcomeCode,
-      };
-    });
 
     const exam = new Exam({
       courseId,
       examType,
       examCode: examCode.trim(),
-      questionCount: Number(questionCount),
-      maxScorePerQuestion: Number(maxScorePerQuestion),
-      questions: normalizedQuestions,
+      maxScore: Number(maxScore),
+      learningOutcomes: normalizedLOs, // Sınav bazlı ÖÇ eşleme
     });
 
     const savedExam = await exam.save();
@@ -346,14 +227,12 @@ const createExam = async (req, res) => {
     if (examType === "midterm") {
       course.midtermExam = {
         examCode: examCode.trim(),
-        questionCount: Number(questionCount),
-        maxScorePerQuestion: Number(maxScorePerQuestion),
+        maxScore: Number(maxScore),
       };
     } else if (examType === "final") {
       course.finalExam = {
         examCode: examCode.trim(),
-        questionCount: Number(questionCount),
-        maxScorePerQuestion: Number(maxScorePerQuestion),
+        maxScore: Number(maxScore),
       };
     }
     await course.save();
@@ -437,9 +316,8 @@ const updateExam = async (req, res) => {
     const {
       examType,
       examCode,
-      questionCount,
-      maxScorePerQuestion,
-      questions,
+      maxScore,
+      learningOutcomes, // Sınav bazlı ÖÇ eşleme array'i
     } = req.body;
 
     const existingExam = await Exam.findById(id);
@@ -475,36 +353,32 @@ const updateExam = async (req, res) => {
       });
     }
 
-    const loCodes = course.learningOutcomes?.map((lo) => lo.code) || [];
-    let normalizedQuestions;
-    if (questions !== undefined) {
-      if (!Array.isArray(questions)) {
+    // ÖÇ eşleme validasyonu
+    let normalizedLOs;
+    if (learningOutcomes !== undefined) {
+      if (!Array.isArray(learningOutcomes)) {
         return res.status(400).json({
           success: false,
-          message: "questions dizisi geçersiz",
+          message: "learningOutcomes bir array olmalıdır",
         });
       }
-      normalizedQuestions = questions.map((q, idx) => {
-        const qNum = q?.questionNumber ?? idx + 1;
-        if (!q.learningOutcomeCode) {
-          throw new Error(`Soru ${qNum}: learningOutcomeCode gereklidir`);
-        }
-        if (!loCodes.includes(q.learningOutcomeCode)) {
-          throw new Error(`Soru ${qNum}: learningOutcomeCode geçersiz (${q.learningOutcomeCode})`);
-        }
-        return {
-          questionNumber: qNum,
-          learningOutcomeCode: q.learningOutcomeCode,
-        };
-      });
+      
+      const loCodes = course.learningOutcomes?.map((lo) => lo.code) || [];
+      normalizedLOs = learningOutcomes.filter((loCode) => loCodes.includes(loCode));
+      
+      if (learningOutcomes.length > 0 && normalizedLOs.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Seçilen ÖÇ kodları geçersiz veya bu ders için tanımlı değil",
+        });
+      }
     }
 
     const updateData = {};
     if (examType !== undefined) updateData.examType = examType;
     if (examCode !== undefined) updateData.examCode = examCode.trim();
-    if (questionCount !== undefined) updateData.questionCount = Number(questionCount);
-    if (maxScorePerQuestion !== undefined) updateData.maxScorePerQuestion = Number(maxScorePerQuestion);
-    if (normalizedQuestions !== undefined) updateData.questions = normalizedQuestions;
+    if (maxScore !== undefined) updateData.maxScore = Number(maxScore);
+    if (normalizedLOs !== undefined) updateData.learningOutcomes = normalizedLOs;
 
     const updatedExam = await Exam.findByIdAndUpdate(id, updateData, {
       new: true,
@@ -516,14 +390,12 @@ const updateExam = async (req, res) => {
     if (currentExamType === "midterm") {
       course.midtermExam = {
         examCode: (examCode !== undefined ? examCode.trim() : existingExam.examCode),
-        questionCount: (questionCount !== undefined ? Number(questionCount) : existingExam.questionCount),
-        maxScorePerQuestion: (maxScorePerQuestion !== undefined ? Number(maxScorePerQuestion) : existingExam.maxScorePerQuestion),
+        maxScore: (maxScore !== undefined ? Number(maxScore) : existingExam.maxScore),
       };
     } else if (currentExamType === "final") {
       course.finalExam = {
         examCode: (examCode !== undefined ? examCode.trim() : existingExam.examCode),
-        questionCount: (questionCount !== undefined ? Number(questionCount) : existingExam.questionCount),
-        maxScorePerQuestion: (maxScorePerQuestion !== undefined ? Number(maxScorePerQuestion) : existingExam.maxScorePerQuestion),
+        maxScore: (maxScore !== undefined ? Number(maxScore) : existingExam.maxScore),
       };
     }
     await course.save();
@@ -634,90 +506,54 @@ const startBatchScore = async (req, res) => {
             // Continue with fallback template coordinates
           }
 
-          // 4) Crop (will use template fallback if OpenCV disabled)
-          const questionCrops = await cropQuestionRegions(pngBuffer, markers);
-          console.log(`✅ [Batch ${studentNumber}] Cropped ${questionCrops.length} question regions`);
-          
-          // Log crop details
-          questionCrops.forEach((crop) => {
-            console.log(`  - Question ${crop.questionNumber}: ${crop.imagePath || 'no path'}`);
-          });
+          // 4) Crop genel puan kutusu (will use template fallback if OpenCV disabled)
+          const totalScoreCrop = await cropTotalScoreBox(pngBuffer, markers);
+          console.log(`✅ [Batch ${studentNumber}] Cropped total score box: ${totalScoreCrop.imagePath || 'no path'}`);
 
-          // 5) Gemini skor
-          console.log(`\n📊 [Batch ${studentNumber}] Starting Gemini score extraction for ${questionCrops.length} questions...`);
-          const scored = [];
-          for (const crop of questionCrops) {
-            try {
-              console.log(`\n🔍 [Batch ${studentNumber} - Q${crop.questionNumber}] Calling Gemini API...`);
-              console.log(`   Image path: ${crop.imagePath || 'in-memory'}`);
-              const score = await extractNumberFromImage(crop.buffer);
-              console.log(`   ✅ [Batch ${studentNumber} - Q${crop.questionNumber}] Final score: ${score}`);
-              scored.push({ questionNumber: crop.questionNumber, score });
-            } catch (err) {
-              console.error(`   ❌ [Batch ${studentNumber} - Q${crop.questionNumber}] Score extraction failed:`, err.message);
-              scored.push({ questionNumber: crop.questionNumber, score: 0, error: err.message });
-            }
+          // 5) Gemini genel puan okuma
+          console.log(`\n📊 [Batch ${studentNumber}] Starting Gemini total score extraction...`);
+          let totalScore = 0;
+          try {
+            console.log(`\n🔍 [Batch ${studentNumber}] Calling Gemini API for total score...`);
+            console.log(`   Image path: ${totalScoreCrop.imagePath || 'in-memory'}`);
+            totalScore = await extractNumberFromImage(totalScoreCrop.buffer, "total score");
+            console.log(`   ✅ [Batch ${studentNumber}] Total score extracted: ${totalScore}`);
+          } catch (err) {
+            console.error(`   ❌ [Batch ${studentNumber}] Total score extraction failed:`, err.message);
+            throw new Error(`Genel puan okunamadı: ${err.message}`);
           }
           
-          console.log(`\n📊 [Batch ${studentNumber}] Score Summary:`);
-          console.log(`   Total questions: ${scored.length}`);
-          console.log(`   Non-zero scores: ${scored.filter(s => s.score > 0).length}`);
-          console.log(`   Zero scores: ${scored.filter(s => s.score === 0).length}`);
-          scored.forEach((s) => {
-            console.log(`   Q${s.questionNumber}: ${s.score}${s.error ? ` (error: ${s.error})` : ''}`);
-          });
+          // Calculate max score and percentage
+          const maxTotalScore = exam.maxScore || 0;
+          const percentage = maxTotalScore > 0 ? (totalScore / maxTotalScore) * 100 : 0;
+          
+          console.log(`📊 [Batch ${studentNumber}] Total score: ${totalScore}/${maxTotalScore} (${percentage.toFixed(2)}%)`);
 
-          // 6) ÖÇ eşleştir
-          const loMap = new Map(
-            (exam.questions || []).map((q) => [Number(q.questionNumber), q.learningOutcomeCode])
-          );
-          console.log(`📊 [Batch ${studentNumber}] ÖÇ eşleştirme haritası:`, Array.from(loMap.entries()));
-          const mergedScores = scored.map((item) => {
-            const loCode = loMap.get(item.questionNumber) || loMap.get(Number(item.questionNumber)) || null;
-            if (!loCode) {
-              console.warn(`⚠️ [Batch ${studentNumber}] Soru ${item.questionNumber} için ÖÇ kodu bulunamadı!`);
-            }
-            return {
-              questionNumber: item.questionNumber,
-              score: item.score,
-              learningOutcomeCode: loCode,
-            };
-          });
-          console.log(`📊 [Batch ${studentNumber}] Merged scores (ilk 3):`, mergedScores.slice(0, 3).map(s => `Q${s.questionNumber}:${s.score} (ÖÇ:${s.learningOutcomeCode || 'YOK'})`));
-
-          // 7) ÖÇ ve PÇ performansını hesapla
+          // 6) ÖÇ ve PÇ performansını hesapla (genel puan bazlı)
           let outcomePerformance = {};
           let programOutcomePerformance = {};
           
           if (courseForProcessing && courseForProcessing.learningOutcomes && courseForProcessing.learningOutcomes.length > 0) {
-            // Tek öğrenci için soru analizi oluştur
-            const questionAnalysis = mergedScores.map((qs) => {
-              const maxScore = exam.maxScorePerQuestion || 0;
-              const success = maxScore > 0 ? (qs.score / maxScore) * 100 : 0;
-              return {
-                questionNumber: qs.questionNumber,
-                maxScore,
-                averageScore: qs.score,
-                successRate: success,
-                learningOutcomeCode: qs.learningOutcomeCode,
-                attempts: 1,
-              };
-            });
+            // Genel puanı tüm ÖÇ'lere eşit dağıt (veya sınav yapısına göre dağıt)
+            // Basit yaklaşım: Genel puan yüzdesini tüm ÖÇ'lere uygula
+            const loPerformance = (courseForProcessing.learningOutcomes || []).map((lo) => ({
+              code: lo.code,
+              description: lo.description,
+              success: percentage, // Genel puan yüzdesi = ÖÇ başarısı
+            }));
             
-            // ÖÇ performansını hesapla
-            const loPerformance = calculateOutcomePerformance(questionAnalysis, exam, courseForProcessing);
             outcomePerformance = Object.fromEntries(
               loPerformance.map((lo) => [lo.code, lo.success])
             );
             
-            // PÇ performansını hesapla
+            // PÇ performansını hesapla (ÖÇ'lerden)
             const poPerformance = calculateProgramOutcomePerformance(loPerformance, courseForProcessing);
             programOutcomePerformance = Object.fromEntries(
               poPerformance.map((po) => [po.code, po.success])
             );
           }
 
-          // 8) Kaydet veya Güncelle (upsert)
+          // 7) Kaydet veya Güncelle (upsert)
           // Aynı öğrenci aynı sınavda birden fazla kayıt olmasın - son sonuç geçerli
           await StudentExamResult.findOneAndUpdate(
             {
@@ -728,7 +564,9 @@ const startBatchScore = async (req, res) => {
               studentNumber,
               examId,
               courseId: exam.courseId,
-              questionScores: mergedScores,
+              totalScore,
+              maxScore: maxTotalScore,
+              percentage: Math.round(percentage * 100) / 100,
               outcomePerformance,
               programOutcomePerformance,
             },
@@ -988,100 +826,58 @@ const submitExamScores = async (req, res) => {
     // 2) Marker detection (with fallback)
     const markers = await detectMarkers(pngBuffer);
 
-    // 3) Crop question regions (warp if markers success, else template fallback)
+    // 3) Crop genel puan kutusu (warp if markers success, else template fallback)
     console.log(`📸 Starting crop process... Markers success: ${markers?.success || false}`);
-    const questionCrops = await cropQuestionRegions(pngBuffer, markers);
-    console.log(`✅ Cropped ${questionCrops.length} question regions`);
-    
-    // Log crop details
-    questionCrops.forEach((crop) => {
-      console.log(`  - Question ${crop.questionNumber}: ${crop.imagePath || 'no path'}`);
-    });
+    const totalScoreCrop = await cropTotalScoreBox(pngBuffer, markers);
+    console.log(`✅ Cropped total score box: ${totalScoreCrop.imagePath || 'no path'}`);
 
-    // 4) Gemini Vision: skor okuma
-    console.log(`\n📊 Starting Gemini score extraction for ${questionCrops.length} questions...`);
-    const scored = [];
-    for (const crop of questionCrops) {
-      try {
-        console.log(`\n🔍 [Question ${crop.questionNumber}] Calling Gemini API...`);
-        console.log(`   Image path: ${crop.imagePath || 'in-memory'}`);
-        const score = await extractNumberFromImage(crop.buffer);
-        console.log(`   ✅ [Question ${crop.questionNumber}] Final score: ${score}`);
-        scored.push({ questionNumber: crop.questionNumber, score });
-      } catch (err) {
-        console.error(`   ❌ [Question ${crop.questionNumber}] Score extraction failed:`, err.message);
-        scored.push({ questionNumber: crop.questionNumber, score: 0, error: err.message });
-      }
+    // 4) Gemini Vision: Genel puan okuma
+    console.log(`\n📊 Starting Gemini total score extraction...`);
+    let totalScore = 0;
+    try {
+      console.log(`\n🔍 Calling Gemini API for total score...`);
+      console.log(`   Image path: ${totalScoreCrop.imagePath || 'in-memory'}`);
+      totalScore = await extractNumberFromImage(totalScoreCrop.buffer);
+      console.log(`   ✅ Total score extracted: ${totalScore}`);
+    } catch (err) {
+      console.error(`   ❌ Total score extraction failed:`, err.message);
+      return res.status(500).json({
+        success: false,
+        message: `Genel puan okunamadı: ${err.message}`,
+      });
     }
     
-    console.log(`\n📊 Score Summary:`);
-    console.log(`   Total questions: ${scored.length}`);
-    console.log(`   Non-zero scores: ${scored.filter(s => s.score > 0).length}`);
-    console.log(`   Zero scores: ${scored.filter(s => s.score === 0).length}`);
-    scored.forEach((s) => {
-      console.log(`   Q${s.questionNumber}: ${s.score}${s.error ? ` (error: ${s.error})` : ''}`);
-    });
-
-    // 5) Sınav yapısı ile eşleştir (learningOutcomeCode)
-    const loMap = new Map(
-      (exam.questions || []).map((q) => [Number(q.questionNumber), q.learningOutcomeCode])
-    );
-    console.log(`📊 ÖÇ eşleştirme haritası:`, Array.from(loMap.entries()));
-    const mergedScores = scored.map((item) => {
-      const loCode = loMap.get(item.questionNumber) || loMap.get(Number(item.questionNumber)) || null;
-      if (!loCode) {
-        console.warn(`⚠️ Soru ${item.questionNumber} için ÖÇ kodu bulunamadı!`);
-      }
-      return {
-        questionNumber: item.questionNumber,
-        score: item.score,
-        learningOutcomeCode: loCode,
-      };
-    });
-    console.log(`📊 Merged scores (ilk 3):`, mergedScores.slice(0, 3).map(s => `Q${s.questionNumber}:${s.score} (ÖÇ:${s.learningOutcomeCode || 'YOK'})`));
-
-    // Calculate total scores
-    const totalScore = mergedScores.reduce((sum, s) => sum + (s.score || 0), 0);
-    // Use exam.maxScorePerQuestion instead of Question model
-    const maxTotalScore = (exam.questionCount || 0) * (exam.maxScorePerQuestion || 0);
+    // Calculate max score and percentage
+    const maxTotalScore = exam.maxScore || 0;
     const percentage = maxTotalScore > 0 ? (totalScore / maxTotalScore) * 100 : 0;
     
     console.log(`📊 Total score: ${totalScore}/${maxTotalScore} (${percentage.toFixed(2)}%)`);
-    console.log(`📋 Scores breakdown:`, mergedScores.map(s => `Q${s.questionNumber}:${s.score}`).join(', '));
 
-    // 6) ÖÇ ve PÇ performansını hesapla
+    // 5) ÖÇ ve PÇ performansını hesapla (genel puan bazlı)
     let outcomePerformance = {};
     let programOutcomePerformance = {};
     
     if (course && course.learningOutcomes && course.learningOutcomes.length > 0) {
-      // Tek öğrenci için soru analizi oluştur
-      const questionAnalysis = mergedScores.map((qs) => {
-        const maxScore = exam.maxScorePerQuestion || 0;
-        const success = maxScore > 0 ? (qs.score / maxScore) * 100 : 0;
-        return {
-          questionNumber: qs.questionNumber,
-          maxScore,
-          averageScore: qs.score,
-          successRate: success,
-          learningOutcomeCode: qs.learningOutcomeCode,
-          attempts: 1,
-        };
-      });
+      // Genel puanı tüm ÖÇ'lere eşit dağıt (veya sınav yapısına göre dağıt)
+      // Basit yaklaşım: Genel puan yüzdesini tüm ÖÇ'lere uygula
+      const loPerformance = (course.learningOutcomes || []).map((lo) => ({
+        code: lo.code,
+        description: lo.description,
+        success: percentage, // Genel puan yüzdesi = ÖÇ başarısı
+      }));
       
-      // ÖÇ performansını hesapla
-      const loPerformance = calculateOutcomePerformance(questionAnalysis, exam, course);
       outcomePerformance = Object.fromEntries(
         loPerformance.map((lo) => [lo.code, lo.success])
       );
       
-      // PÇ performansını hesapla
+      // PÇ performansını hesapla (ÖÇ'lerden)
       const poPerformance = calculateProgramOutcomePerformance(loPerformance, course);
       programOutcomePerformance = Object.fromEntries(
         poPerformance.map((po) => [po.code, po.success])
       );
     }
 
-    // 7) DB kaydet veya güncelle: StudentExamResult (upsert)
+    // 6) DB kaydet veya güncelle: StudentExamResult (upsert)
     // Aynı öğrenci aynı sınavda birden fazla kayıt olmasın - son sonuç geçerli
     const resultDoc = await StudentExamResult.findOneAndUpdate(
       {
@@ -1092,7 +888,9 @@ const submitExamScores = async (req, res) => {
         studentNumber,
         examId,
         courseId: exam.courseId,
-        questionScores: mergedScores,
+        totalScore,
+        maxScore: maxTotalScore,
+        percentage: Math.round(percentage * 100) / 100,
         outcomePerformance,
         programOutcomePerformance,
       },
@@ -1108,15 +906,15 @@ const submitExamScores = async (req, res) => {
       data: {
         pngPath,
         markers,
-        crops: questionCrops.map((c) => ({
-          questionNumber: c.questionNumber,
-          imagePath: c.imagePath,
-        })),
-        scores: mergedScores,
-        resultId: resultDoc._id,
+        totalScoreCrop: {
+          imagePath: totalScoreCrop.imagePath,
+        },
         totalScore,
         maxTotalScore,
         percentage: Math.round(percentage * 100) / 100,
+        resultId: resultDoc._id,
+        outcomePerformance,
+        programOutcomePerformance,
       },
     });
   } catch (error) {
@@ -1150,7 +948,7 @@ const getExamResultsByStudent = async (req, res) => {
   try {
     const { studentNumber } = req.params;
     const results = await StudentExamResult.find({ studentNumber })
-      .populate("examId", "examCode examType maxScorePerQuestion")
+      .populate("examId", "examCode examType maxScore")
       .populate("courseId", "code name")
       .sort({ createdAt: -1 });
     return res.status(200).json({ success: true, data: results });
@@ -1158,6 +956,87 @@ const getExamResultsByStudent = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message || "Öğrenci sınav sonuçları getirilemedi",
+    });
+  }
+};
+
+// Manual score entry endpoint (genel puan girişi)
+const createOrUpdateStudentExamResult = async (req, res) => {
+  try {
+    const { studentNumber, examId, courseId, totalScore, maxScore, percentage } = req.body;
+
+    if (!studentNumber || !examId || !courseId || totalScore === undefined || maxScore === undefined || percentage === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "studentNumber, examId, courseId, totalScore, maxScore ve percentage gereklidir",
+      });
+    }
+
+    const exam = await Exam.findById(examId);
+    if (!exam) {
+      return res.status(404).json({ success: false, message: "Sınav bulunamadı" });
+    }
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, message: "Ders bulunamadı" });
+    }
+
+    // ÖÇ ve PÇ performansını hesapla (genel puan bazlı)
+    let outcomePerformance = {};
+    let programOutcomePerformance = {};
+    
+    if (course && course.learningOutcomes && course.learningOutcomes.length > 0) {
+      // Genel puan yüzdesini tüm ÖÇ'lere uygula
+      const loPerformance = (course.learningOutcomes || []).map((lo) => ({
+        code: lo.code,
+        description: lo.description,
+        success: percentage, // Genel puan yüzdesi = ÖÇ başarısı
+      }));
+      
+      outcomePerformance = Object.fromEntries(
+        loPerformance.map((lo) => [lo.code, lo.success])
+      );
+      
+      // PÇ performansını hesapla (ÖÇ'lerden)
+      const poPerformance = calculateProgramOutcomePerformance(loPerformance, course);
+      programOutcomePerformance = Object.fromEntries(
+        poPerformance.map((po) => [po.code, po.success])
+      );
+    }
+
+    // Upsert StudentExamResult
+    const resultDoc = await StudentExamResult.findOneAndUpdate(
+      {
+        studentNumber,
+        examId,
+      },
+      {
+        studentNumber,
+        examId,
+        courseId,
+        totalScore: Number(totalScore),
+        maxScore: Number(maxScore),
+        percentage: Math.round(Number(percentage) * 100) / 100,
+        outcomePerformance,
+        programOutcomePerformance,
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: resultDoc,
+    });
+  } catch (error) {
+    console.error("createOrUpdateStudentExamResult error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Puan kaydedilemedi",
     });
   }
 };
@@ -1174,5 +1053,6 @@ export {
   getExamResultsByStudent,
   startBatchScore,
   getBatchStatus,
+  createOrUpdateStudentExamResult,
 };
 

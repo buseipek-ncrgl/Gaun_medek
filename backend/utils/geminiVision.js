@@ -44,9 +44,10 @@ function getGeminiModel(genAI) {
 /**
  * Extract numeric value from an image using Gemini Vision API
  * @param {Buffer} imageBuffer - Image buffer (PNG)
+ * @param {string} context - Context description (e.g., "student number digit", "exam code digit", "total score")
  * @returns {Promise<number>} Extracted number (0 if empty)
  */
-async function extractNumberFromImage(imageBuffer) {
+async function extractNumberFromImage(imageBuffer, context = "numeric value") {
   try {
     const genAI = getGeminiClient();
     const model = getGeminiModel(genAI);
@@ -54,10 +55,59 @@ async function extractNumberFromImage(imageBuffer) {
     // Convert buffer to base64
     const base64Image = imageBuffer.toString("base64");
 
-    const prompt =
-      "Extract the numeric value inside this box. Only return a single number. If empty, return 0. Do not include any explanation or text, only the number.";
+    // Context-specific prompts
+    let prompt;
+    if (context === "total score") {
+      prompt = `You are analyzing an exam paper image. This image shows a cropped section containing the TOTAL SCORE box.
 
-    console.log("🤖 Calling Gemini API to extract number from image...");
+CONTEXT:
+- This is the TOTAL SCORE area from an exam paper
+- The score box is located in the bottom-right corner of the exam paper
+- The box may have black square markers (corners) or borders around it
+- The actual score number is written INSIDE the marked/boxed area
+
+INSTRUCTIONS:
+1. Look for black square markers or rectangular borders - these are alignment markers, IGNORE them
+2. Focus on the NUMBER written INSIDE the marked area (between or inside the markers)
+3. The score is typically a 2-3 digit number (e.g., 85, 92, 100, 0)
+4. The number may be handwritten or printed
+5. Extract ONLY the numeric value - ignore markers, borders, labels, text, or any symbols
+6. If the box is empty, no number visible, or only markers are present, return 0
+7. Return ONLY the number digits, no explanations, no text, just the number
+
+IMPORTANT:
+- Markers are just visual guides - ignore them completely
+- Only extract the actual score number inside the box
+- If you see "85" written inside markers, return: 85
+- If you see only markers and no number, return: 0
+
+Example outputs: 85, 92, 100, 0
+
+What is the total score number written inside the marked box?`;
+    } else if (context.includes("student") || context.includes("digit")) {
+      prompt = `You are analyzing a single digit box from an exam paper. This box contains ONE digit (0-9) that is part of a student number or exam code.
+
+INSTRUCTIONS:
+1. This is a small rectangular box containing a single handwritten or printed digit
+2. The digit will be between 0 and 9
+3. Look carefully for the number - it may be handwritten or printed
+4. If the box is empty or unclear, return 0
+5. Return ONLY the single digit number, no explanations
+
+What digit (0-9) is in this box?`;
+    } else {
+      prompt = `Extract the numeric value from this image. 
+
+INSTRUCTIONS:
+1. Look for any number in the image
+2. Return ONLY the numeric value
+3. If empty or no number found, return 0
+4. Do not include any explanation, text, or symbols - only the number
+
+What number is in this image?`;
+    }
+
+    console.log(`🤖 Calling Gemini API to extract ${context} from image...`);
     const result = await model.generateContent([
       prompt,
       {
@@ -114,8 +164,22 @@ async function extractStudentIdFromImage(imageBuffer) {
     const genAI = getGeminiClient();
     const model = getGeminiModel(genAI);
     const base64Image = imageBuffer.toString("base64");
-    const prompt =
-      "Extract ONLY the student ID number from this exam paper. Return just the digits without spaces or text. If not found, return EMPTY.";
+    const prompt = `You are analyzing a full exam paper image. Your task is to find and extract the STUDENT ID NUMBER.
+
+INSTRUCTIONS:
+1. Look for a student ID number field - typically located in the top area of the exam paper
+2. The student ID is usually a sequence of 7-12 digits (e.g., 20231021, 2023123456)
+3. It may be written in boxes, circles, or a single text field
+4. Ignore any labels, text, or symbols - extract ONLY the numeric digits
+5. The number may be handwritten or printed
+6. If you cannot find a clear student ID number, return EMPTY
+
+IMPORTANT:
+- Return ONLY the digits (no spaces, no dashes, no text)
+- If not found or unclear, return exactly: EMPTY
+- Example outputs: 20231021, 2023123456, EMPTY
+
+What is the student ID number in this exam paper?`;
     const result = await model.generateContent([
       prompt,
       {
@@ -155,7 +219,7 @@ async function extractStudentNumber(digitBoxes) {
   const digits = [];
   for (let i = 0; i < digitBoxes.length; i++) {
     console.log(`  Reading digit ${i + 1}/${digitBoxes.length}...`);
-    const digit = await extractNumberFromImage(digitBoxes[i]);
+    const digit = await extractNumberFromImage(digitBoxes[i], "student number digit");
     digits.push(digit.toString());
     console.log(`  Digit ${i + 1}: ${digit}`);
   }
@@ -170,8 +234,8 @@ async function extractStudentNumber(digitBoxes) {
  * @returns {Promise<string>} Exam ID string (2 digits)
  */
 async function extractExamId(digitBoxes) {
-  const digit1 = await extractNumberFromImage(digitBoxes[0]);
-  const digit2 = await extractNumberFromImage(digitBoxes[1]);
+  const digit1 = await extractNumberFromImage(digitBoxes[0], "exam code digit");
+  const digit2 = await extractNumberFromImage(digitBoxes[1], "exam code digit");
   return `${digit1}${digit2}`;
 }
 

@@ -59,12 +59,7 @@ export function StudentComparisonChart({
         <div className="space-y-4">
           {studentData.map((data, index) => {
             const widthPercentage = maxPercentage > 0 ? (data.percentage / maxPercentage) * 100 : 0;
-            const color =
-              data.percentage >= 80
-                ? "bg-green-500"
-                : data.percentage >= 60
-                ? "bg-yellow-500"
-                : "bg-red-500";
+            const color = data.percentage >= 50 ? "bg-green-500" : "bg-red-500"; // 50 puan eşiği
 
             return (
               <div key={index} className="space-y-1">
@@ -77,10 +72,8 @@ export function StudentComparisonChart({
                   </div>
                   <span
                     className={`font-semibold ${
-                      data.percentage >= 80
+                      data.percentage >= 50
                         ? "text-green-600 dark:text-green-400"
-                        : data.percentage >= 60
-                        ? "text-yellow-600 dark:text-yellow-400"
                         : "text-red-600 dark:text-red-400"
                     }`}
                   >

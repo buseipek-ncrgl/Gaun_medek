@@ -15,8 +15,7 @@ export function POProgressCard({ achievement }: POProgressCardProps) {
   const offset = circumference - (percentage / 100) * circumference;
 
   const getColor = (percentage: number) => {
-    if (percentage >= 80) return "text-green-600 dark:text-green-400 stroke-green-500 dark:stroke-green-400";
-    if (percentage >= 60) return "text-yellow-600 dark:text-yellow-400 stroke-yellow-500 dark:stroke-yellow-400";
+    if (percentage >= 50) return "text-green-600 dark:text-green-400 stroke-green-500 dark:stroke-green-400"; // 50 puan eşiği
     return "text-red-600 dark:text-red-400 stroke-red-500 dark:stroke-red-400";
   };
 
@@ -56,7 +55,7 @@ export function POProgressCard({ achievement }: POProgressCardProps) {
                 strokeLinecap="round"
                 className={`transition-all duration-500 ${getColor(percentage).split(" ")[1]}`}
                 style={{
-                  stroke: percentage >= 80 ? "#22c55e" : percentage >= 60 ? "#eab308" : "#ef4444"
+                  stroke: percentage >= 50 ? "#22c55e" : "#ef4444" // 50 puan eşiği
                 }}
               />
             </svg>

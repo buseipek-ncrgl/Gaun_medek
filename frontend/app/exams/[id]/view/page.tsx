@@ -51,11 +51,6 @@ export default function ExamDetailPage() {
     }
   };
 
-  const questionCount = useMemo(() => {
-    if (!exam) return 0;
-    return exam.questions?.length || exam.questionCount || 0;
-  }, [exam]);
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 flex items-center justify-center">
@@ -70,10 +65,9 @@ export default function ExamDetailPage() {
   if (!exam) return null;
 
   const examTypeLabel = exam.examType === "midterm" ? "Vize" : "Final";
-  const mappedQuestions = exam.questions?.filter((q) => q.learningOutcomeCode && q.learningOutcomeCode.trim() !== "") || [];
-  const unmappedQuestions = exam.questions?.filter((q) => !q.learningOutcomeCode || q.learningOutcomeCode.trim() === "") || [];
-  const mappingPercentage = questionCount > 0 ? ((mappedQuestions.length / questionCount) * 100).toFixed(0) : "0";
-  const totalMaxScore = questionCount * (exam.maxScorePerQuestion || 0);
+  // Sınav bazlı ÖÇ eşleme kontrolü
+  const mappedLOs = exam.learningOutcomes || [];
+  const totalMaxScore = exam.maxScore || 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 p-6">

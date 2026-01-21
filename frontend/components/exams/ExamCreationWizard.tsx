@@ -54,9 +54,8 @@ export function ExamCreationWizard({ onSuccess }: ExamCreationWizardProps) {
   const [courseId, setCourseId] = useState("");
   const [examType, setExamType] = useState<"midterm" | "final">("midterm");
   const [examCode, setExamCode] = useState("");
-  const [questionCount, setQuestionCount] = useState<number>(0);
-  const [maxScorePerQuestion, setMaxScorePerQuestion] = useState<number>(0);
-  const [questions, setQuestions] = useState<QuestionRow[]>([]);
+  const [maxScore, setMaxScore] = useState<number>(100);
+  const [selectedLOs, setSelectedLOs] = useState<string[]>([]); // Sınav bazlı ÖÇ seçimi
   const [existingExams, setExistingExams] = useState<Exam[]>([]);
   const [examCodeError, setExamCodeError] = useState("");
 
@@ -192,23 +191,7 @@ export function ExamCreationWizard({ onSuccess }: ExamCreationWizardProps) {
     }
   };
 
-  useEffect(() => {
-    // questionCount değiştiğinde satırları otomatik üret
-    if (questionCount < 0 || Number.isNaN(questionCount)) return;
-    setQuestions((prev) => {
-      const updated: QuestionRow[] = [];
-      for (let i = 0; i < questionCount; i++) {
-        const existing = prev.find((q) => q.questionNumber === i + 1);
-        updated.push(
-          existing || {
-            questionNumber: i + 1,
-            learningOutcomeCode: "",
-          }
-        );
-      }
-      return updated;
-    });
-  }, [questionCount]);
+  // Soru bazlı işlem kaldırıldı - artık genel puan kullanılıyor
 
   const selectedCourse = useMemo(
     () => courses.find((c) => c._id === courseId),
@@ -222,18 +205,7 @@ export function ExamCreationWizard({ onSuccess }: ExamCreationWizardProps) {
       description: lo.description,
     })) || [];
 
-  const handleQuestionLoChange = (index: number, loCode: string) => {
-    setQuestions((prev) =>
-      prev.map((q, idx) =>
-        idx === index
-          ? {
-              ...q,
-              learningOutcomeCode: loCode,
-            }
-          : q
-      )
-    );
-  };
+  // Soru bazlı ÖÇ eşleme kaldırıldı - artık genel puan kullanılıyor
 
   const validateStep = (step: WizardStep): boolean => {
     switch (step) {
@@ -252,24 +224,15 @@ export function ExamCreationWizard({ onSuccess }: ExamCreationWizardProps) {
         }
         return true;
       case 2:
-        if (!questionCount || questionCount <= 0) {
-          toast.error("Soru sayısı 1 veya daha büyük olmalıdır");
-          return false;
-        }
-        if (!maxScorePerQuestion || maxScorePerQuestion <= 0) {
-          toast.error("Soru başına maksimum puan zorunludur");
+        if (!maxScore || maxScore <= 0) {
+          toast.error("Maksimum puan 1 veya daha büyük olmalıdır");
           return false;
         }
         return true;
       case 3:
-        for (const q of questions) {
-          if (!q.learningOutcomeCode) {
-            toast.error(`Soru ${q.questionNumber} için ÖÇ seçmelisiniz`);
-            return false;
-          }
-        }
-        if (learningOutcomeOptions.length === 0) {
-          toast.error("Bu ders için tanımlı öğrenme çıktısı yok");
+        // Sınav bazlı ÖÇ seçimi - en az bir ÖÇ seçilmeli
+        if (!selectedLOs || selectedLOs.length === 0) {
+          toast.error("En az bir öğrenme çıktısı (ÖÇ) seçmelisiniz");
           return false;
         }
         return true;
@@ -293,16 +256,15 @@ export function ExamCreationWizard({ onSuccess }: ExamCreationWizardProps) {
   };
 
   const handleSubmit = async () => {
-    if (!validateStep(3)) return;
+    if (!validateStep(4)) return;
     setIsSubmitting(true);
     try {
       const payload: CreateExamDto = {
         courseId,
         examType,
         examCode: examCode.trim(),
-        questionCount: Number(questionCount),
-        maxScorePerQuestion: Number(maxScorePerQuestion),
-        questions: questions.filter((q) => q.learningOutcomeCode.trim() !== ""),
+        maxScore: Number(maxScore),
+        learningOutcomes: selectedLOs, // Sınav bazlı ÖÇ eşleme
       };
 
       await examApi.create(payload);
@@ -326,15 +288,10 @@ export function ExamCreationWizard({ onSuccess }: ExamCreationWizardProps) {
     }
   };
 
-  const progress = (currentStep / 4) * 100;
+  const progress = (currentStep / 4) * 100; // 4 adım: Ders Seçimi, Puan Ayarları, ÖÇ Eşleme, Özet
 
   // Özet hesaplamaları
-  const mappedLOs = new Set(questions.map((q) => q.learningOutcomeCode).filter(Boolean));
-  const totalMaxScore = questionCount * maxScorePerQuestion;
-  const loDistribution = learningOutcomeOptions.map((lo) => ({
-    code: lo.code,
-    count: questions.filter((q) => q.learningOutcomeCode === lo.code).length,
-  }));
+  const totalMaxScore = maxScore;
 
   return (
     <div className="space-y-6">
@@ -345,7 +302,7 @@ export function ExamCreationWizard({ onSuccess }: ExamCreationWizardProps) {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Sınav Oluşturma Sihirbazı</h3>
               <span className="text-sm text-muted-foreground">
-                Adım {currentStep} / 4
+                Adım {currentStep} / 3
               </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
@@ -524,43 +481,26 @@ export function ExamCreationWizard({ onSuccess }: ExamCreationWizardProps) {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="questionCount" className="text-base">
-                  Soru Sayısı <span className="text-red-500">*</span>
+                <Label htmlFor="maxScore" className="text-base">
+                  Maksimum Puan <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                  id="questionCount"
+                  id="maxScore"
                   type="number"
                   min={1}
-                  value={questionCount}
-                  onChange={(e) => setQuestionCount(Number(e.target.value))}
+                  value={maxScore}
+                  onChange={(e) => setMaxScore(Number(e.target.value))}
                   className="h-12 text-base text-lg"
                 />
                 <p className="text-sm text-muted-foreground">
-                  Sınavda kaç soru olacak?
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="maxScorePerQuestion" className="text-base">
-                  Soru Başına Maksimum Puan <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="maxScorePerQuestion"
-                  type="number"
-                  min={1}
-                  value={maxScorePerQuestion}
-                  onChange={(e) => setMaxScorePerQuestion(Number(e.target.value))}
-                  className="h-12 text-base text-lg"
-                />
-                <p className="text-sm text-muted-foreground">
-                  Her soru için maksimum puan
+                  Sınav için maksimum toplam puan
                 </p>
               </div>
             </div>
 
-            {questionCount > 0 && maxScorePerQuestion > 0 && (
+            {maxScore > 0 && (
               <Card className="bg-slate-50 border-slate-200">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
@@ -570,7 +510,7 @@ export function ExamCreationWizard({ onSuccess }: ExamCreationWizardProps) {
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-slate-700">
-                        {questionCount} soru × {maxScorePerQuestion} puan
+                        Maksimum Puan
                       </p>
                     </div>
                   </div>
@@ -581,16 +521,16 @@ export function ExamCreationWizard({ onSuccess }: ExamCreationWizardProps) {
         </Card>
       )}
 
-      {/* Step 3: ÖÇ Eşleme */}
+      {/* Step 3: Sınav Bazlı ÖÇ Eşleme */}
       {currentStep === 3 && (
         <Card className="border-2 border-[#0a294e]/20">
           <CardHeader>
             <div className="flex items-center gap-3">
               <Target className="h-6 w-6 text-[#0a294e]" />
               <div>
-                <CardTitle className="text-2xl">Soru → ÖÇ Eşleme</CardTitle>
+                <CardTitle className="text-2xl">Sınav → ÖÇ Eşleme</CardTitle>
                 <CardDescription className="text-base mt-1">
-                  Her soruyu ilgili öğrenme çıktısına (ÖÇ) eşleyin
+                  Bu sınavın hangi öğrenme çıktılarına (ÖÇ) eşleneceğini seçin
                 </CardDescription>
               </div>
             </div>
@@ -608,86 +548,76 @@ export function ExamCreationWizard({ onSuccess }: ExamCreationWizardProps) {
             ) : (
               <>
                 <div className="grid gap-3">
-                  {questions.map((q, idx) => {
-                    const selectedLO = learningOutcomeOptions.find(
-                      (lo) => lo.code === q.learningOutcomeCode
-                    );
+                  {learningOutcomeOptions.map((lo) => {
+                    const isSelected = selectedLOs.includes(lo.code);
                     return (
                       <Card
-                        key={q.questionNumber}
-                        className={`border-2 transition-colors ${
-                          q.learningOutcomeCode
-                            ? "border-green-300 bg-green-50/50"
-                            : "border-gray-200 bg-white"
+                        key={lo.code}
+                        className={`border-2 transition-colors cursor-pointer ${
+                          isSelected
+                            ? "border-green-500 bg-green-50/50"
+                            : "border-gray-200 bg-white hover:border-gray-300"
                         }`}
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedLOs(selectedLOs.filter((code) => code !== lo.code));
+                          } else {
+                            setSelectedLOs([...selectedLOs, lo.code]);
+                          }
+                        }}
                       >
                         <CardContent className="p-4">
                           <div className="flex items-center gap-4">
                             <div className="flex-shrink-0">
-                              <Badge
-                                variant="default"
-                                className={`text-lg px-4 py-2 ${
-                                  q.learningOutcomeCode
-                                    ? "bg-green-600"
-                                    : "bg-gray-400"
-                                }`}
-                              >
-                                Soru {q.questionNumber}
-                              </Badge>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {}}
+                                className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                              />
                             </div>
                             <div className="flex-1">
-                              <Select
-                                value={q.learningOutcomeCode}
-                                onChange={(e) => handleQuestionLoChange(idx, e.target.value)}
-                                className="h-11"
-                              >
-                                <option value="">ÖÇ seçin...</option>
-                                {learningOutcomeOptions.map((opt) => (
-                                  <option key={opt.code} value={opt.code}>
-                                    {opt.label}
-                                  </option>
-                                ))}
-                              </Select>
-                            </div>
-                            {selectedLO && (
-                              <div className="flex-shrink-0">
-                                <Badge variant="outline" className="bg-white">
-                                  {selectedLO.code}
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  variant={isSelected ? "default" : "outline"}
+                                  className={isSelected ? "bg-green-600" : ""}
+                                >
+                                  {lo.code}
                                 </Badge>
+                                <p className="font-semibold text-slate-900">{lo.description}</p>
                               </div>
-                            )}
+                            </div>
                           </div>
-                          {selectedLO && (
-                            <p className="text-sm text-muted-foreground mt-2 ml-20">
-                              {selectedLO.description}
-                            </p>
-                          )}
                         </CardContent>
                       </Card>
                     );
                   })}
                 </div>
 
-                {/* ÖÇ Dağılım Özeti */}
-                {mappedLOs.size > 0 && (
+                {/* Seçilen ÖÇ Özeti */}
+                {selectedLOs.length > 0 && (
                   <Card className="bg-slate-50 border-slate-200">
                     <CardHeader>
-                      <CardTitle className="text-lg">ÖÇ Dağılım Özeti</CardTitle>
+                      <CardTitle className="text-lg">Seçilen Öğrenme Çıktıları</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="flex flex-wrap gap-2">
-                        {loDistribution
-                          .filter((dist) => dist.count > 0)
-                          .map((dist) => (
+                        {selectedLOs.map((loCode) => {
+                          const lo = learningOutcomeOptions.find((opt) => opt.code === loCode);
+                          return (
                             <Badge
-                              key={dist.code}
+                              key={loCode}
                               variant="outline"
                               className="bg-white text-slate-700 border-slate-300"
                             >
-                              {dist.code}: {dist.count} soru
+                              {loCode}
                             </Badge>
-                          ))}
+                          );
+                        })}
                       </div>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {selectedLOs.length} öğrenme çıktısı seçildi
+                      </p>
                     </CardContent>
                   </Card>
                 )}
@@ -740,88 +670,46 @@ export function ExamCreationWizard({ onSuccess }: ExamCreationWizardProps) {
 
               <Card className="bg-green-50 border-green-200">
                 <CardHeader>
-                  <CardTitle className="text-lg">Soru Ayarları</CardTitle>
+                  <CardTitle className="text-lg">Puan Ayarları</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <div>
-                    <p className="text-sm text-muted-foreground">Soru Sayısı</p>
-                    <p className="text-2xl font-bold text-green-600">{questionCount}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Soru Başına Max Puan</p>
-                    <p className="text-2xl font-bold text-green-600">{maxScorePerQuestion}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Toplam Max Puan</p>
-                    <p className="text-2xl font-bold text-green-600">{totalMaxScore}</p>
+                    <p className="text-sm text-muted-foreground">Maksimum Puan</p>
+                    <p className="text-2xl font-bold text-green-600">{maxScore}</p>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
             {/* ÖÇ Eşleme Özeti */}
-            <Card className="bg-slate-50 border-slate-200">
-              <CardHeader>
-                <CardTitle className="text-lg">ÖÇ Eşleme Özeti</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    {mappedLOs.size} farklı öğrenme çıktısı kullanılıyor
-                  </p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {loDistribution
-                      .filter((dist) => dist.count > 0)
-                      .map((dist) => (
-                        <div
-                          key={dist.code}
-                          className="p-3 bg-white rounded-lg border border-slate-200"
-                        >
-                          <p className="font-semibold text-slate-700">{dist.code}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {dist.count} soru
-                          </p>
-                        </div>
-                      ))}
+            {selectedLOs.length > 0 && (
+              <Card className="bg-slate-50 border-slate-200">
+                <CardHeader>
+                  <CardTitle className="text-lg">ÖÇ Eşleme Özeti</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      {selectedLOs.length} öğrenme çıktısı eşlendi
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedLOs.map((loCode) => {
+                        const lo = learningOutcomeOptions.find((opt) => opt.code === loCode);
+                        return (
+                          <Badge
+                            key={loCode}
+                            variant="outline"
+                            className="bg-white text-slate-700 border-slate-300"
+                          >
+                            {loCode}
+                          </Badge>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Soru Listesi */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Soru Listesi</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {questions.map((q) => {
-                    const lo = learningOutcomeOptions.find(
-                      (opt) => opt.code === q.learningOutcomeCode
-                    );
-                    return (
-                      <div
-                        key={q.questionNumber}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Badge variant="outline">Soru {q.questionNumber}</Badge>
-                          <span className="font-semibold">{lo?.code || "ÖÇ seçilmedi"}</span>
-                          {lo && (
-                            <span className="text-sm text-muted-foreground">
-                              {lo.description}
-                            </span>
-                          )}
-                        </div>
-                        <Badge variant="outline" className="bg-white">
-                          {maxScorePerQuestion} puan
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </CardContent>
         </Card>
       )}

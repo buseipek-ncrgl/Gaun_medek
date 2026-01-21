@@ -66,8 +66,8 @@ export function ExamTable({ exams, courses, onDelete }: ExamTableProps) {
               <TableHead className="text-white font-bold w-[200px]">Ders</TableHead>
               <TableHead className="text-white font-bold w-[120px]">Sınav Kodu</TableHead>
               <TableHead className="text-white font-bold w-[100px]">Tür</TableHead>
-              <TableHead className="text-white font-bold text-center w-[100px]">Soru</TableHead>
-              <TableHead className="text-white font-bold text-center w-[100px]">Max Puan</TableHead>
+              <TableHead className="text-white font-bold text-center w-[100px]">ÖÇ Sayısı</TableHead>
+              <TableHead className="text-white font-bold text-center w-[100px]">Maksimum Puan</TableHead>
               <TableHead className="text-white font-bold text-center w-[240px]">AI Puanlama</TableHead>
               <TableHead className="text-white font-bold text-right w-[160px]">İşlemler</TableHead>
             </TableRow>
@@ -78,13 +78,10 @@ export function ExamTable({ exams, courses, onDelete }: ExamTableProps) {
                 ? exam.courseId 
                 : (exam.courseId as any)?._id || String(exam.courseId);
               const course = courses[courseId];
-              const questionCount = exam.questions?.length || exam.questionCount || 0;
-              
-              // Check if all questions have ÖÇ mapping
-              const questionsWithLO = exam.questions?.filter(q => q.learningOutcomeCode && q.learningOutcomeCode.trim() !== "") || [];
-              const hasIncompleteMapping = questionCount > 0 && questionsWithLO.length < questionCount;
-              const hasNoMapping = questionCount > 0 && questionsWithLO.length === 0;
-              const hasCompleteMapping = questionCount > 0 && questionsWithLO.length === questionCount;
+              // Sınav bazlı ÖÇ eşleme kontrolü
+              const mappedLOs = exam.learningOutcomes || [];
+              const hasNoMapping = mappedLOs.length === 0;
+              const hasCompleteMapping = mappedLOs.length > 0;
               
               return (
                 <TableRow
@@ -92,8 +89,7 @@ export function ExamTable({ exams, courses, onDelete }: ExamTableProps) {
                   className={cn(
                     "hover:bg-brand-navy/5 dark:hover:bg-brand-navy/10 transition-colors",
                     index % 2 === 0 ? "bg-white dark:bg-slate-800" : "bg-slate-50/50 dark:bg-slate-800/50",
-                    hasNoMapping && "bg-amber-50/50 dark:bg-amber-900/10",
-                    hasIncompleteMapping && "bg-yellow-50/50 dark:bg-yellow-900/10"
+                    hasNoMapping && "bg-amber-50/50 dark:bg-amber-900/10"
                   )}
                 >
                   <TableCell>
@@ -106,12 +102,6 @@ export function ExamTable({ exams, courses, onDelete }: ExamTableProps) {
                           <Badge variant="outline" className="text-xs border-amber-500/30 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300">
                             <AlertTriangle className="h-3 w-3 mr-1" />
                             ÖÇ Yok
-                          </Badge>
-                        )}
-                        {hasIncompleteMapping && (
-                          <Badge variant="outline" className="text-xs border-yellow-500/30 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300">
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            Eksik ÖÇ
                           </Badge>
                         )}
                         {hasCompleteMapping && (
@@ -145,11 +135,11 @@ export function ExamTable({ exams, courses, onDelete }: ExamTableProps) {
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge variant="outline" className="font-medium border-brand-navy/30 text-brand-navy dark:text-slate-300">
-                      {questionCount} soru
+                      {mappedLOs.length} ÖÇ
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center">
-                    <span className="text-sm font-medium text-brand-navy dark:text-slate-100">{exam.maxScorePerQuestion}</span>
+                    <span className="text-sm font-medium text-brand-navy dark:text-slate-100">{exam.maxScore || 0}</span>
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex flex-col gap-2 items-center">

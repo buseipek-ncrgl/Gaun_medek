@@ -51,11 +51,14 @@ const config: Config = {
           "5": "hsl(var(--chart-5))",
         },
         brand: {
+          // NTMYO Logo Colors - Dark Blue
           navy: "#0a294e",
           "navy-light": "#0f3a6b",
           "navy-dark": "#051d35",
-          red: "#dc2626",
-          "red-light": "#ef4444",
+          // NTMYO Logo Colors - Red
+          red: "#bf1e1d",
+          "red-light": "#dc2626",
+          "red-dark": "#991b1a",
           gray: "#64748b",
           "gray-light": "#94a3b8",
           "gray-dark": "#475569",

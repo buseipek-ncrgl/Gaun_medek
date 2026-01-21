@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { examApi, type ExamAnalysisResponse, type Exam } from "@/lib/api/examApi";
 import { courseApi, type Course } from "@/lib/api/courseApi";
+import { studentExamResultApi } from "@/lib/api/studentExamResultApi";
 import { Bar, BarChart, CartesianGrid, Legend, Radar, RadarChart, PolarGrid, PolarAngleAxis, Tooltip, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { Download, Loader2, ArrowLeft, FileText, Users, TrendingUp, Target, GraduationCap, Search, Filter, X, CheckCircle2, AlertCircle, BarChart3, FileSpreadsheet } from "lucide-react";
 
@@ -24,11 +25,9 @@ type ProgramRow = ExamAnalysisResponse["programOutcomeAnalysis"][number];
 interface StudentResult {
   _id: string;
   studentNumber: string;
-  questionScores: Array<{
-    questionNumber: number;
-    score: number;
-    learningOutcomeCode: string | null;
-  }>;
+  totalScore: number; // Genel puan (soru bazlı değil)
+  maxScore: number;
+  percentage: number;
   outcomePerformance: Record<string, number>;
   programOutcomePerformance: Record<string, number>;
   createdAt: string;
@@ -46,7 +45,7 @@ export default function ExamResultsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("students");
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"all" | "success" | "medium" | "fail">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "success" | "fail">("all");
 
   useEffect(() => {
     if (examId) {
@@ -70,8 +69,19 @@ export default function ExamResultsPage() {
 
   const loadResults = async () => {
     try {
-      const results = await examApi.getResults(examId);
-      setStudentResults(results);
+      const results = await studentExamResultApi.getByExam(examId);
+      // Convert StudentExamResult to StudentResult format
+      const convertedResults: StudentResult[] = results.map((r) => ({
+        _id: r._id,
+        studentNumber: r.studentNumber,
+        totalScore: r.totalScore,
+        maxScore: r.maxScore,
+        percentage: r.percentage,
+        outcomePerformance: r.outcomePerformance,
+        programOutcomePerformance: r.programOutcomePerformance,
+        createdAt: r.createdAt,
+      }));
+      setStudentResults(convertedResults);
     } catch (error: any) {
       console.error("Öğrenci sonuçları yüklenemedi:", error);
     }
@@ -101,7 +111,8 @@ export default function ExamResultsPage() {
     }
   };
 
-  const questionData = useMemo<QuestionRow[]>(() => analysis?.questionAnalysis || [], [analysis]);
+  // questionData kaldırıldı - artık soru bazlı analiz yok, genel puan kullanılıyor
+  // const questionData = useMemo<QuestionRow[]>(() => analysis?.questionAnalysis || [], [analysis]);
   const outcomeData = useMemo<OutcomeRow[]>(() => analysis?.learningOutcomeAnalysis || [], [analysis]);
   const programData = useMemo<ProgramRow[]>(() => analysis?.programOutcomeAnalysis || [], [analysis]);
 
@@ -117,43 +128,29 @@ export default function ExamResultsPage() {
       };
     }
 
-    // Calculate max total - prefer questionData, fallback to exam data
+    // Calculate max total from exam data (genel puan sistemi)
     let maxTotal = 0;
     
-    // Try to get maxTotal from questionData
-    if (questionData.length > 0) {
-      const calculatedMax = questionData.reduce((sum, q) => sum + (q.maxScore || 0), 0);
-      if (calculatedMax > 0) {
-        maxTotal = calculatedMax;
-      }
+    if (exam) {
+      maxTotal = exam.maxScore || 0;
     }
     
-    // Fallback to exam data if questionData doesn't have valid maxScore
-    if (maxTotal === 0 && exam) {
-      maxTotal = (exam.questionCount || 0) * (exam.maxScorePerQuestion || 0);
+    // Fallback: use maxScore from first student result if available
+    if (maxTotal === 0 && studentResults.length > 0 && studentResults[0].maxScore > 0) {
+      maxTotal = studentResults[0].maxScore;
     }
-    
-    // Last resort: calculate from student results (count unique question numbers)
-    // if (maxTotal === 0 && studentResults.length > 0) {
-    //   const uniqueQuestions = new Set<number>();
-    //   studentResults.forEach(result => {
-    //     result.questionScores.forEach(qs => {
-    //       if (qs.questionNumber) uniqueQuestions.add(qs.questionNumber);
-    //     });
-    //   });
-    //   const questionCount = uniqueQuestions.size;
-    //   maxTotal = questionCount * (exam?.maxScorePerQuestion || 10); // Default 10 if not specified
-    // }
     
     const scores = studentResults.map((result) => {
-      const totalScore = result.questionScores.reduce((sum, qs) => sum + (qs.score || 0), 0);
-      return { totalScore, percentage: maxTotal > 0 ? (totalScore / maxTotal) * 100 : 0 };
+      return { 
+        totalScore: result.totalScore || 0, 
+        percentage: result.percentage || (maxTotal > 0 ? (result.totalScore / maxTotal) * 100 : 0) 
+      };
     });
 
     const totalScore = scores.reduce((sum, s) => sum + s.totalScore, 0);
     const averageScore = totalScore / scores.length;
     const averagePercentage = scores.reduce((sum, s) => sum + s.percentage, 0) / scores.length;
-    const successCount = scores.filter((s) => s.percentage >= 60).length;
+    const successCount = scores.filter((s) => s.percentage >= 50).length; // 50 puan eşiği
     const successRate = scores.length > 0 ? (successCount / scores.length) * 100 : 0;
     const highestScore = Math.max(...scores.map((s) => s.totalScore));
     const lowestScore = Math.min(...scores.map((s) => s.totalScore));
@@ -166,7 +163,7 @@ export default function ExamResultsPage() {
       lowestScore,
       averagePercentage: Math.round(averagePercentage * 10) / 10,
     };
-  }, [studentResults, questionData, exam]);
+  }, [studentResults, exam]);
 
   // Filtered student results
   const filteredStudentResults = useMemo(() => {
@@ -179,21 +176,18 @@ export default function ExamResultsPage() {
       );
     }
 
-    // Status filter
-    if (filterStatus !== "all" && questionData.length > 0) {
-      const maxTotal = questionData.reduce((sum, q) => sum + (q.maxScore || 0), 0);
+    // Status filter (50 puan eşiği: >=50 yeşil, <50 kırmızı)
+    if (filterStatus !== "all") {
       filtered = filtered.filter((result) => {
-        const totalScore = result.questionScores.reduce((sum, qs) => sum + (qs.score || 0), 0);
-        const percentage = maxTotal > 0 ? (totalScore / maxTotal) * 100 : 0;
-        if (filterStatus === "success") return percentage >= 60;
-        if (filterStatus === "medium") return percentage >= 40 && percentage < 60;
-        if (filterStatus === "fail") return percentage < 40;
+        const percentage = result.percentage || 0;
+        if (filterStatus === "success") return percentage >= 50; // 50 ve üzeri yeşil
+        if (filterStatus === "fail") return percentage < 50; // 50 altı kırmızı
         return true;
       });
     }
 
     return filtered;
-  }, [studentResults, searchQuery, filterStatus, questionData, exam]);
+  }, [studentResults, searchQuery, filterStatus, exam]);
 
   const handleExport = () => window.print();
 
@@ -374,7 +368,7 @@ export default function ExamResultsPage() {
                   )}
                 >
                   <FileText className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                  <span>Soru Analizi</span>
+                  <span>ÖÇ Analizi</span>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="outcomes" 
@@ -444,20 +438,7 @@ export default function ExamResultsPage() {
                           : "hover:bg-brand-navy/10"
                       )}
                     >
-                      Başarılı (≥60%)
-                    </Button>
-                    <Button
-                      variant={filterStatus === "medium" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setFilterStatus("medium")}
-                      className={cn(
-                        "h-10 sm:h-11",
-                        filterStatus === "medium"
-                          ? "bg-gradient-to-r from-brand-navy to-[#0f3a6b] text-white"
-                          : "hover:bg-brand-navy/10"
-                      )}
-                    >
-                      Orta (40-60%)
+                      Başarılı (≥50%)
                     </Button>
                     <Button
                       variant={filterStatus === "fail" ? "default" : "outline"}
@@ -470,7 +451,7 @@ export default function ExamResultsPage() {
                           : "hover:bg-brand-navy/10"
                       )}
                     >
-                      Başarısız ({'<40%'})
+                      Başarısız ({'<50%'})
                     </Button>
                     {hasActiveFilters && (
                       <Button
@@ -497,7 +478,7 @@ export default function ExamResultsPage() {
                     )}
                     {filterStatus !== "all" && (
                       <Badge variant="outline" className="bg-brand-navy/10 text-brand-navy border-brand-navy/30">
-                        Filtre: {filterStatus === "success" ? "Başarılı" : filterStatus === "medium" ? "Orta" : "Başarısız"}
+                        Filtre: {filterStatus === "success" ? "Başarılı (≥50)" : "Başarısız (<50)"}
                       </Badge>
                     )}
                   </div>
@@ -540,85 +521,59 @@ export default function ExamResultsPage() {
                             <TableHead className="sticky left-0 z-20 bg-gradient-to-r from-brand-navy to-[#0f3a6b] text-white min-w-[100px] sm:min-w-[120px]">
                               <span className="text-xs sm:text-sm font-semibold">Öğrenci No</span>
                             </TableHead>
-                            {questionData.map((q) => (
-                              <TableHead key={q.questionNumber} className="text-center text-white min-w-[70px] sm:min-w-[80px]">
-                                <div className="flex flex-col gap-1">
-                                  <span className="font-semibold text-xs sm:text-sm">Soru {q.questionNumber}</span>
-                                  {q.learningOutcomeCode && (
-                                    <Badge variant="outline" className="text-[10px] sm:text-xs bg-white/20 text-white border-white/30">
-                                      {q.learningOutcomeCode}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </TableHead>
-                            ))}
+                            <TableHead className="text-center text-white min-w-[100px] sm:min-w-[120px]">
+                              <span className="text-xs sm:text-sm font-semibold">Genel Puan</span>
+                            </TableHead>
                             <TableHead className="text-center text-white min-w-[80px] sm:min-w-[100px]">
-                              <span className="text-xs sm:text-sm font-semibold">Toplam</span>
+                              <span className="text-xs sm:text-sm font-semibold">Yüzde</span>
+                            </TableHead>
+                            <TableHead className="text-center text-white min-w-[80px] sm:min-w-[100px]">
+                              <span className="text-xs sm:text-sm font-semibold">Durum</span>
                             </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {filteredStudentResults.map((result) => {
-                            const totalScore = result.questionScores.reduce(
-                              (sum, qs) => sum + (qs.score || 0),
-                              0
-                            );
-                            const maxTotal = questionData.reduce((sum, q) => sum + (q.maxScore || 0), 0);
-                            const percentage = maxTotal > 0 ? Math.round((totalScore / maxTotal) * 100) : 0;
+                            const totalScore = result.totalScore || 0;
+                            const maxTotal = result.maxScore || exam?.maxScore || 0;
+                            const percentage = result.percentage || (maxTotal > 0 ? Math.round((totalScore / maxTotal) * 100) : 0);
 
                             return (
                               <TableRow key={result._id} className="hover:bg-brand-navy/5 dark:hover:bg-slate-800/50 transition-colors">
                                 <TableCell className="font-medium sticky left-0 z-20 bg-white dark:bg-slate-900 text-xs sm:text-sm border-r border-brand-navy/10">
                                   {result.studentNumber}
                                 </TableCell>
-                                {questionData.map((q) => {
-                                  const qs = result.questionScores.find(
-                                    (s) => s.questionNumber === q.questionNumber
-                                  );
-                                  const score = qs?.score || 0;
-                                  const maxScore = q.maxScore || exam?.maxScorePerQuestion || 0;
-                                  const qPercentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
-
-                                  return (
-                                    <TableCell key={q.questionNumber} className="text-center p-2 sm:p-4">
-                                      <div className="flex flex-col items-center gap-1">
-                                        <span className="font-semibold text-xs sm:text-sm text-brand-navy dark:text-slate-100">{score}</span>
-                                        <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">/{maxScore}</span>
-                                        <Badge
-                                          variant="outline"
-                                          className={cn(
-                                            "text-[10px] sm:text-xs",
-                                            qPercentage >= 60
-                                              ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-500/30"
-                                              : qPercentage >= 40
-                                              ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-500/30"
-                                              : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-500/30"
-                                          )}
-                                        >
-                                          %{qPercentage}
-                                        </Badge>
-                                      </div>
-                                    </TableCell>
-                                  );
-                                })}
                                 <TableCell className="text-center font-semibold p-2 sm:p-4">
                                   <div className="flex flex-col items-center gap-1">
-                                    <span className="text-xs sm:text-sm text-brand-navy dark:text-slate-100">{totalScore}</span>
+                                    <span className="text-sm sm:text-base text-brand-navy dark:text-slate-100 font-bold">{totalScore}</span>
                                     <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">/{maxTotal}</span>
-                                    <Badge
-                                      variant="outline"
-                                      className={cn(
-                                        "text-[10px] sm:text-xs",
-                                        percentage >= 60
-                                          ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-500/30"
-                                          : percentage >= 40
-                                          ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-500/30"
-                                          : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-500/30"
-                                      )}
-                                    >
-                                      %{percentage}
-                                    </Badge>
                                   </div>
+                                </TableCell>
+                                <TableCell className="text-center p-2 sm:p-4">
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      "text-xs sm:text-sm font-semibold",
+                                      percentage >= 50
+                                        ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-500/30"
+                                        : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-500/30"
+                                    )}
+                                  >
+                                    %{percentage}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-center p-2 sm:p-4">
+                                  <Badge
+                                    variant={percentage >= 50 ? "default" : "destructive"}
+                                    className={cn(
+                                      "text-xs sm:text-sm",
+                                      percentage >= 50
+                                        ? "bg-green-600 hover:bg-green-700"
+                                        : "bg-red-600 hover:bg-red-700"
+                                    )}
+                                  >
+                                    {percentage >= 50 ? "Başarılı" : "Başarısız"}
+                                  </Badge>
                                 </TableCell>
                               </TableRow>
                             );
@@ -642,8 +597,8 @@ export default function ExamResultsPage() {
                     <FileText className="h-5 w-5 text-brand-navy dark:text-slate-200" />
                   </div>
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">Soru → ÖÇ Analizi</h2>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">Her soru için başarı analizi</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">Öğrenme Çıktıları (ÖÇ) Analizi</h2>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Sınav bazlı öğrenme çıktıları başarı analizi</p>
                   </div>
                 </div>
               </div>
@@ -654,32 +609,22 @@ export default function ExamResultsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-brand-navy hover:to-[#0f3a6b]">
-                          <TableHead className="text-white">Soru</TableHead>
-                          <TableHead className="text-white">ÖÇ</TableHead>
-                          <TableHead className="text-white text-center">Ortalama</TableHead>
+                          <TableHead className="text-white">ÖÇ Kodu</TableHead>
+                          <TableHead className="text-white">Açıklama</TableHead>
                           <TableHead className="text-white text-center">Başarı %</TableHead>
-                          <TableHead className="text-white text-center">Cevap Veren</TableHead>
+                          <TableHead className="text-white text-center">Öğrenci Sayısı</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {questionData.map((q) => {
-                          const successColor = q.successRate >= 60 ? "green" : q.successRate >= 40 ? "amber" : "red";
+                        {outcomeData.map((outcome) => {
+                          const successColor = outcome.success >= 50 ? "green" : "red"; // 50 puan eşiği
                           return (
-                            <TableRow key={q.questionNumber} className="hover:bg-brand-navy/5 dark:hover:bg-slate-800/50 transition-colors">
+                            <TableRow key={outcome.code} className="hover:bg-brand-navy/5 dark:hover:bg-slate-800/50 transition-colors">
                               <TableCell className="font-semibold text-brand-navy dark:text-slate-100">
-                                Soru {q.questionNumber}
+                                {outcome.code}
                               </TableCell>
-                              <TableCell>
-                                {q.learningOutcomeCode ? (
-                                  <Badge variant="outline" className="bg-brand-navy/10 text-brand-navy border-brand-navy/30">
-                                    {q.learningOutcomeCode}
-                                  </Badge>
-                                ) : (
-                                  <span className="text-slate-400">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center font-semibold text-brand-navy dark:text-slate-100">
-                                {q.averageScore}
+                              <TableCell className="text-slate-700 dark:text-slate-300">
+                                {outcome.description || "-"}
                               </TableCell>
                               <TableCell className="text-center">
                                 <div className="flex items-center justify-center gap-2">
@@ -688,12 +633,10 @@ export default function ExamResultsPage() {
                                     className={cn(
                                       successColor === "green"
                                         ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-500/30"
-                                        : successColor === "amber"
-                                        ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-500/30"
                                         : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-500/30"
                                     )}
                                   >
-                                    {q.successRate}%
+                                    %{outcome.success.toFixed(1)}
                                   </Badge>
                                   <div className="w-16 bg-slate-200 dark:bg-slate-700 rounded-full h-2">
                                     <div
@@ -701,21 +644,26 @@ export default function ExamResultsPage() {
                                         "h-2 rounded-full transition-all",
                                         successColor === "green"
                                           ? "bg-green-500"
-                                          : successColor === "amber"
-                                          ? "bg-amber-500"
                                           : "bg-red-500"
                                       )}
-                                      style={{ width: `${q.successRate}%` }}
+                                      style={{ width: `${Math.min(outcome.success, 100)}%` }}
                                     />
                                   </div>
                                 </div>
                               </TableCell>
                               <TableCell className="text-center text-slate-600 dark:text-slate-400">
-                                {q.attempts}
+                                {studentResults.length}
                               </TableCell>
                             </TableRow>
                           );
                         })}
+                        {outcomeData.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                              Henüz öğrenme çıktısı analizi yok
+                            </TableCell>
+                          </TableRow>
+                        )}
                       </TableBody>
                     </Table>
                   </div>
@@ -871,7 +819,7 @@ export default function ExamResultsPage() {
               {/* Program Summary Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {programData.map((program) => {
-                  const successColor = program.success >= 60 ? "green" : program.success >= 40 ? "amber" : "red";
+                  const successColor = program.success >= 50 ? "green" : "red"; // 50 puan eşiği
                   return (
                     <Card
                       key={program.code}
@@ -887,8 +835,6 @@ export default function ExamResultsPage() {
                             className={cn(
                               successColor === "green"
                                 ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-500/30"
-                                : successColor === "amber"
-                                ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-500/30"
                                 : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-500/30"
                             )}
                           >
@@ -901,8 +847,6 @@ export default function ExamResultsPage() {
                               "h-2 rounded-full transition-all",
                               successColor === "green"
                                 ? "bg-green-500"
-                                : successColor === "amber"
-                                ? "bg-amber-500"
                                 : "bg-red-500"
                             )}
                             style={{ width: `${program.success}%` }}

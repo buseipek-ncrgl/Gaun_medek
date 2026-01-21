@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +14,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [logoError, setLogoError] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,31 +41,31 @@ export default function LoginPage() {
         <div className="text-white space-y-6">
           {/* Logo */}
           <div className="flex items-center gap-4">
-            <div className="relative h-16 w-16 flex-shrink-0">
-              {logoError ? (
-                <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center border-2 border-white/30">
-                  <span className="text-white font-bold text-xl">NT</span>
-                </div>
-              ) : (
-                <Image 
-                  src="/logo.png" 
-                  alt="NTMYO Logo" 
-                  width={64}
-                  height={64}
-                  className="object-contain"
-                  onError={() => setLogoError(true)}
-                />
-              )}
+            <div className="relative w-20 h-20 flex-shrink-0">
+              <img 
+                src="/assets/ntmyo-logo.png" 
+                alt="NTMYO Logo" 
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  // Fallback if logo doesn't exist yet
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
+              {/* Fallback Logo - NTMYO renklerinde */}
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-800 to-red-700 rounded-xl border-2 border-white/30 shadow-xl">
+                <div className="text-white font-bold text-2xl">NT</div>
+              </div>
             </div>
             <div>
-              <h2 className="text-2xl font-bold">Naci Topçuoğlu</h2>
-              <p className="text-lg text-white/90">Meslek Yüksekokulu</p>
+              <h2 className="text-2xl font-bold">NTMYO</h2>
+              <p className="text-sm text-white/80">Ölçme Değerlendirme Yönetim Sistemi</p>
             </div>
           </div>
           
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 bg-white/10 backdrop-blur">
             <ShieldCheck className="h-4 w-4" />
-            <span className="text-sm font-semibold">Ölçme Değerlendirme Yönetim Sistemi</span>
+            <span className="text-sm font-semibold">NTMYO Ölçme Değerlendirme Sistemi</span>
           </div>
           <h1 className="text-4xl lg:text-5xl font-bold leading-tight">
             Eğitmenler için basit, güvenli ve hızlı sınav yönetimi.
@@ -81,7 +79,7 @@ export default function LoginPage() {
               <p className="text-sm text-white/70">PDF yükle, otomatik kırp ve skorla.</p>
             </div>
             <div className="flex-1 p-4 rounded-xl bg-white/10 border border-white/15">
-              <p className="font-semibold">MEDEK Raporları</p>
+              <p className="font-semibold">NTMYO Raporları</p>
               <p className="text-sm text-white/70">ÖÇ ve PÇ başarılarını otomatik hesapla.</p>
             </div>
           </div>
@@ -92,7 +90,7 @@ export default function LoginPage() {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-[#0a294e]">Giriş Yap</CardTitle>
             <p className="text-sm text-gray-600">
-              NTMYO Ölçme Değerlendirme Yönetim Sistemi
+              Kurumsal e-posta ve şifrenizle oturum açın.
             </p>
           </CardHeader>
           <CardContent>
@@ -140,7 +138,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-12 text-base font-semibold bg-[#bf1e1d] hover:bg-[#bf1e1d]/90"
+                className="w-full h-12 text-base font-semibold bg-brand-red hover:bg-brand-red-dark text-white"
               >
                 {isLoading ? (
                   <>

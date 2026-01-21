@@ -275,7 +275,7 @@ export default function ReportsPage() {
               <BarChart3 className="h-5 w-5 text-brand-navy dark:text-slate-200" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">MEDEK Raporları</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">NTMYO Raporları</h1>
               <p className="text-sm text-slate-600 dark:text-slate-400">
                 Dersler için kapsamlı akreditasyon raporları oluşturun ve görüntüleyin
               </p>

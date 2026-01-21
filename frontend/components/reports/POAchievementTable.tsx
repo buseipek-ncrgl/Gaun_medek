@@ -25,8 +25,7 @@ export function POAchievementTable({ achievements }: POAchievementTableProps) {
   }
 
   const getProgressColor = (percentage: number) => {
-    if (percentage >= 80) return "bg-green-500";
-    if (percentage >= 60) return "bg-yellow-500";
+    if (percentage >= 50) return "bg-green-500"; // 50 puan eşiği
     return "bg-red-500";
   };
 
@@ -63,10 +62,8 @@ export function POAchievementTable({ achievements }: POAchievementTableProps) {
                 <TableCell className="text-center">
                   <span
                     className={`font-semibold ${
-                      percentage >= 80
+                      percentage >= 50
                         ? "text-green-600"
-                        : percentage >= 60
-                        ? "text-yellow-600"
                         : "text-red-600"
                     }`}
                   >

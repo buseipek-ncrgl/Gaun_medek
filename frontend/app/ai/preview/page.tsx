@@ -5,10 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StudentDetectionCard } from "@/components/ai/StudentDetectionCard";
-import { AIScorePreviewTable } from "@/components/ai/AIScorePreviewTable";
 import { AIScorePreviewToolbar } from "@/components/ai/AIScorePreviewToolbar";
-import { type AIAnswer, type AIProcessResponse } from "@/lib/api/aiApi";
-import { scoreApi, type SubmitScoreDto } from "@/lib/api/scoreApi";
+import { type AIProcessResponse } from "@/lib/api/aiApi";
+import { examApi } from "@/lib/api/examApi";
 import {
   Dialog,
   DialogContent,
@@ -23,8 +22,8 @@ function AIPreviewPageContent() {
   const sessionId = searchParams.get("sessionId");
 
   const [data, setData] = useState<AIProcessResponse | null>(null);
-  const [answers, setAnswers] = useState<AIAnswer[]>([]);
-  const [studentId, setStudentId] = useState<string>("");
+  const [totalScore, setTotalScore] = useState<number>(0);
+  const [studentNumber, setStudentNumber] = useState<string>("");
   const [examId, setExamId] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -36,7 +35,8 @@ function AIPreviewPageContent() {
       if (storedData) {
         const parsed: AIProcessResponse = JSON.parse(storedData);
         setData(parsed);
-        setAnswers(parsed.answers);
+        setTotalScore(parsed.totalScore);
+        setStudentNumber(parsed.studentNumber);
         
         // Find exam by examCode
         findExamByCode(parsed.examId);
@@ -57,13 +57,18 @@ function AIPreviewPageContent() {
   };
 
   const handleApproveAndSave = async () => {
-    if (!studentId) {
-      toast.error("Please verify student information");
+    if (!studentNumber) {
+      toast.error("Öğrenci numarası gerekli");
       return;
     }
 
-    if (answers.length === 0) {
-      toast.error("No scores to save");
+    if (!examId) {
+      toast.error("Sınav bulunamadı");
+      return;
+    }
+
+    if (totalScore < 0) {
+      toast.error("Geçersiz puan");
       return;
     }
 
@@ -71,57 +76,31 @@ function AIPreviewPageContent() {
   };
 
   const handleConfirmSave = async () => {
-    setIsSaving(true);
-    let successCount = 0;
-    let errorCount = 0;
-
-    // Map answers to questions by number if questionId is missing
-    const { questionApi } = await import("@/lib/api/questionApi");
-    const examQuestions = await questionApi.getByExam(examId);
-    const questionsByNumber = new Map(
-      examQuestions.map((q) => [q.number, q])
-    );
-
-    for (const answer of answers) {
-      try {
-        // Get questionId from number if not present
-        let questionId = answer.questionId;
-        if (!questionId) {
-          const question = questionsByNumber.get(answer.number);
-          if (!question) {
-            console.error(`Question ${answer.number} not found`);
-            errorCount++;
-            continue;
-          }
-          questionId = question._id;
-        }
-
-        await scoreApi.submit({
-          studentId,
-          examId,
-          questionId,
-          scoreValue: answer.scoreValue,
-        } as SubmitScoreDto);
-        successCount++;
-      } catch (error) {
-        errorCount++;
-        console.error("Failed to save score:", error);
-      }
+    if (!data || !examId || !studentNumber) {
+      toast.error("Eksik bilgi");
+      return;
     }
 
-    setIsSaving(false);
-    setShowSaveDialog(false);
+    setIsSaving(true);
 
-    if (errorCount === 0) {
-      toast.success(`Successfully saved ${successCount} scores`);
-      router.push("/scores");
-    } else {
-      toast.error(`Saved ${successCount} scores, ${errorCount} failed`);
+    try {
+      // PDF'i base64'e çevir (localStorage'da saklanmış olabilir)
+      // Şimdilik sadece totalScore'u gönder
+      await examApi.submitScore(examId, studentNumber, null); // PDF null, sadece totalScore kullanılacak
+      
+      toast.success("Puan başarıyla kaydedildi");
+      router.push(`/dashboard/exams/${examId}/results`);
+    } catch (error: any) {
+      console.error("Failed to save score:", error);
+      toast.error(error.response?.data?.message || "Puan kaydedilemedi");
+    } finally {
+      setIsSaving(false);
+      setShowSaveDialog(false);
     }
   };
 
   const handleClearAll = () => {
-    setAnswers((prev) => prev.map((a) => ({ ...a, scoreValue: 0 })));
+    setTotalScore(0);
   };
 
   const handleDiscard = () => {
@@ -153,23 +132,35 @@ function AIPreviewPageContent() {
       <StudentDetectionCard
         studentNumber={data.studentNumber}
         examId={data.examId}
-        onStudentChange={setStudentId}
+        onStudentChange={setStudentNumber}
         onExamChange={setExamId}
       />
 
       <Card className="rounded-xl shadow-sm">
         <CardHeader>
-          <CardTitle>Detected Scores</CardTitle>
+          <CardTitle>Genel Puan</CardTitle>
           <CardDescription>
-            Review and edit the scores detected by AI. Click edit to modify any score.
+            AI tarafından tespit edilen genel puanı kontrol edin ve düzenleyin.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <AIScorePreviewTable
-            answers={answers}
-            examId={examId}
-            onAnswersChange={setAnswers}
-          />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Toplam Puan</label>
+              <input
+                type="number"
+                value={totalScore}
+                onChange={(e) => setTotalScore(parseFloat(e.target.value) || 0)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
+                min="0"
+                step="0.01"
+              />
+            </div>
+            <div className="text-sm text-muted-foreground">
+              <p>Öğrenci Numarası: <strong>{studentNumber}</strong></p>
+              <p>Sınav Kodu: <strong>{data.examId}</strong></p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -178,7 +169,7 @@ function AIPreviewPageContent() {
         onClearAll={handleClearAll}
         onDiscard={handleDiscard}
         isSaving={isSaving}
-        disabled={!studentId}
+        disabled={!studentNumber || !examId}
       />
 
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
@@ -186,7 +177,7 @@ function AIPreviewPageContent() {
           <DialogHeader>
             <DialogTitle>Confirm Save</DialogTitle>
             <DialogDescription>
-              Are you sure you want to save {answers.length} scores? This action cannot be undone.
+              Genel puan ({totalScore}) kaydedilecek. Bu işlem geri alınamaz.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 pt-4">

@@ -302,7 +302,7 @@ export function MudekMatrixView({
               <GraduationCap className="h-5 w-5 text-brand-navy dark:text-slate-200" />
             </div>
             <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">MEDEK Matrisi</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">NTMYO Matrisi</h2>
               <p className="text-sm text-slate-600 dark:text-slate-400">Öğrenme Çıktıları (ÖÇ) ve Program Çıktıları (PÇ) arasındaki ilişki matrisi</p>
             </div>
           </div>

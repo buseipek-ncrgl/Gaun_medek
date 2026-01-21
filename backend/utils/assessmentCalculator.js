@@ -1,92 +1,76 @@
 /**
  * MEDEK Hesaplama Yardımcıları
  * Girdi: StudentExamResult listesi, Exam, Course
- * Çıktı: Soru → ÖÇ → PÇ performansları ve rapor
+ * Çıktı: Genel Puan → ÖÇ → PÇ performansları ve rapor
  */
 
-// 1) Soru bazlı analiz: ortalama, başarı yüzdesi
-export function calculateQuestionAnalysis(studentResults, exam) {
-  const questionMap = new Map();
-  const maxScore = Number(exam?.maxScorePerQuestion || 0);
-  const totalQuestions = Number(exam?.questionCount || 0);
-
-  // Başlat
-  for (let i = 1; i <= totalQuestions; i++) {
-    questionMap.set(i, {
-      questionNumber: i,
-      scores: [],
-    });
-  }
-
-  // Skorları topla
+// 1) Genel puan analizi: ortalama, başarı yüzdesi
+export function calculateTotalScoreAnalysis(studentResults, exam) {
+  const maxTotalScore = exam?.maxScore || 0;
+  
+  // Genel puanları topla
+  const totalScores = [];
+  const percentages = [];
+  
   (studentResults || []).forEach((result) => {
-    (result.questionScores || []).forEach((qs) => {
-      if (!questionMap.has(qs.questionNumber)) return;
-      questionMap.get(qs.questionNumber).scores.push({
-        score: Number(qs.score || 0),
-        learningOutcomeCode: qs.learningOutcomeCode || null,
-      });
-    });
+    if (result.totalScore !== undefined && result.totalScore !== null) {
+      totalScores.push(Number(result.totalScore || 0));
+      percentages.push(Number(result.percentage || 0));
+    }
   });
 
   // Hesapla
-  const analysis = Array.from(questionMap.values()).map((item) => {
-    const scores = item.scores.map((s) => s.score);
-    // Sıfır alanları filtrele - sadece puan alanları (score > 0) sayılır
-    const answeredScores = scores.filter(s => s > 0);
-    const avg = answeredScores.length
-      ? answeredScores.reduce((a, b) => a + b, 0) / answeredScores.length
-      : 0;
-    const success = maxScore > 0 ? (avg / maxScore) * 100 : 0;
-    const loCode =
-      item.scores.find((s) => s.learningOutcomeCode)?.learningOutcomeCode || null;
+  const avgTotalScore = totalScores.length
+    ? totalScores.reduce((a, b) => a + b, 0) / totalScores.length
+    : 0;
+  const avgPercentage = percentages.length
+    ? percentages.reduce((a, b) => a + b, 0) / percentages.length
+    : 0;
 
-    return {
-      questionNumber: item.questionNumber,
-      maxScore,
-      averageScore: Number(avg.toFixed(2)),
-      successRate: Number(success.toFixed(2)),
-      learningOutcomeCode: loCode,
-      attempts: answeredScores.length, // Sadece cevap verenler (score > 0)
-    };
-  });
-
-  return analysis;
+  return {
+    averageTotalScore: Number(avgTotalScore.toFixed(2)),
+    averagePercentage: Number(avgPercentage.toFixed(2)),
+    maxTotalScore,
+    studentCount: totalScores.length,
+    minScore: totalScores.length ? Math.min(...totalScores) : 0,
+    maxScore: totalScores.length ? Math.max(...totalScores) : 0,
+  };
 }
 
-// 2) ÖÇ performansı: soru analizini ÖÇ bazında grupla
-export function calculateOutcomePerformance(questionAnalysis, exam, course) {
+// 2) ÖÇ performansı: Sınav bazlı ÖÇ eşleme - sadece sınavın eşlendiği ÖÇ'ler için hesapla
+export function calculateOutcomePerformance(studentResults, exam, course) {
+  // Sınavın eşlendiği ÖÇ kodlarını al
+  const examLOs = exam?.learningOutcomes || [];
+  
+  // Eğer sınav için ÖÇ eşlemesi yoksa, course'daki tüm ÖÇ'leri kullan (fallback)
   const loDefs = course?.learningOutcomes || [];
-  const loMap = new Map(
-    loDefs.map((lo) => [
-      lo.code,
-      {
-        code: lo.code,
-        description: lo.description,
-        programOutcomes: lo.programOutcomes || lo.relatedProgramOutcomes || [],
-        questions: [],
-      },
-    ])
-  );
-
-  (questionAnalysis || []).forEach((qa) => {
-    if (!qa.learningOutcomeCode || !loMap.has(qa.learningOutcomeCode)) return;
-    loMap.get(qa.learningOutcomeCode).questions.push(qa);
+  
+  // Tüm öğrencilerin genel puan yüzdelerini topla
+  const percentages = [];
+  (studentResults || []).forEach((result) => {
+    if (result.percentage !== undefined && result.percentage !== null) {
+      percentages.push(Number(result.percentage || 0));
+    }
   });
+  
+  // Ortalama yüzdeyi hesapla
+  const avgPercentage = percentages.length
+    ? percentages.reduce((a, b) => a + b, 0) / percentages.length
+    : 0;
 
-  return Array.from(loMap.values()).map((lo) => {
-    const successAvg = lo.questions.length
-      ? lo.questions.reduce((sum, q) => sum + q.successRate, 0) /
-        lo.questions.length
-      : 0;
-    return {
-      code: lo.code,
-      description: lo.description,
-      programOutcomes: lo.programOutcomes,
-      questionCount: lo.questions.length,
-      success: Number(successAvg.toFixed(2)),
-    };
-  });
+  // Sınav bazlı ÖÇ eşleme varsa sadece onları kullan, yoksa tüm ÖÇ'leri kullan
+  const relevantLOs = examLOs.length > 0
+    ? loDefs.filter((lo) => examLOs.includes(lo.code))
+    : loDefs;
+
+  // Her ÖÇ için genel puan yüzdesini kullan
+  return relevantLOs.map((lo) => ({
+    code: lo.code,
+    description: lo.description,
+    programOutcomes: lo.programOutcomes || lo.relatedProgramOutcomes || [],
+    success: Number(avgPercentage.toFixed(2)),
+    studentCount: percentages.length,
+  }));
 }
 
 // 3) PÇ performansı: ÖÇ sonuçlarından türet
@@ -120,9 +104,9 @@ export function calculateProgramOutcomePerformance(outcomePerformance, course) {
 
 // 4) Tam rapor
 export function buildMudekReport(course, exam, studentResults) {
-  const questionAnalysis = calculateQuestionAnalysis(studentResults, exam);
+  const totalScoreAnalysis = calculateTotalScoreAnalysis(studentResults, exam);
   const outcomePerformance = calculateOutcomePerformance(
-    questionAnalysis,
+    studentResults,
     exam,
     course
   );
@@ -132,13 +116,15 @@ export function buildMudekReport(course, exam, studentResults) {
   );
 
   // Basit özet öneri
-  const weakestLO = [...outcomePerformance].sort((a, b) => a.success - b.success)[0];
-  const recommendations = weakestLO
-    ? `ÖÇ ${weakestLO.code} için başarı düşük görünüyor (%${weakestLO.success}). İçerik, örnek ve soru dağılımları gözden geçirilmeli.`
-    : "Veri bulunamadı.";
+  const avgPercentage = totalScoreAnalysis.averagePercentage;
+  const recommendations = avgPercentage < 60
+    ? `Genel başarı oranı %${avgPercentage.toFixed(2)} ile MEDEK hedef eşiğinin (%60) altında. Ders içeriği ve öğretim yöntemleri gözden geçirilmeli.`
+    : avgPercentage < 70
+    ? `Genel başarı oranı %${avgPercentage.toFixed(2)} ile kabul edilebilir seviyede. İyileştirme için öğrenme çıktılarına göre detaylı analiz yapılmalı.`
+    : `Genel başarı oranı %${avgPercentage.toFixed(2)} ile iyi seviyede.`;
 
   return {
-    questionAnalysis,
+    totalScoreAnalysis,
     learningOutcomeAnalysis: outcomePerformance,
     programOutcomeAnalysis: programOutcomePerformance,
     summary: { recommendations },

@@ -97,7 +97,7 @@ export default function ExamAnalysisPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Sınav Analizi</h1>
           <p className="text-muted-foreground">
-            Soru → ÖÇ → PÇ zincirine göre otomatik MEDEK raporu
+            Genel puan bazlı otomatik NTMYO raporu
           </p>
         </div>
         <Button onClick={handleExportPdf} className="h-11 px-5">

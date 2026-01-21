@@ -18,13 +18,13 @@ export function HeatmapChart({
 }: HeatmapChartProps) {
   const getHeatmapColor = (percentage: number) => {
     if (percentage >= 80) return "bg-green-500";
-    if (percentage >= 60) return "bg-yellow-500";
-    if (percentage >= 40) return "bg-orange-500";
+    // 50 puan eşiği: >=50 yeşil, <50 kırmızı
+    if (percentage >= 50) return "bg-green-500";
     return "bg-red-500";
   };
 
   const getTextColor = (percentage: number) => {
-    if (percentage >= 60) return "text-white";
+    if (percentage >= 50) return "text-white"; // 50 puan eşiği
     return "text-white";
   };
 

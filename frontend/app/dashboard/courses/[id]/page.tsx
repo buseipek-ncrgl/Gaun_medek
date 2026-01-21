@@ -190,7 +190,7 @@ export default function CourseDetailPage() {
                   )}
                 >
                   <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                  <span className="hidden sm:inline">MEDEK Matrisi</span>
+                  <span className="hidden sm:inline">NTMYO Matrisi</span>
                   <span className="sm:hidden">Matris</span>
                 </TabsTrigger>
               </TabsList>
@@ -517,7 +517,7 @@ export default function CourseDetailPage() {
               <Card className="border-2 border-yellow-200">
                 <CardContent className="p-8 text-center">
                   <p className="text-lg text-muted-foreground">
-                    Bu ders için bölüm bilgisi bulunamadı. MEDEK matrisi görüntülemek için lütfen dersi düzenleyip bölüm seçin.
+                    Bu ders için bölüm bilgisi bulunamadı. NTMYO matrisi görüntülemek için lütfen dersi düzenleyip bölüm seçin.
                   </p>
                 </CardContent>
               </Card>

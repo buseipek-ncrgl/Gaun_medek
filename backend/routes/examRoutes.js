@@ -11,6 +11,7 @@ import {
   getExamResultsByStudent,
   startBatchScore,
   getBatchStatus,
+  createOrUpdateStudentExamResult,
 } from "../controllers/examController.js";
 import { getExamAnalysis } from "../controllers/reportController.js";
 
@@ -32,6 +33,8 @@ router.get("/student/:studentNumber/results", getExamResultsByStudent);
 router.post("/:examId/score", upload.single("file"), submitExamScores);
 // Batch score (multiple PDFs) - POST routes
 router.post("/:examId/batch-score", upload.array("files"), startBatchScore);
+// Manual score entry (genel puan girişi) - POST route
+router.post("/:examId/manual-score", createOrUpdateStudentExamResult);
 
 // GET routes with sub-paths - MUST be before /:id route to avoid conflict
 // These are more specific than /:id, so they must come first

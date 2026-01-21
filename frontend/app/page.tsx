@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,6 @@ import { programOutcomeApi } from "@/lib/api/programOutcomeApi";
 export default function DashboardPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [logoError, setLogoError] = useState(false);
   const [stats, setStats] = useState({
     totalCourses: 0,
     totalLearningOutcomes: 0,
@@ -92,32 +90,12 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="relative h-16 w-16 flex-shrink-0">
-              {logoError ? (
-                <div className="h-16 w-16 rounded-full bg-brand-navy/20 dark:bg-brand-navy/30 flex items-center justify-center border-2 border-brand-navy/30">
-                  <span className="text-brand-navy dark:text-white font-bold text-xl">NT</span>
-                </div>
-              ) : (
-                <Image 
-                  src="/logo.png" 
-                  alt="NTMYO Logo" 
-                  width={64}
-                  height={64}
-                  className="object-contain"
-                  onError={() => setLogoError(true)}
-                />
-              )}
-            </div>
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-brand-navy dark:text-slate-100 mb-2">
-                NTMYO Ölçme Değerlendirme Yönetim Sistemi
-              </h1>
-              <p className="text-base text-slate-600 dark:text-slate-400">
-                Sistem genelinde özet bilgiler ve hızlı erişim
-              </p>
-            </div>
-          </div>
+          <h1 className="text-3xl md:text-4xl font-bold text-brand-navy dark:text-slate-100 mb-2">
+            NTMYO Ölçme Değerlendirme Yönetim Sistemi
+          </h1>
+          <p className="text-base text-slate-600 dark:text-slate-400">
+            Sistem genelinde özet bilgiler ve hızlı erişim
+          </p>
         </div>
 
         {/* Stats Grid */}

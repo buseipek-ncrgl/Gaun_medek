@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -38,7 +37,6 @@ const settingsNav = [
 export function Sidebar() {
   const { isOpen, setIsOpen } = useSidebar();
   const pathname = usePathname();
-  const [logoError, setLogoError] = React.useState(false);
 
   return (
     <>
@@ -63,25 +61,25 @@ export function Sidebar() {
           {/* Logo/Brand */}
           <div className="flex flex-col px-4 lg:px-6 py-4 lg:py-5 border-b border-white/10 flex-shrink-0">
             <div className="flex items-center gap-3">
-              <div className="relative h-10 w-10 flex-shrink-0">
-                {logoError ? (
-                  <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">NT</span>
-                  </div>
-                ) : (
-                  <Image 
-                    src="/logo.png" 
-                    alt="NTMYO Logo" 
-                    width={40}
-                    height={40}
-                    className="object-contain"
-                    onError={() => setLogoError(true)}
-                  />
-                )}
+              <div className="relative w-12 h-12 flex-shrink-0">
+                <img 
+                  src="/assets/ntmyo-logo.png" 
+                  alt="NTMYO Logo" 
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    // Fallback if logo doesn't exist yet
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
+                />
+                {/* Fallback Logo - NTMYO renklerinde */}
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900 to-blue-700 rounded-lg border-2 border-white/20 shadow-lg">
+                  <div className="text-white font-bold text-lg">NT</div>
+                </div>
               </div>
               <div className="flex-1 min-w-0">
-                <h1 className="text-sm lg:text-base font-bold text-white leading-tight">NTMYO</h1>
-                <p className="text-xs text-white/80 mt-0.5">Ölçme Değerlendirme</p>
+                <h1 className="text-lg lg:text-xl font-bold text-white leading-tight">NTMYO</h1>
+                <p className="text-xs text-white/80 leading-tight">Ölçme Değerlendirme</p>
               </div>
             </div>
           </div>

@@ -2,7 +2,7 @@ import Exam from "../models/Exam.js";
 import Course from "../models/Course.js";
 import StudentExamResult from "../models/StudentExamResult.js";
 import {
-  calculateQuestionAnalysis,
+  calculateTotalScoreAnalysis,
   calculateOutcomePerformance,
   calculateProgramOutcomePerformance,
   buildMudekReport,
@@ -26,9 +26,9 @@ export const getExamAnalysis = async (req, res) => {
     
     console.log(`📊 Analysis request for exam ${id}: Found ${studentResults.length} student results`);
 
-    const questionAnalysis = calculateQuestionAnalysis(studentResults, exam);
+    const totalScoreAnalysis = calculateTotalScoreAnalysis(studentResults, exam);
     const learningOutcomeAnalysis = calculateOutcomePerformance(
-      questionAnalysis,
+      studentResults,
       exam,
       course
     );
@@ -38,18 +38,21 @@ export const getExamAnalysis = async (req, res) => {
     );
 
     const weakestLO = [...learningOutcomeAnalysis].sort((a, b) => a.success - b.success)[0];
-    const recommendations = weakestLO
-      ? `ÖÇ ${weakestLO.code} için başarı düşük (%${weakestLO.success}). İçerik, örnek ve soru dağılımı iyileştirilmeli.`
-      : studentResults.length === 0
+    const avgPercentage = totalScoreAnalysis.averagePercentage;
+    const recommendations = studentResults.length === 0
       ? "Henüz öğrenci sonucu yok. PDF yükleyip puanlama yaptıktan sonra analiz görünecektir."
-      : "Veri bulunamadı.";
+      : avgPercentage < 60
+      ? `Genel başarı oranı %${avgPercentage.toFixed(2)} ile MEDEK hedef eşiğinin (%60) altında. Ders içeriği ve öğretim yöntemleri gözden geçirilmeli.`
+      : weakestLO && weakestLO.success < 60
+      ? `ÖÇ ${weakestLO.code} için başarı düşük (%${weakestLO.success}). İçerik, örnek ve soru dağılımı iyileştirilmeli.`
+      : `Genel başarı oranı %${avgPercentage.toFixed(2)} ile kabul edilebilir seviyede.`;
 
-    console.log(`📊 Analysis calculated: ${questionAnalysis.length} questions, ${learningOutcomeAnalysis.length} LOs, ${programOutcomeAnalysis.length} POs`);
+    console.log(`📊 Analysis calculated: ${totalScoreAnalysis.studentCount} students, ${learningOutcomeAnalysis.length} LOs, ${programOutcomeAnalysis.length} POs`);
 
     return res.status(200).json({
       success: true,
       data: {
-        questionAnalysis: questionAnalysis || [],
+        totalScoreAnalysis: totalScoreAnalysis || {},
         learningOutcomeAnalysis: learningOutcomeAnalysis || [],
         programOutcomeAnalysis: programOutcomeAnalysis || [],
         summary: { recommendations },

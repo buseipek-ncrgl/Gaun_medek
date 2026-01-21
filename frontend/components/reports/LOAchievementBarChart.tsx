@@ -39,8 +39,8 @@ export function LOAchievementBarChart({ achievements }: LOAchievementBarChartPro
   }));
 
   const getColor = (value: number) => {
-    if (value >= 80) return "#22c55e"; // green-500
-    if (value >= 60) return "#eab308"; // yellow-500
+    // 50 puan eşiği: >=50 yeşil, <50 kırmızı
+    if (value >= 50) return "#22c55e"; // green-500
     return "#ef4444"; // red-500
   };
 
@@ -185,15 +185,11 @@ export function LOAchievementBarChart({ achievements }: LOAchievementBarChartPro
         <div className="mt-4 flex items-center justify-center gap-6 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-green-500"></div>
-            <span className="text-foreground">Yüksek (≥80%)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-yellow-500"></div>
-            <span className="text-foreground">Orta (60-79%)</span>
+            <span className="text-foreground">Başarılı (≥50%)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-red-500"></div>
-            <span className="text-foreground">Düşük (&lt;60%)</span>
+            <span className="text-foreground">Başarısız (&lt;50%)</span>
           </div>
         </div>
       </CardContent>

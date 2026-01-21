@@ -13,7 +13,7 @@ export default function AIPage() {
   const [processingSteps, setProcessingSteps] = useState<ProcessingStep[]>([
     { id: "extract", label: "Belgeden veri çıkarılıyor", status: "pending" },
     { id: "detect", label: "Öğrenci numarası tespit ediliyor", status: "pending" },
-    { id: "crop", label: "Soru bölgeleri analiz ediliyor", status: "pending" },
+    { id: "crop", label: "Genel puan kutusu analiz ediliyor", status: "pending" },
     { id: "gemini", label: "Gemini Vision API'ye gönderiliyor", status: "pending" },
   ]);
 

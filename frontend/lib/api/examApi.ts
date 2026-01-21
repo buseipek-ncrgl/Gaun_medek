@@ -5,12 +5,8 @@ export interface Exam {
   courseId: string | { _id: string; name: string; code: string; learningOutcomes?: Array<{ code: string; description: string }> };
   examType: "midterm" | "final";
   examCode: string;
-  questionCount: number;
-  maxScorePerQuestion: number;
-  questions: Array<{
-    questionNumber: number;
-    learningOutcomeCode: string;
-  }>;
+  maxScore: number; // Maksimum toplam puan (soru bazlı değil)
+  learningOutcomes?: string[]; // Sınav bazlı ÖÇ eşleme (ÖÇ kodları array'i)
   createdAt?: string;
   updatedAt?: string;
 }
@@ -82,23 +78,15 @@ export interface CreateExamDto {
   courseId: string;
   examType: "midterm" | "final";
   examCode: string;
-  questionCount: number;
-  maxScorePerQuestion: number;
-  questions: Array<{
-    questionNumber: number;
-    learningOutcomeCode: string;
-  }>;
+  maxScore: number; // Maksimum toplam puan
+  learningOutcomes?: string[]; // Sınav bazlı ÖÇ eşleme (ÖÇ kodları array'i)
 }
 
 export interface UpdateExamDto {
   examType?: "midterm" | "final";
   examCode?: string;
-  questionCount?: number;
-  maxScorePerQuestion?: number;
-  questions?: Array<{
-    questionNumber: number;
-    learningOutcomeCode: string;
-  }>;
+  maxScore?: number; // Maksimum toplam puan
+  learningOutcomes?: string[]; // Sınav bazlı ÖÇ eşleme (ÖÇ kodları array'i)
 }
 
 export const examApi = {

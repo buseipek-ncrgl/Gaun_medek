@@ -57,7 +57,7 @@ function getPageTitle(pathname: string): string {
     return "Ders Detayları";
   }
   if (pathname.startsWith("/reports/")) {
-    return "MEDEK Raporu";
+    return "NTMYO Raporu";
   }
   if (pathname.startsWith("/dashboard/courses/") && !pathname.includes("/create")) {
     return "Ders Detayları";
