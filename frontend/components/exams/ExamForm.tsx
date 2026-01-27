@@ -308,7 +308,7 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
           }));
           console.log("📝 Setting questions with existing LOs:", newQuestions);
           setQuestions(newQuestions);
-          prevLearningOutcomesRef.current = initialData.learningOutcomes;
+          prevLearningOutcomesRef.current = initialLOs;
           prevQuestionsRef.current = newQuestions;
           prevQuestionsLengthRef.current = questionCount;
         } else {
