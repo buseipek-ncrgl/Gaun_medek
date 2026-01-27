@@ -12,6 +12,11 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "NTMYO Ölçme Değerlendirme Yönetim Sistemi",
   description: "NTMYO Ölçme Değerlendirme Yönetim Sistemi - Sınav değerlendirme ve çıktı analiz sistemi",
+  icons: {
+    icon: "/assets/ntmyo-logo.png",
+    shortcut: "/assets/ntmyo-logo.png",
+    apple: "/assets/ntmyo-logo.png",
+  },
 };
 
 export default function RootLayout({
