@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StudentDetectionCard } from "@/components/ai/StudentDetectionCard";
 import { AIScorePreviewToolbar } from "@/components/ai/AIScorePreviewToolbar";
 import { type AIProcessResponse } from "@/lib/api/aiApi";
-import { examApi } from "@/lib/api/examApi";
+import { examApi, type Exam } from "@/lib/api/examApi";
+import { studentExamResultApi } from "@/lib/api/studentExamResultApi";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,7 @@ function AIPreviewPageContent() {
   const [totalScore, setTotalScore] = useState<number>(0);
   const [studentNumber, setStudentNumber] = useState<string>("");
   const [examId, setExamId] = useState<string>("");
+  const [exam, setExam] = useState<Exam | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
 
@@ -47,9 +49,10 @@ function AIPreviewPageContent() {
   const findExamByCode = async (examCode: string) => {
     try {
       const { examApi } = await import("@/lib/api/examApi");
-      const exam = await examApi.getByExamCode(examCode);
-      if (exam) {
-        setExamId(exam._id);
+      const foundExam = await examApi.getByExamCode(examCode);
+      if (foundExam) {
+        setExamId(foundExam._id);
+        setExam(foundExam);
       }
     } catch (error) {
       console.error("Failed to find exam by code", error);
@@ -76,7 +79,7 @@ function AIPreviewPageContent() {
   };
 
   const handleConfirmSave = async () => {
-    if (!data || !examId || !studentNumber) {
+    if (!data || !examId || !studentNumber || !exam) {
       toast.error("Eksik bilgi");
       return;
     }
@@ -84,9 +87,25 @@ function AIPreviewPageContent() {
     setIsSaving(true);
 
     try {
-      // PDF'i base64'e çevir (localStorage'da saklanmış olabilir)
-      // Şimdilik sadece totalScore'u gönder
-      await examApi.submitScore(examId, studentNumber, null); // PDF null, sadece totalScore kullanılacak
+      // Get courseId from exam (can be string or object)
+      const courseId = typeof exam.courseId === "string" 
+        ? exam.courseId 
+        : exam.courseId._id;
+      
+      const maxScore = exam.maxScore || 0;
+      const percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+
+      // Use manual-score endpoint to submit score without file
+      await studentExamResultApi.createOrUpdate({
+        studentNumber,
+        examId,
+        courseId,
+        totalScore,
+        maxScore,
+        percentage: Math.round(percentage * 100) / 100,
+        outcomePerformance: {},
+        programOutcomePerformance: {},
+      });
       
       toast.success("Puan başarıyla kaydedildi");
       router.push(`/dashboard/exams/${examId}/results`);
