@@ -371,14 +371,15 @@ export default function CourseReportPage() {
       if (students.length > 0 && course.learningOutcomes && course.learningOutcomes.length > 0) {
         pdfContainer.appendChild(createSectionTitle('Öğrenci Karşılaştırması'));
         
-        const studentTableHeaders = ['Öğrenci No', 'Öğrenci Adı', ...(course.learningOutcomes.map(lo => lo.code))];
+        const learningOutcomes = course.learningOutcomes;
+        const studentTableHeaders = ['Öğrenci No', 'Öğrenci Adı', ...(learningOutcomes.map(lo => lo.code))];
         const studentTableRows = students.map(student => {
           const achievements = studentAchievements[student.studentNumber] || {};
           const row = [
             student.studentNumber,
             student.name
           ];
-          course.learningOutcomes.forEach(lo => {
+          learningOutcomes.forEach(lo => {
             const percentage = achievements[lo.code] || 0;
             const color = percentage >= 50 ? '#22c55e' : '#ef4444';
             row.push(`<span style="color: ${color};">${percentage.toFixed(1)}%</span>`);
@@ -392,11 +393,12 @@ export default function CourseReportPage() {
       if (students.length > 0 && course.learningOutcomes && course.learningOutcomes.length > 0) {
         pdfContainer.appendChild(createSectionTitle('Öğrenci-ÖÇ Başarı Heatmap'));
         
-        const heatmapTableHeaders = ['Öğrenci', ...(course.learningOutcomes.map(lo => lo.code))];
+        const learningOutcomes = course.learningOutcomes;
+        const heatmapTableHeaders = ['Öğrenci', ...(learningOutcomes.map(lo => lo.code))];
         const heatmapTableRows = students.map(student => {
           const achievements = studentAchievements[student.studentNumber] || {};
           const row = [student.studentNumber];
-          course.learningOutcomes.forEach(lo => {
+          learningOutcomes.forEach(lo => {
             const percentage = achievements[lo.code] || 0;
             // Heatmap color intensity
             const intensity = Math.min(100, Math.max(0, percentage));
