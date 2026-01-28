@@ -70,11 +70,11 @@ export default function LoginPage() {
             Eğitmenler için basit, güvenli ve hızlı sınav yönetimi.
           </h1>
           <p className="text-lg text-white/80 max-w-xl">
-            ÖÇ → PÇ eşlemesi, AI destekli puanlama ve akreditasyon raporlarını tek adımda yönetin.
+            ÖÇ → PÇ eşlemesi, puanlama ve akreditasyon raporlarını tek adımda yönetin.
           </p>
           <div className="hidden lg:flex gap-4 text-white/80">
             <div className="flex-1 p-4 rounded-xl bg-white/10 border border-white/15">
-              <p className="font-semibold">AI Puanlama</p>
+              <p className="font-semibold">Puanlama</p>
               <p className="text-sm text-white/70">PDF yükle, otomatik kırp ve skorla.</p>
             </div>
             <div className="flex-1 p-4 rounded-xl bg-white/10 border border-white/15">

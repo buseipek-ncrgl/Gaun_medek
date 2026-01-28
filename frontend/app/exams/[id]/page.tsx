@@ -69,7 +69,7 @@ export default function EditExamPage() {
             onClick={() => router.push(`/dashboard/exams/${examId}/upload`)}
           >
             <Upload className="h-4 w-4 mr-2" />
-            AI Puanlama
+            Puanlama
           </Button>
           <Button
             variant="outline"

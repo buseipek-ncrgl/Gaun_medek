@@ -140,11 +140,11 @@ export function AIScorePreviewDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>AI Score Preview</DialogTitle>
+          <DialogTitle>Puan Önizleme</DialogTitle>
           <DialogDescription>
             {isValidating
-              ? "Validating scores..."
-              : `Review the scores before saving. ${validCount} valid, ${invalidCount} invalid.`}
+              ? "Puanlar kontrol ediliyor..."
+              : `Kaydetmeden önce puanları kontrol edin. ${validCount} geçerli, ${invalidCount} geçersiz.`}
           </DialogDescription>
         </DialogHeader>
 

@@ -71,7 +71,7 @@ export default function ScoresPage() {
         </div>
         <Button onClick={() => router.push("/scores/upload")}>
           <Upload className="mr-2 h-4 w-4" />
-          AI Toplu Puan Yükleme
+          Toplu Puan Yükleme
         </Button>
       </div>
 

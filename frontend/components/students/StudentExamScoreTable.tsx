@@ -85,7 +85,7 @@ export function StudentExamScoreTable({ scores }: StudentExamScoreTableProps) {
     return (
       <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
         <p className="text-lg font-medium">Bu öğrenci için henüz sınav puanı bulunmamaktadır</p>
-        <p className="text-sm mt-2">Sınav puanları AI puanlama veya manuel giriş ile eklendikten sonra burada görünecektir</p>
+        <p className="text-sm mt-2">Sınav puanları puanlama veya manuel giriş ile eklendikten sonra burada görünecektir</p>
       </div>
     );
   }

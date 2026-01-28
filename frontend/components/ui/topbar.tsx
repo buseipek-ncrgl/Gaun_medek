@@ -28,7 +28,7 @@ const pageTitles: Record<string, string> = {
   "/students/new": "Yeni Öğrenci",
   "/exams/new": "Yeni Sınav",
   "/dashboard/courses/create": "Yeni Ders Oluştur",
-  "/ai": "AI Sınav İşleme",
+  "/ai": "Sınav İşleme",
   "/scores": "Puanlar",
   "/settings": "Ayarlar",
   "/dashboard/settings": "Ayarlar",

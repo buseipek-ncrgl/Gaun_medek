@@ -27,7 +27,7 @@ export function APIKeyManager() {
       setApiKey(data.key);
       setStatus(data.status);
     } catch (error) {
-      console.error("Failed to fetch API key", error);
+      console.error("Failed to fetch settings", error);
     } finally {
       setIsLoading(false);
     }
@@ -35,18 +35,18 @@ export function APIKeyManager() {
 
   const handleSave = async () => {
     if (!apiKey.trim()) {
-      toast.error("Please enter an API key");
+      toast.error("Lütfen gerekli bilgiyi girin");
       return;
     }
 
     setIsSaving(true);
     try {
       await settingsApi.saveAPIKey(apiKey);
-      toast.success("API key saved successfully");
+      toast.success("Bilgiler kaydedildi");
       // Re-fetch to get updated status
       await fetchAPIKey();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to save API key");
+      toast.error(error.response?.data?.message || "Kaydedilemedi");
     } finally {
       setIsSaving(false);
     }
@@ -82,7 +82,7 @@ export function APIKeyManager() {
     return (
       <Card className="rounded-xl shadow-sm">
         <CardHeader>
-          <CardTitle>AI API Key Manager</CardTitle>
+          <CardTitle>Servis Ayarları</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4 text-muted-foreground">Loading...</div>
@@ -96,10 +96,10 @@ export function APIKeyManager() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Key className="h-5 w-5" />
-          AI API Key Manager
+          Servis Ayarları
         </CardTitle>
         <CardDescription>
-          Manage your Gemini Vision API key for AI-powered exam processing
+          Puanlama servisi için gerekli bilgileri yönetin
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -110,7 +110,7 @@ export function APIKeyManager() {
 
         <div className="space-y-2">
           <label htmlFor="apiKey" className="text-sm font-medium">
-            Gemini API Key
+            Gerekli Bilgi
           </label>
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -119,7 +119,7 @@ export function APIKeyManager() {
                 type={showKey ? "text" : "password"}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter your Gemini API key"
+                placeholder="Gerekli bilgiyi girin"
                 className="pr-10"
               />
               <Button
@@ -140,7 +140,7 @@ export function APIKeyManager() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Your API key is stored securely and used only for AI processing
+            Bu bilgi güvenli şekilde saklanır ve yalnızca puanlama işleminde kullanılır
           </p>
         </div>
       </CardContent>

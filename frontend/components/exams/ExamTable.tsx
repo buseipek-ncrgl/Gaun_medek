@@ -68,7 +68,7 @@ export function ExamTable({ exams, courses, onDelete }: ExamTableProps) {
               <TableHead className="text-white font-bold w-[100px]">Tür</TableHead>
               <TableHead className="text-white font-bold text-center w-[100px]">ÖÇ Sayısı</TableHead>
               <TableHead className="text-white font-bold text-center w-[100px]">Maksimum Puan</TableHead>
-              <TableHead className="text-white font-bold text-center w-[240px]">AI Puanlama</TableHead>
+              <TableHead className="text-white font-bold text-center w-[240px]">Puanlama</TableHead>
               <TableHead className="text-white font-bold text-right w-[160px]">İşlemler</TableHead>
             </TableRow>
           </TableHeader>

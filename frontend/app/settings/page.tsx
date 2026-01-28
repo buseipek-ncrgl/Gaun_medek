@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Settings } from "lucide-react";
 import { toast } from "sonner";
 import { SystemStatusCard } from "@/components/settings/SystemStatusCard";
-import { APIKeyManager } from "@/components/settings/APIKeyManager";
 import { BackupTools } from "@/components/settings/BackupTools";
 import { DataIntegrityCheck } from "@/components/settings/DataIntegrityCheck";
 import { settingsApi, type SystemStatus } from "@/lib/api/settingsApi";
@@ -90,9 +89,6 @@ export default function SettingsPage() {
             <SystemStatusCard status={systemStatus} isLoading={isLoading} />
           )}
         </div>
-
-        {/* API Key Manager */}
-        <APIKeyManager />
 
         {/* Backup Tools */}
         <BackupTools />

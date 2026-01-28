@@ -18,9 +18,7 @@ import { type Exam } from "@/lib/api/examApi";
 type StatusStep =
   | "idle"
   | "pdf"
-  | "markers"
-  | "crop"
-  | "gemini"
+  | "process"
   | "save"
   | "done"
   | "error";
@@ -98,9 +96,9 @@ export default function ExamUploadPage() {
       // Tek çağrı, ilerleme UI'da gösteriliyor
       const result = await examApi.submitScore(examId, studentNumber, file);
       // Backend adımlarını tek istekte yapıyor; biz statüleri kullanıcıya bilgi amaçlı güncelliyoruz
-      setStatus("gemini");
+      setStatus("process");
       if (result?.markers && result.markers.success === false) {
-        setFallbackMessage("Marker bulunamadı, şablon modunda kesildi.");
+        setFallbackMessage("Şablon modu kullanıldı.");
       }
       setStatus("save");
       setScores(result?.scores || []);
@@ -108,7 +106,7 @@ export default function ExamUploadPage() {
       setMaxTotalScore(result?.maxTotalScore ?? null);
       setPercentage(result?.percentage ?? null);
       setStatus("done");
-      toast.success("AI puanlama tamamlandı");
+      toast.success("Puanlama tamamlandı");
     } catch (error: any) {
       setStatus("error");
       const msg =
@@ -133,9 +131,9 @@ export default function ExamUploadPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">AI Sınav Puanlama</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Sınav Puanlama</h1>
             <p className="text-muted-foreground">
-              PDF yükleyin, AI otomatik olarak soruları puanlayıp ÖÇ eşlemesi yapacak.
+              PDF yükleyin, puanlama işlemi otomatik olarak başlatılsın.
             </p>
           </div>
         </div>
@@ -179,16 +177,26 @@ export default function ExamUploadPage() {
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Puanlanıyor...
               </>
             ) : (
-              "AI Puanlamayı Başlat"
+              "Puanlamayı Başlat"
             )}
           </Button>
 
           <div className="space-y-2">
-            <StatusLine label="PDF dönüştürülüyor" active={status === "pdf"} done={status !== "idle" && status !== "error" && status !== "pdf"} />
-            <StatusLine label="Marker tespiti / şablon" active={status === "markers"} done={status !== "idle" && status !== "error" && status !== "markers"} />
-            <StatusLine label="Soru kırpma" active={status === "crop"} done={status !== "idle" && status !== "error" && status !== "crop"} />
-            <StatusLine label="Gemini ile skor okuma" active={status === "gemini"} done={status === "save" || status === "done"} />
-            <StatusLine label="Sonuç kaydediliyor" active={status === "save"} done={status === "done"} />
+            <StatusLine
+              label="PDF dönüştürülüyor"
+              active={status === "pdf"}
+              done={status !== "idle" && status !== "error" && status !== "pdf"}
+            />
+            <StatusLine
+              label="Puanlama başlatılıyor"
+              active={status === "process"}
+              done={status === "save" || status === "done"}
+            />
+            <StatusLine
+              label="Sonuç kaydediliyor"
+              active={status === "save"}
+              done={status === "done"}
+            />
           </div>
 
           {fallbackMessage && (

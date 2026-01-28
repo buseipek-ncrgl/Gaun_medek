@@ -151,7 +151,7 @@ export default function BatchUploadPage() {
           <div>
           <h1 className="text-3xl font-bold tracking-tight">Toplu Sınav Yükleme</h1>
           <p className="text-muted-foreground">
-            10-300 PDF’yi bir kerede yükleyin, AI otomatik puanlasın.
+            10-300 PDF’yi bir kerede yükleyin, puanlama otomatik başlasın.
           </p>
           </div>
         </div>

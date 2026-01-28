@@ -109,9 +109,9 @@ export function AIScoreUploadForm() {
     <>
       <Card className="rounded-xl shadow-sm">
         <CardHeader>
-          <CardTitle>Upload AI-Scanned Scores</CardTitle>
+          <CardTitle>Toplu Puan Yükleme</CardTitle>
           <CardDescription>
-            Upload a JSON or CSV file containing AI-scanned exam scores
+            JSON veya CSV formatında puan dosyası yükleyin
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -231,50 +231,50 @@ export default function TestingPage() {
     }
   };
 
-  // Test 5: AI Service Mock Test
-  const testAIService = async (): Promise<TestResult> => {
+  // Test 5: Scoring Service Mock Test
+  const testScoringService = async (): Promise<TestResult> => {
     const output: string[] = [];
     
     try {
-      output.push("Testing AI service (Gemini endpoint)...");
+      output.push("Testing scoring service endpoint...");
       output.push("Attempting to ping /api/ai/process endpoint...");
       
       // Try to check if endpoint exists (without actually uploading)
       try {
         // This will likely fail, but we can check the error type
         await apiClient.get("/ai/health");
-        output.push("✓ AI service health endpoint: OK");
+        output.push("✓ Service health endpoint: OK");
       } catch (error: any) {
         if (error.response?.status === 404) {
-          output.push("⚠ AI health endpoint not found (expected if not implemented)");
+          output.push("⚠ Health endpoint not found (expected if not implemented)");
         } else if (error.response?.status === 405) {
-          output.push("✓ AI endpoint exists (method not allowed is expected)");
+          output.push("✓ Endpoint exists (method not allowed is expected)");
         } else {
-          output.push(`⚠ AI endpoint check: ${error.response?.status || "Unknown"}`);
+          output.push(`⚠ Endpoint check: ${error.response?.status || "Unknown"}`);
         }
       }
       
-      // Check API key status
+      // Check configuration status
       try {
         const { settingsApi } = await import("@/lib/api/settingsApi");
         const apiKeyData = await settingsApi.getAPIKey();
         if (apiKeyData.status === "active") {
-          output.push("✓ API key configured and active");
+          output.push("✓ Configuration is active");
         } else {
-          output.push(`⚠ API key status: ${apiKeyData.status}`);
+          output.push(`⚠ Configuration status: ${apiKeyData.status}`);
         }
       } catch (error) {
-        output.push("⚠ Could not check API key status");
+        output.push("⚠ Could not check configuration status");
       }
       
-      output.push("✓ AI service test: COMPLETED (mock)");
+      output.push("✓ Scoring service test: COMPLETED (mock)");
       
       return {
         status: "success",
         output,
       };
     } catch (error: any) {
-      output.push(`✗ AI service test failed: ${error.message}`);
+      output.push(`✗ Scoring service test failed: ${error.message}`);
       return {
         status: "error",
         output,
@@ -432,9 +432,9 @@ export default function TestingPage() {
         />
 
         <TestCard
-          testName="AI Service Mock Test"
-          description="Check AI service endpoint availability and API key status"
-          onRun={testAIService}
+          testName="Scoring Service Mock Test"
+          description="Check scoring service endpoint availability and configuration status"
+          onRun={testScoringService}
         />
 
         <TestCard

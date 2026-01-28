@@ -69,12 +69,12 @@ export function SystemStatusCard({ status, isLoading }: SystemStatusCardProps) {
             <div className="flex items-center gap-3 p-3 rounded-lg border">
               <Brain className={`h-5 w-5 ${status.aiServiceAvailable ? "text-green-500" : "text-yellow-500"}`} />
               <div className="flex-1">
-                <p className="text-sm font-medium">AI Service</p>
+                <p className="text-sm font-medium">Puanlama Servisi</p>
                 <Badge
                   variant={status.aiServiceAvailable ? "default" : "secondary"}
                   className="mt-1"
                 >
-                  {status.aiServiceAvailable ? "Available" : "Unavailable"}
+                  {status.aiServiceAvailable ? "Mevcut" : "Mevcut Değil"}
                 </Badge>
               </div>
             </div>

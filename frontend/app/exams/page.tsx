@@ -632,7 +632,7 @@ export default function ExamsPage() {
         </CardContent>
       </Card>
 
-      {/* AI Puanlama Bilgi Kartı - Collapsible */}
+      {/* Puanlama Bilgi Kartı - Collapsible */}
       <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
         <CardContent className="p-0">
           <div 
@@ -641,7 +641,7 @@ export default function ExamsPage() {
           >
             <div className="flex items-center gap-2">
               <Info className="h-5 w-5 text-brand-navy dark:text-slate-200" />
-              <span className="font-semibold text-brand-navy dark:text-slate-100">AI Puanlama Sistemi</span>
+              <span className="font-semibold text-brand-navy dark:text-slate-100">Puanlama Sistemi</span>
             </div>
             <Button
               variant="ghost"
@@ -668,8 +668,8 @@ export default function ExamsPage() {
                     <Upload className="h-5 w-5 text-brand-navy dark:text-slate-200" />
                   </div>
                   <div>
-                    <p className="font-semibold text-brand-navy dark:text-slate-100 mb-1">AI Puanlama</p>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">Tek PDF yükleyin, AI otomatik okusun</p>
+                    <p className="font-semibold text-brand-navy dark:text-slate-100 mb-1">Tek PDF Puanlama</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Tek PDF yükleyin, puanlama işlemini başlatın</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-gradient-to-br from-brand-navy/5 to-brand-navy/10 dark:from-brand-navy/10 dark:to-brand-navy/20 border border-brand-navy/20 dark:border-slate-700/50">
@@ -681,12 +681,6 @@ export default function ExamsPage() {
                     <p className="text-sm text-slate-600 dark:text-slate-400">Çoklu PDF yükleyin, toplu işlem yapın</p>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-amber-800 dark:text-amber-300">
-                  💡 <strong>Önemli:</strong> 4 siyah marker kare gerekli, AI otomatik puan okur
-                </p>
               </div>
             </div>
           )}
@@ -704,7 +698,7 @@ export default function ExamsPage() {
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">Sınav Listesi</h2>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                Sistemdeki tüm sınavlar. Puanlama için "AI Puanlama" veya "Toplu Yükleme" butonlarını kullanın.
+                Sistemdeki tüm sınavlar. Puanlama için "Puanlama" veya "Toplu Yükleme" butonlarını kullanın.
                 {filteredExams.length !== totalExams && (
                   <span className="ml-2">
                     ({filteredExams.length} / {totalExams} sınav gösteriliyor)
