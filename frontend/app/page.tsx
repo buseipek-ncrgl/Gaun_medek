@@ -11,11 +11,14 @@ import { examApi } from "@/lib/api/examApi";
 import { studentApi } from "@/lib/api/studentApi";
 import { learningOutcomeApi } from "@/lib/api/learningOutcomeApi";
 import { departmentApi } from "@/lib/api/departmentApi";
-import { programApi } from "@/lib/api/programApi";
+import { programApi, type Program } from "@/lib/api/programApi";
 import { programOutcomeApi } from "@/lib/api/programOutcomeApi";
 import { authApi } from "@/lib/api/authApi";
 
+type ProgramWithOutcomes = Program & { programOutcomes?: unknown[] };
+
 type MeUser = {
+  _id?: string;
   name?: string;
   email?: string;
   role?: string;
@@ -90,13 +93,13 @@ export default function DashboardPage() {
 
       // PÇ sayısı: rol göre kullanıcının alanındaki program çıktıları
       let totalPOs = 0;
-      let programsForPO: { programOutcomes?: unknown[] }[] = [];
+      let programsForPO: ProgramWithOutcomes[] = [];
       if (role === "department_head" && (me as MeUser)?.departmentId) {
         const deptId = typeof (me as MeUser).departmentId === "object" && (me as MeUser).departmentId !== null
           ? ((me as MeUser).departmentId as { _id?: string })._id
           : String((me as MeUser).departmentId);
         if (deptId) {
-          programsForPO = await programApi.getAll(deptId).catch(() => []);
+          programsForPO = (await programApi.getAll(deptId).catch(() => [])) as ProgramWithOutcomes[];
         }
       } else if (role === "teacher") {
         const programIds = new Set(
@@ -104,12 +107,12 @@ export default function DashboardPage() {
             .map((c) => (c.program && typeof c.program === "object" ? c.program._id : c.program))
             .filter(Boolean) as string[]
         );
-        const allPrograms = await programApi.getAll().catch(() => []);
-        programsForPO = allPrograms.filter((p: { _id?: string }) => p._id && programIds.has(p._id));
+        const allPrograms = (await programApi.getAll().catch(() => [])) as ProgramWithOutcomes[];
+        programsForPO = allPrograms.filter((p) => p._id && programIds.has(p._id));
       } else {
-        programsForPO = await programApi.getAll().catch(() => []);
+        programsForPO = (await programApi.getAll().catch(() => [])) as ProgramWithOutcomes[];
       }
-      programsForPO.forEach((program: { programOutcomes?: unknown[] }) => {
+      programsForPO.forEach((program) => {
         if (program.programOutcomes && Array.isArray(program.programOutcomes)) {
           totalPOs += program.programOutcomes.length;
         }
