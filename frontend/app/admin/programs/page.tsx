@@ -146,7 +146,7 @@ export default function AdminProgramsPage() {
       const deptId = getDeptId(p);
       const deptNameStr = deptName(p.department);
       const key = deptId || noDeptKey;
-      if (!map.has(key)) map.set(key, { departmentId: deptId, departmentName: deptId ? deptNameStr : "— Bölüm yok", programs: [] });
+      if (!map.has(key)) map.set(key, { departmentId: deptId, departmentName: deptId ? (deptNameStr ?? "—") : "— Bölüm yok", programs: [] });
       map.get(key)!.programs.push(p);
     }
     const arr = Array.from(map.values());
