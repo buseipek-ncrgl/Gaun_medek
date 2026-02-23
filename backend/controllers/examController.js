@@ -6,6 +6,7 @@ import Exam from "../models/Exam.js";
 import Course from "../models/Course.js";
 import Score from "../models/Score.js";
 import StudentExamResult from "../models/StudentExamResult.js";
+import Student from "../models/Student.js";
 import Batch from "../models/Batch.js";
 import Question from "../models/Question.js";
 import { createNotification } from "./notificationController.js";
@@ -25,6 +26,7 @@ import {
   calculateOutcomePerformance,
   calculateProgramOutcomePerformance,
 } from "../utils/assessmentCalculator.js";
+import { getCourseFilterForUser } from "../middleware/authMiddleware.js";
 
 // Helper: derive PO contributions from Exam → ÖÇ mapping
 const derivePCFromExam = (exam, course) => {
@@ -79,47 +81,70 @@ const extractStudentNumberFromFile = async (fileName, pngBuffer) => {
   
   console.log(`⚠️ Student number not found in filename: "${fileName}"`);
   
-  // 2) Template koordinatlarından öğrenci numarası kutularını kes ve oku
+  // 2) Template koordinatlarından öğrenci numarası kutusunu kes ve oku (tek kutu veya çok kutu)
   try {
     const studentNumberBoxes = template.studentNumberBoxes || [];
     if (studentNumberBoxes.length > 0) {
       const imageMetadata = await sharp(pngBuffer).metadata();
       const imageWidth = imageMetadata.width || template.templateSize.width;
       const imageHeight = imageMetadata.height || template.templateSize.height;
-      
-      const digitBoxes = [];
-      for (const box of studentNumberBoxes) {
-        // Yüzde değerlerini piksel değerlerine çevir
+      const box = studentNumberBoxes[0];
+
+      // Tek kutuda tüm öğrenci numarası (digit === "all")
+      const isSingleBox = box.digit === "all" || (template.studentNumberBox && template.studentNumberBox.singleBox);
+      if (isSingleBox && studentNumberBoxes.length === 1) {
         const x = box.x !== undefined ? box.x : Math.round((box.xPercent || 0) * imageWidth / 100);
         const y = box.y !== undefined ? box.y : Math.round((box.yPercent || 0) * imageHeight / 100);
         const w = box.w !== undefined ? box.w : Math.round((box.wPercent || 0) * imageWidth / 100);
         const h = box.h !== undefined ? box.h : Math.round((box.hPercent || 0) * imageHeight / 100);
-        
         if (x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= imageWidth && y + h <= imageHeight) {
           try {
-            const digitBuffer = await sharp(pngBuffer)
+            const singleBuffer = await sharp(pngBuffer)
               .extract({ left: x, top: y, width: w, height: h })
               .png()
               .toBuffer();
-            digitBoxes.push(digitBuffer);
-          } catch (error) {
-            console.warn(`⚠️ Failed to crop student number digit ${box.digit}:`, error.message);
+            const { extractStudentNumberFromSingleBox } = await import("../utils/geminiVision.js");
+            const studentNumber = await extractStudentNumberFromSingleBox(singleBuffer);
+            if (studentNumber && studentNumber.length >= 5) {
+              console.log(`✅ Student number from single box (template): ${studentNumber}`);
+              return studentNumber;
+            }
+          } catch (err) {
+            console.warn("⚠️ Single-box student number extraction failed:", err.message);
           }
         }
-      }
-      
-      // Template'te 9 hane var (bazı sınavlarda 9, bazılarında 10 olabilir)
-      const expectedDigits = studentNumberBoxes.length;
-      if (digitBoxes.length === expectedDigits) {
-        // extractStudentNumber fonksiyonunu import et
-        const { extractStudentNumber } = await import("../utils/geminiVision.js");
-        const studentNumber = await extractStudentNumber(digitBoxes);
-        if (studentNumber && studentNumber.length >= 7) {
-          console.log(`✅ Student number from template coordinates (${expectedDigits} digits): ${studentNumber}`);
-          return studentNumber;
-        }
+        // Fall through to full-page OCR if single box failed
       } else {
-        console.warn(`⚠️ Could not crop all ${expectedDigits} student number digits (got ${digitBoxes.length})`);
+        // Çok kutu (her hane ayrı)
+        const digitBoxes = [];
+        for (const b of studentNumberBoxes) {
+          const x = b.x !== undefined ? b.x : Math.round((b.xPercent || 0) * imageWidth / 100);
+          const y = b.y !== undefined ? b.y : Math.round((b.yPercent || 0) * imageHeight / 100);
+          const w = b.w !== undefined ? b.w : Math.round((b.wPercent || 0) * imageWidth / 100);
+          const h = b.h !== undefined ? b.h : Math.round((b.hPercent || 0) * imageHeight / 100);
+          if (x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= imageWidth && y + h <= imageHeight) {
+            try {
+              const digitBuffer = await sharp(pngBuffer)
+                .extract({ left: x, top: y, width: w, height: h })
+                .png()
+                .toBuffer();
+              digitBoxes.push(digitBuffer);
+            } catch (error) {
+              console.warn(`⚠️ Failed to crop student number digit ${b.digit}:`, error.message);
+            }
+          }
+        }
+        const expectedDigits = studentNumberBoxes.length;
+        if (digitBoxes.length === expectedDigits) {
+          const { extractStudentNumber } = await import("../utils/geminiVision.js");
+          const studentNumber = await extractStudentNumber(digitBoxes);
+          if (studentNumber && studentNumber.length >= 7) {
+            console.log(`✅ Student number from template coordinates (${expectedDigits} digits): ${studentNumber}`);
+            return studentNumber;
+          }
+        } else {
+          console.warn(`⚠️ Could not crop all ${expectedDigits} student number digits (got ${digitBoxes.length})`);
+        }
       }
     }
   } catch (error) {
@@ -135,7 +160,7 @@ const extractStudentNumberFromFile = async (fileName, pngBuffer) => {
   }
   
   console.error(`❌ Student number could not be extracted from file: "${fileName}"`);
-  console.error(`   Tried: filename regex, template coordinates (${studentNumberBoxes.length} digits), full-page OCR`);
+  console.error(`   Tried: filename regex, template coordinates, full-page OCR`);
   return null;
 };
 
@@ -152,6 +177,7 @@ const createExam = async (req, res) => {
       maxScore,
       learningOutcomes, // Sınav bazlı ÖÇ eşleme array'i
       questions, // Soru bazlı ÖÇ eşleme array'i
+      passingScore, // Geçme notu (0-100, örn. 40); yoksa varsayılan 60
     } = req.body;
 
     if (!courseId || !examType || !examCode) {
@@ -238,6 +264,7 @@ const createExam = async (req, res) => {
       }
     }
 
+    const passingScoreNum = passingScore != null ? Math.min(100, Math.max(0, Number(passingScore))) : 60;
     const exam = new Exam({
       courseId,
       examType,
@@ -246,6 +273,7 @@ const createExam = async (req, res) => {
       learningOutcomes: normalizedLOs, // Sınav bazlı ÖÇ eşleme
       questionCount: questionCount,
       questions: examQuestions,
+      passingScore: passingScoreNum,
     });
 
     const savedExam = await exam.save();
@@ -277,10 +305,12 @@ const createExam = async (req, res) => {
   }
 };
 
-// Get all Exams (from all courses)
+// Get all Exams (from all courses; rol varsa sadece yetkili derslerin sınavları)
 const getAllExams = async (req, res) => {
   try {
-    const exams = await Exam.find()
+    const courseFilter = getCourseFilterForUser(req.user || null);
+    const allowedCourseIds = await Course.find(courseFilter).distinct("_id");
+    const exams = await Exam.find({ courseId: { $in: allowedCourseIds } })
       .populate({
         path: "courseId",
         select: "name code",
@@ -300,7 +330,7 @@ const getAllExams = async (req, res) => {
   }
 };
 
-// Get all Exams for a specific course
+// Get all Exams for a specific course (rol varsa derse erişim yetkisi kontrolü)
 const getExamsByCourse = async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -316,6 +346,14 @@ const getExamsByCourse = async (req, res) => {
     const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({ success: false, message: "Ders bulunamadı" });
+    }
+
+    if (req.user) {
+      const courseFilter = getCourseFilterForUser(req.user);
+      const allowed = await Course.findOne({ ...courseFilter, _id: courseId }).select("_id").lean();
+      if (!allowed) {
+        return res.status(403).json({ success: false, message: "Bu derse erişim yetkiniz yok." });
+      }
     }
 
     const exams = await Exam.find({ courseId }).sort({ updatedAt: -1 });
@@ -338,10 +376,12 @@ const getExamById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const exam = await Exam.findById(id).populate({
-      path: "courseId",
-      select: "name code learningOutcomes",
-    });
+    const exam = await Exam.findById(id)
+      .populate({
+        path: "courseId",
+        select: "name code learningOutcomes",
+      })
+      .lean();
 
     if (!exam) {
       return res.status(404).json({ success: false, message: "Sınav bulunamadı" });
@@ -369,6 +409,7 @@ const updateExam = async (req, res) => {
       maxScore,
       learningOutcomes, // Sınav bazlı ÖÇ eşleme array'i
       questions, // Soru bazlı ÖÇ eşleme array'i
+      passingScore, // Geçme notu (0-100)
     } = req.body;
 
     const existingExam = await Exam.findById(id);
@@ -489,6 +530,9 @@ const updateExam = async (req, res) => {
     updateData.maxScore = 100; // Her zaman 100
     if (normalizedLOs !== undefined) updateData.learningOutcomes = normalizedLOs;
     updateData.questionCount = questionCount;
+    if (passingScore !== undefined) {
+      updateData.passingScore = Math.min(100, Math.max(0, Number(passingScore)));
+    }
     // Only update questions if explicitly provided or if we created new ones
     if (questions !== undefined || examQuestions.length > 0) {
       updateData.questions = examQuestions;
@@ -514,12 +558,13 @@ const updateExam = async (req, res) => {
     }
     await course.save();
 
-    // Populate courseId before returning
+    // Populate courseId before returning (lean: tüm alanlar dahil passingScore)
     const populatedExam = await Exam.findById(updatedExam._id)
       .populate({
         path: "courseId",
         select: "name code learningOutcomes",
       })
+      .lean()
       .exec();
 
     return res.status(200).json({
@@ -632,14 +677,20 @@ const startBatchScore = async (req, res) => {
           const totalScoreCrop = await cropTotalScoreBox(pngBuffer, markers);
           console.log(`✅ [Batch ${studentNumber}] Cropped total score box: ${totalScoreCrop.imagePath || 'no path'}`);
 
-          // 5) Gemini genel puan okuma
+          // 5) Gemini genel puan okuma (tek kutu veya 20 kutu toplamı)
           console.log(`\n📊 [Batch ${studentNumber}] Starting Gemini total score extraction...`);
           let totalScore = 0;
           try {
-            console.log(`\n🔍 [Batch ${studentNumber}] Calling Gemini API for total score...`);
-            console.log(`   Image path: ${totalScoreCrop.imagePath || 'in-memory'}`);
-            totalScore = await extractNumberFromImage(totalScoreCrop.buffer, "total score");
-            console.log(`   ✅ [Batch ${studentNumber}] Total score extracted: ${totalScore}`);
+            if (totalScoreCrop.buffers && totalScoreCrop.buffers.length === 20) {
+              const { extractScores } = await import("../utils/geminiVision.js");
+              const scores = await extractScores(totalScoreCrop.buffers);
+              totalScore = scores.reduce((a, b) => a + b, 0);
+              console.log(`   ✅ [Batch ${studentNumber}] Total score (20 boxes sum): ${totalScore}`);
+            } else {
+              console.log(`   Image path: ${totalScoreCrop.imagePath || 'in-memory'}`);
+              totalScore = await extractNumberFromImage(totalScoreCrop.buffer, "total score");
+              console.log(`   ✅ [Batch ${studentNumber}] Total score extracted: ${totalScore}`);
+            }
           } catch (err) {
             console.error(`   ❌ [Batch ${studentNumber}] Total score extraction failed:`, err.message);
             throw new Error(`Genel puan okunamadı: ${err.message}`);
@@ -967,14 +1018,23 @@ const submitExamScores = async (req, res) => {
     const totalScoreCrop = await cropTotalScoreBox(pngBuffer, markers);
     console.log(`✅ Cropped total score box: ${totalScoreCrop.imagePath || 'no path'}`);
 
-    // 4) Gemini Vision: Genel puan okuma
+    // 4) Gemini Vision: Genel puan okuma (tek kutu veya 20 kutu toplamı)
     console.log(`\n📊 Starting Gemini total score extraction...`);
     let totalScore = 0;
+    let questionScores = [];
     try {
-      console.log(`\n🔍 Calling Gemini API for total score...`);
-      console.log(`   Image path: ${totalScoreCrop.imagePath || 'in-memory'}`);
-      totalScore = await extractNumberFromImage(totalScoreCrop.buffer);
-      console.log(`   ✅ Total score extracted: ${totalScore}`);
+      if (totalScoreCrop.buffers && totalScoreCrop.buffers.length === 20) {
+        const { extractScores } = await import("../utils/geminiVision.js");
+        const rawScores = await extractScores(totalScoreCrop.buffers);
+        totalScore = rawScores.reduce((a, b) => a + b, 0);
+        questionScores = rawScores.map((score, i) => ({ questionNumber: i + 1, score }));
+        console.log(`   ✅ Total score (20 boxes sum): ${totalScore}`);
+      } else {
+        console.log(`   Image path: ${totalScoreCrop.imagePath || 'in-memory'}`);
+        totalScore = await extractNumberFromImage(totalScoreCrop.buffer);
+        questionScores = [{ questionNumber: 1, score: totalScore }];
+        console.log(`   ✅ Total score extracted: ${totalScore}`);
+      }
     } catch (err) {
       console.error(`   ❌ Total score extraction failed:`, err.message);
       return res.status(500).json({
@@ -989,13 +1049,14 @@ const submitExamScores = async (req, res) => {
     
     console.log(`📊 Total score: ${totalScore}/${maxTotalScore} (${percentage.toFixed(2)}%)`);
 
-    // 5) ÖÇ ve PÇ performansını hesapla (genel puan bazlı)
-    // Sadece sınavda eşlenen ÖÇ'ler için hesaplama yap
+    // 5) Geçme notu: geçen tüm ÖÇ/PÇ geçer, kalan hepsinden kalır
+    const passingScore = exam.passingScore != null ? Number(exam.passingScore) : 60;
+    const passed = percentage >= passingScore;
+    const successValue = passed ? 100 : 0;
+
     let outcomePerformance = {};
     let programOutcomePerformance = {};
-    
     if (course && course.learningOutcomes && course.learningOutcomes.length > 0) {
-      // Sınavın questions array'inden eşlenen ÖÇ kodlarını al
       const examQuestions = exam.questions || [];
       const mappedLOCodes = new Set();
       examQuestions.forEach((q) => {
@@ -1003,24 +1064,17 @@ const submitExamScores = async (req, res) => {
           mappedLOCodes.add(q.learningOutcomeCode);
         }
       });
-      
-      // Eğer sınavda ÖÇ eşlemesi varsa sadece onları kullan, yoksa tüm ÖÇ'leri kullan
       const relevantLOs = mappedLOCodes.size > 0
         ? course.learningOutcomes.filter((lo) => mappedLOCodes.has(lo.code))
         : course.learningOutcomes;
-      
-      // Her eşlenen ÖÇ için genel puan yüzdesini uygula
       const loPerformance = relevantLOs.map((lo) => ({
         code: lo.code,
         description: lo.description,
-        success: percentage, // Genel puan yüzdesi = ÖÇ başarısı
+        success: successValue,
       }));
-      
       outcomePerformance = Object.fromEntries(
         loPerformance.map((lo) => [lo.code, lo.success])
       );
-      
-      // PÇ performansını hesapla (ÖÇ'lerden)
       const poPerformance = calculateProgramOutcomePerformance(loPerformance, course);
       programOutcomePerformance = Object.fromEntries(
         poPerformance.map((po) => [po.code, po.success])
@@ -1028,7 +1082,6 @@ const submitExamScores = async (req, res) => {
     }
 
     // 6) DB kaydet veya güncelle: StudentExamResult (upsert)
-    // Aynı öğrenci aynı sınavda birden fazla kayıt olmasın - son sonuç geçerli
     const resultDoc = await StudentExamResult.findOneAndUpdate(
       {
         studentNumber,
@@ -1043,6 +1096,7 @@ const submitExamScores = async (req, res) => {
         percentage: Math.round(percentage * 100) / 100,
         outcomePerformance,
         programOutcomePerformance,
+        passed,
       },
       {
         upsert: true, // Yoksa oluştur, varsa güncelle
@@ -1056,16 +1110,14 @@ const submitExamScores = async (req, res) => {
       data: {
         pngPath,
         markers,
-        totalScoreCrop: {
-          imagePath: totalScoreCrop.imagePath,
-        },
-        scores: [], // Soru bazlı skorlar artık kullanılmıyor, sadece toplam puan var
+        scores: questionScores,
         totalScore,
         maxTotalScore,
         percentage: Math.round(percentage * 100) / 100,
         resultId: resultDoc._id,
         outcomePerformance,
         programOutcomePerformance,
+        passed: resultDoc.passed,
       },
     });
   } catch (error) {
@@ -1077,15 +1129,43 @@ const submitExamScores = async (req, res) => {
   }
 };
 
-// Get all results for an exam
+// Kesilmiş puan kutusu görselini sun (şablon hatalarını kontrol için)
+const getCropImage = async (req, res) => {
+  try {
+    const { filename } = req.params;
+    if (!filename || !/^[a-zA-Z0-9_-]+\.png$/.test(filename)) {
+      return res.status(400).json({ success: false, message: "Geçersiz dosya adı" });
+    }
+    const cropDir = path.resolve(process.cwd(), "temp", "exam_crops");
+    const filePath = path.resolve(cropDir, filename);
+    if (!filePath.startsWith(cropDir + path.sep) && filePath !== cropDir) {
+      return res.status(404).json({ success: false, message: "Görsel bulunamadı" });
+    }
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, message: "Görsel bulunamadı" });
+    }
+    res.setHeader("Content-Type", "image/png");
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error("getCropImage error:", err);
+    res.status(500).json({ success: false, message: "Görsel sunulamadı" });
+  }
+};
+
+// Get all results for an exam (öğrenci adı-soyadı dahil)
 const getExamResults = async (req, res) => {
   try {
     const { examId } = req.params;
     const results = await StudentExamResult.find({ examId })
       .populate("examId", "examCode examType")
       .populate("courseId", "code name")
-      .sort({ createdAt: -1 });
-    return res.status(200).json({ success: true, data: results });
+      .sort({ createdAt: -1 })
+      .lean();
+    const studentNumbers = [...new Set(results.map((r) => r.studentNumber).filter(Boolean))];
+    const students = await Student.find({ studentNumber: { $in: studentNumbers } }).select("studentNumber name").lean();
+    const nameByNumber = Object.fromEntries(students.map((s) => [s.studentNumber, s.name || ""]));
+    const data = results.map((r) => ({ ...r, studentName: nameByNumber[r.studentNumber] || "" }));
+    return res.status(200).json({ success: true, data });
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -1135,13 +1215,16 @@ const createOrUpdateStudentExamResult = async (req, res) => {
       return res.status(404).json({ success: false, message: "Ders bulunamadı" });
     }
 
-    // ÖÇ ve PÇ performansını hesapla (genel puan bazlı)
-    // Sadece sınavda eşlenen ÖÇ'ler için hesaplama yap
+    // Geçme notu: sınavdaki passingScore (yoksa 60)
+    const passingScore = exam.passingScore != null ? Number(exam.passingScore) : 60;
+    const passed = Number(percentage) >= passingScore;
+
+    // ÖÇ ve PÇ: geçen tümünden geçer, kalan hepsinden kalır (OBS kuralı)
     let outcomePerformance = {};
     let programOutcomePerformance = {};
-    
+    const successValue = passed ? 100 : 0;
+
     if (course && course.learningOutcomes && course.learningOutcomes.length > 0) {
-      // Sınavın questions array'inden eşlenen ÖÇ kodlarını al
       const examQuestions = exam.questions || [];
       const mappedLOCodes = new Set();
       examQuestions.forEach((q) => {
@@ -1149,24 +1232,17 @@ const createOrUpdateStudentExamResult = async (req, res) => {
           mappedLOCodes.add(q.learningOutcomeCode);
         }
       });
-      
-      // Eğer sınavda ÖÇ eşlemesi varsa sadece onları kullan, yoksa tüm ÖÇ'leri kullan
       const relevantLOs = mappedLOCodes.size > 0
         ? course.learningOutcomes.filter((lo) => mappedLOCodes.has(lo.code))
         : course.learningOutcomes;
-      
-      // Her eşlenen ÖÇ için genel puan yüzdesini uygula
+      outcomePerformance = Object.fromEntries(
+        relevantLOs.map((lo) => [lo.code, successValue])
+      );
       const loPerformance = relevantLOs.map((lo) => ({
         code: lo.code,
         description: lo.description,
-        success: percentage, // Genel puan yüzdesi = ÖÇ başarısı
+        success: successValue,
       }));
-      
-      outcomePerformance = Object.fromEntries(
-        loPerformance.map((lo) => [lo.code, lo.success])
-      );
-      
-      // PÇ performansını hesapla (ÖÇ'lerden)
       const poPerformance = calculateProgramOutcomePerformance(loPerformance, course);
       programOutcomePerformance = Object.fromEntries(
         poPerformance.map((po) => [po.code, po.success])
@@ -1188,6 +1264,7 @@ const createOrUpdateStudentExamResult = async (req, res) => {
         percentage: Math.round(Number(percentage) * 100) / 100,
         outcomePerformance,
         programOutcomePerformance,
+        passed,
       },
       {
         upsert: true,
@@ -1209,6 +1286,113 @@ const createOrUpdateStudentExamResult = async (req, res) => {
   }
 };
 
+// OBS format: Toplu puan yükleme (Excel'den parse edilmiş liste – öğrenci no + puan)
+// Body: { maxScore?: number, scores: [{ studentNumber: string, score: number }] }
+const uploadScoresFromList = async (req, res) => {
+  try {
+    const { examId } = req.params;
+    const { maxScore: bodyMaxScore = 100, scores: scoresList } = req.body;
+
+    if (!scoresList || !Array.isArray(scoresList) || scoresList.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "scores dizisi gereklidir (örn: [{ studentNumber: '20231021', score: 65 }])",
+      });
+    }
+
+    const exam = await Exam.findById(examId);
+    if (!exam) {
+      return res.status(404).json({ success: false, message: "Sınav bulunamadı" });
+    }
+
+    const course = await Course.findById(exam.courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, message: "Ders bulunamadı" });
+    }
+
+    const maxScore = Number(bodyMaxScore) || 100;
+    const passingScore = exam.passingScore != null ? Number(exam.passingScore) : 60;
+
+    const results = { updated: 0, errors: [] };
+
+    for (const item of scoresList) {
+      const studentNumber = String(item.studentNumber ?? "").trim();
+      const rawScore = Number(item.score);
+      if (!studentNumber) {
+        results.errors.push({ row: item, message: "Öğrenci numarası boş" });
+        continue;
+      }
+      if (Number.isNaN(rawScore) || rawScore < 0) {
+        results.errors.push({ studentNumber, message: "Geçersiz puan" });
+        continue;
+      }
+      const totalScore = Math.min(rawScore, maxScore);
+      const percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+      const passed = percentage >= passingScore;
+      const successValue = passed ? 100 : 0;
+
+      let outcomePerformance = {};
+      let programOutcomePerformance = {};
+      if (course.learningOutcomes && course.learningOutcomes.length > 0) {
+        const examQuestions = exam.questions || [];
+        const mappedLOCodes = new Set();
+        examQuestions.forEach((q) => {
+          if (q.learningOutcomeCode && q.learningOutcomeCode.trim() !== "") {
+            mappedLOCodes.add(q.learningOutcomeCode);
+          }
+        });
+        const relevantLOs = mappedLOCodes.size > 0
+          ? course.learningOutcomes.filter((lo) => mappedLOCodes.has(lo.code))
+          : course.learningOutcomes;
+        outcomePerformance = Object.fromEntries(
+          relevantLOs.map((lo) => [lo.code, successValue])
+        );
+        const loPerformance = relevantLOs.map((lo) => ({
+          code: lo.code,
+          description: lo.description,
+          success: successValue,
+        }));
+        const poPerformance = calculateProgramOutcomePerformance(loPerformance, course);
+        programOutcomePerformance = Object.fromEntries(
+          poPerformance.map((po) => [po.code, po.success])
+        );
+      }
+
+      try {
+        await StudentExamResult.findOneAndUpdate(
+          { studentNumber, examId },
+          {
+            studentNumber,
+            examId,
+            courseId: exam.courseId,
+            totalScore,
+            maxScore,
+            percentage: Math.round(percentage * 100) / 100,
+            outcomePerformance,
+            programOutcomePerformance,
+            passed,
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        results.updated += 1;
+      } catch (err) {
+        results.errors.push({ studentNumber, message: err.message || "Kayıt hatası" });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: { updated: results.updated, total: scoresList.length, errors: results.errors },
+    });
+  } catch (error) {
+    console.error("uploadScoresFromList error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Toplu puan yüklenemedi",
+    });
+  }
+};
+
 export {
   createExam,
   getAllExams,
@@ -1223,5 +1407,7 @@ export {
   startBatchScore,
   getBatchStatus,
   createOrUpdateStudentExamResult,
+  uploadScoresFromList,
+  getCropImage,
 };
 

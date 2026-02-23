@@ -6,16 +6,18 @@ import { type LOAchievement } from "@/lib/api/assessmentApi";
 
 interface LOProgressCardProps {
   achievement: LOAchievement;
+  /** Sınav geçme puanı (0-100). Yoksa 60 kullanılır. */
+  passingThreshold?: number;
 }
 
-export function LOProgressCard({ achievement }: LOProgressCardProps) {
+export function LOProgressCard({ achievement, passingThreshold = 60 }: LOProgressCardProps) {
   const percentage = Math.round(achievement.achievedPercentage * 100) / 100;
   const radius = 40;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (percentage / 100) * circumference;
 
-  const getColor = (percentage: number) => {
-    if (percentage >= 50) return "text-green-600 dark:text-green-400 stroke-green-500 dark:stroke-green-400"; // 50 puan eşiği
+  const getColor = (pct: number) => {
+    if (pct >= passingThreshold) return "text-green-600 dark:text-green-400 stroke-green-500 dark:stroke-green-400";
     return "text-red-600 dark:text-red-400 stroke-red-500 dark:stroke-red-400";
   };
 
@@ -55,7 +57,7 @@ export function LOProgressCard({ achievement }: LOProgressCardProps) {
                 strokeLinecap="round"
                 className={`transition-all duration-500 ${getColor(percentage).split(" ")[1]}`}
                 style={{
-                  stroke: percentage >= 50 ? "#22c55e" : "#ef4444" // 50 puan eşiği
+                  stroke: percentage >= passingThreshold ? "#22c55e" : "#ef4444"
                 }}
               />
             </svg>

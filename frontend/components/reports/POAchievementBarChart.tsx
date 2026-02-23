@@ -17,9 +17,11 @@ import { type POAchievement } from "@/lib/api/assessmentApi";
 
 interface POAchievementBarChartProps {
   achievements: POAchievement[];
+  /** Sınav geçme puanı (0-100). Yoksa 60 kullanılır. */
+  passingThreshold?: number;
 }
 
-export function POAchievementBarChart({ achievements }: POAchievementBarChartProps) {
+export function POAchievementBarChart({ achievements, passingThreshold = 60 }: POAchievementBarChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   if (achievements.length === 0) {
@@ -35,12 +37,11 @@ export function POAchievementBarChart({ achievements }: POAchievementBarChartPro
   const chartData = achievements.map((achievement) => ({
     code: achievement.code,
     başarı: Math.round(achievement.achievedPercentage * 100) / 100,
-    hedef: 50, // 50 puan eşiği
+    hedef: passingThreshold,
   }));
 
   const getColor = (value: number) => {
-    // 50 puan eşiği: >=50 yeşil, <50 kırmızı
-    if (value >= 50) return "#22c55e"; // green-500
+    if (value >= passingThreshold) return "#22c55e"; // green-500
     return "#ef4444"; // red-500
   };
 
@@ -174,7 +175,7 @@ export function POAchievementBarChart({ achievements }: POAchievementBarChartPro
             </Bar>
             <Bar
               dataKey="hedef"
-              name="Hedef Eşik (50%)"
+              name={`Hedef Eşik (${passingThreshold}%)`}
               fill="#94a3b8"
               opacity={0.3}
               radius={[8, 8, 0, 0]}
@@ -185,11 +186,11 @@ export function POAchievementBarChart({ achievements }: POAchievementBarChartPro
         <div className="mt-4 flex items-center justify-center gap-6 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-green-500"></div>
-            <span className="text-foreground">Başarılı (≥50%)</span>
+            <span className="text-foreground">Başarılı (≥{passingThreshold}%)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-red-500"></div>
-            <span className="text-foreground">Başarısız (&lt;50%)</span>
+            <span className="text-foreground">Başarısız (&lt;{passingThreshold}%)</span>
           </div>
         </div>
       </CardContent>

@@ -9,24 +9,23 @@ interface HeatmapChartProps {
   students: Student[];
   learningOutcomes: { _id: string; code: string }[];
   studentAchievements: Record<string, LOAchievement[]>;
+  /** Sınav geçme puanı (0-100). Yoksa 60 kullanılır. */
+  passingThreshold?: number;
 }
 
 export function HeatmapChart({
   students,
   learningOutcomes,
   studentAchievements,
+  passingThreshold = 60,
 }: HeatmapChartProps) {
   const getHeatmapColor = (percentage: number) => {
     if (percentage >= 80) return "bg-green-500";
-    // 50 puan eşiği: >=50 yeşil, <50 kırmızı
-    if (percentage >= 50) return "bg-green-500";
+    if (percentage >= passingThreshold) return "bg-green-500";
     return "bg-red-500";
   };
 
-  const getTextColor = (percentage: number) => {
-    if (percentage >= 50) return "text-white"; // 50 puan eşiği
-    return "text-white";
-  };
+  const getTextColor = (_percentage: number) => "text-white";
 
   const getCellValue = (studentId: string, loCode: string): number => {
     const achievements = studentAchievements[studentId] || [];

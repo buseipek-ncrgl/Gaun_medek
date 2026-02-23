@@ -14,18 +14,18 @@ const Dialog = ({ open, onOpenChange, children, size = "default" }: DialogProps)
   if (!open) return null;
 
   const sizeClasses = {
-    default: "max-w-lg",
-    large: "max-w-4xl",
-    full: "max-w-[85vw] w-[85vw]",
+    default: "max-w-[calc(100vw-2rem)] sm:max-w-lg",
+    large: "max-w-[calc(100vw-2rem)] sm:max-w-2xl md:max-w-4xl",
+    full: "max-w-[calc(100vw-2rem)] w-[calc(100vw-2rem)] sm:max-w-[85vw] sm:w-[85vw]",
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
       <div
         className="fixed inset-0 bg-black/50"
         onClick={() => onOpenChange?.(false)}
       />
-      <div className={`relative z-50 w-full ${sizeClasses[size]} mx-4`}>{children}</div>
+      <div className={`relative z-50 w-full ${sizeClasses[size]} my-auto`}>{children}</div>
     </div>
   );
 };
@@ -38,15 +38,16 @@ const DialogContent = React.forwardRef<
     <div
       ref={ref}
       className={cn(
-        "bg-background rounded-lg border border-border shadow-lg p-6",
+        "bg-background rounded-lg border border-border shadow-lg p-4 sm:p-6 max-h-[calc(100vh-2rem)] overflow-y-auto",
         className
       )}
       {...props}
     >
       {onClose && (
         <button
-          onClick={onClose}
-          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onClose(); }}
+          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 z-10"
         >
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>

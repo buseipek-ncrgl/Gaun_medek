@@ -121,9 +121,13 @@ function StudentDetailContent() {
     }
   };
 
-  const handleEditSuccess = () => {
-    fetchStudentData();
-    router.push(`/students/${studentId}`);
+  const handleEditSuccess = (updatedStudent?: Student) => {
+    if (updatedStudent) {
+      setStudent(updatedStudent);
+    } else {
+      fetchStudentData();
+    }
+    router.replace(`/students/${studentId}`);
   };
 
   // Find courses where this student is enrolled
@@ -206,19 +210,19 @@ function StudentDetailContent() {
 
   if (isEditMode) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 px-3 py-4 sm:px-4 sm:py-6 md:px-6 overflow-x-hidden">
+        <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 min-w-0">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => router.push(`/students/${studentId}`)} className="h-9 w-9 hover:bg-brand-navy/10">
+            <Button variant="ghost" size="icon" onClick={() => router.push(`/students/${studentId}`)} className="h-9 w-9 hover:bg-brand-navy/10 flex-shrink-0">
               <ArrowLeft className="h-4 w-4 text-brand-navy dark:text-slate-200" />
             </Button>
-            <p className="text-slate-600 dark:text-slate-400">
+            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
               Öğrenci bilgilerini güncelleyin
             </p>
           </div>
 
           <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <StudentForm
                 mode="edit"
                 studentId={studentId}
@@ -233,11 +237,11 @@ function StudentDetailContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 px-3 py-4 sm:px-4 sm:py-6 md:px-6 overflow-x-hidden">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 min-w-0">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
             <Button
               variant="ghost"
               size="icon"
@@ -246,16 +250,16 @@ function StudentDetailContent() {
             >
               <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5 text-brand-navy dark:text-slate-200" />
             </Button>
-            <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+            <div className="w-1 h-7 sm:h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full flex-shrink-0"></div>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 flex-shrink-0">
                 <User className="h-5 w-5 text-brand-navy dark:text-slate-200" />
               </div>
-              <div>
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-brand-navy dark:text-slate-100">
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-brand-navy dark:text-slate-100 truncate">
                   {student.name}
                 </h1>
-                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">
+                <p className="text-xs sm:text-sm md:text-base text-slate-600 dark:text-slate-400 mt-0.5 sm:mt-1 truncate">
                   {student.studentNumber}
                 </p>
               </div>
@@ -264,7 +268,7 @@ function StudentDetailContent() {
           <Button
             variant="outline"
             onClick={() => router.push(`/students/${studentId}?edit=true`)}
-            className="h-10 sm:h-11 px-4 sm:px-6 hover:bg-brand-navy/10 hover:border-brand-navy/50 transition-all"
+            className="h-9 sm:h-10 w-full sm:w-auto px-4 sm:px-6 hover:bg-brand-navy/10 hover:border-brand-navy/50 transition-all flex-shrink-0"
           >
             <Edit className="mr-2 h-4 w-4" />
             Düzenle
@@ -272,30 +276,30 @@ function StudentDetailContent() {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-3 sm:p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 sm:hover:-translate-y-1">
             <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
-                <FileText className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+            <div className="relative flex items-center gap-2 sm:gap-4">
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300 flex-shrink-0">
+                <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
               </div>
-              <div className="flex-1">
-                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Toplam Sınav</p>
-                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-0.5 sm:mb-1">Toplam Sınav</p>
+                <p className="text-xl sm:text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
                   {stats.totalExams}
                 </p>
               </div>
             </div>
           </Card>
-          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-3 sm:p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 sm:hover:-translate-y-1">
             <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
-                <TrendingUp className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+            <div className="relative flex items-center gap-2 sm:gap-4">
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300 flex-shrink-0">
+                <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
               </div>
-              <div className="flex-1">
-                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Ortalama Puan</p>
-                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-0.5 sm:mb-1">Ortalama Puan</p>
+                <p className="text-xl sm:text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
                   {stats.averageScore}%
                 </p>
               </div>
@@ -316,15 +320,15 @@ function StudentDetailContent() {
               </div>
             </div>
           </Card> */}
-          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-3 sm:p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 sm:hover:-translate-y-1 col-span-2 lg:col-span-1">
             <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
-                <BookOpen className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+            <div className="relative flex items-center gap-2 sm:gap-4">
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300 flex-shrink-0">
+                <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
               </div>
-              <div className="flex-1">
-                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Toplam Ders</p>
-                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-0.5 sm:mb-1">Toplam Ders</p>
+                <p className="text-xl sm:text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
                   {stats.totalCourses}
                 </p>
               </div>
@@ -333,19 +337,19 @@ function StudentDetailContent() {
         </div>
 
         {/* Student Info Card */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+        <div className="space-y-3 sm:space-y-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-1 h-7 sm:h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full flex-shrink-0"></div>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 flex-shrink-0">
                 <User className="h-5 w-5 text-brand-navy dark:text-slate-200" />
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">Öğrenci Bilgileri</h2>
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-brand-navy dark:text-slate-100">Öğrenci Bilgileri</h2>
             </div>
           </div>
           <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
-            <CardContent className="p-5 sm:p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <CardContent className="p-4 sm:p-5 md:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 rounded-lg">
                     <User className="h-5 w-5 text-brand-navy dark:text-slate-200" />
@@ -403,23 +407,23 @@ function StudentDetailContent() {
         </div>
 
         {/* Enrolled Courses Card */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+        <div className="space-y-3 sm:space-y-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-1 h-7 sm:h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full flex-shrink-0"></div>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 flex-shrink-0">
                 <BookOpen className="h-5 w-5 text-brand-navy dark:text-slate-200" />
               </div>
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">Kayıtlı Olduğu Dersler</h2>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-brand-navy dark:text-slate-100">Kayıtlı Olduğu Dersler</h2>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                   Bu öğrencinin kayıtlı olduğu dersler ({enrolledCourses.length} ders)
                 </p>
               </div>
             </div>
           </div>
           <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
-            <CardContent className="p-4 sm:p-6">
+            <CardContent className="p-3 sm:p-4 md:p-6">
               {enrolledCourses.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
                   <BookOpen className="h-12 w-12 mx-auto mb-4 text-slate-400" />
@@ -429,7 +433,7 @@ function StudentDetailContent() {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                   {enrolledCourses.map((course) => {
                     const department = typeof course.department === 'object' && course.department !== null
                       ? course.department.name
@@ -455,7 +459,7 @@ function StudentDetailContent() {
                                   </Badge>
                                 )}
                               </div>
-                              <h3 className="font-semibold text-brand-navy dark:text-slate-100 mb-1 line-clamp-2 group-hover:text-white transition-colors">
+                              <h3 className="font-semibold text-brand-navy dark:text-slate-100 mb-1 line-clamp-2 break-words group-hover:text-white transition-colors">
                                 {course.name}
                               </h3>
                               <p className="text-xs text-slate-600 dark:text-slate-400 mb-2 group-hover:text-white/80 transition-colors">
@@ -489,16 +493,16 @@ function StudentDetailContent() {
         </div>
 
         {/* Exam Score Table */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+        <div className="space-y-3 sm:space-y-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-1 h-7 sm:h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full flex-shrink-0"></div>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 flex-shrink-0">
                 <FileText className="h-5 w-5 text-brand-navy dark:text-slate-200" />
               </div>
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">Sınav Sonuçları</h2>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-brand-navy dark:text-slate-100">Sınav Sonuçları</h2>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                   Bu öğrencinin tüm sınav sonuçları
                   {examResults.length > 0 && ` (${examResults.length} sınav sonucu)`}
                 </p>
@@ -506,17 +510,17 @@ function StudentDetailContent() {
             </div>
           </div>
           <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
-            <CardContent className="p-4 sm:p-6">
+            <CardContent className="p-3 sm:p-4 md:p-6">
               {examResults.length > 0 ? (
                 <div className="space-y-4">
                   {examResults.map((result: any) => {
                     const exam = typeof result.examId === 'object' ? result.examId : null;
                     const course = typeof result.courseId === 'object' ? result.courseId : null;
-                    // Artık questionScores yok, sadece totalScore var
                     const totalScore = result.totalScore || 0;
                     const totalMaxScore = result.maxScore || exam?.maxScore || 100;
                     const percentage = result.percentage || (totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0);
-                    const successColor = percentage >= 50 ? "green" : percentage >= 40 ? "amber" : "red"; // 50 puan eşiği
+                    const passingScore = exam?.passingScore != null ? Number(exam.passingScore) : 60;
+                    const successColor = percentage >= passingScore ? "green" : percentage >= (passingScore - 20) ? "amber" : "red";
                     
                     return (
                       <div
@@ -595,7 +599,8 @@ function StudentDetailContent() {
                             <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">Öğrenme Çıktısı Performansı:</p>
                             <div className="flex flex-wrap gap-2">
                               {Object.entries(result.outcomePerformance).map(([loCode, success]: [string, any]) => {
-                                const loColor = success >= 50 ? "green" : success >= 40 ? "amber" : "red"; // 50 puan eşiği
+                                const passThreshold = exam?.passingScore != null ? Number(exam.passingScore) : 60;
+                                const loColor = success >= passThreshold ? "green" : success >= (passThreshold - 20) ? "amber" : "red";
                                 return (
                                   <div
                                     key={loCode}

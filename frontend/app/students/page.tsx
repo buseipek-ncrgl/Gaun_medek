@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, X, Users, Building2, GraduationCap, ChevronDown, ChevronUp, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Search, X, Users, Building2, GraduationCap, ChevronDown, ChevronUp, Loader2, AlertCircle, CheckSquare, Square, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,21 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
 import { StudentTable } from "@/components/students/StudentTable";
 import { cn } from "@/lib/utils";
 import { studentApi, type Student } from "@/lib/api/studentApi";
 import { departmentApi, type Department } from "@/lib/api/departmentApi";
 import { programApi, type Program } from "@/lib/api/programApi";
 import { courseApi, type Course } from "@/lib/api/courseApi";
+import { authApi } from "@/lib/api/authApi";
 
 export default function StudentsPage() {
   const router = useRouter();
@@ -33,22 +42,72 @@ export default function StudentsPage() {
   const [selectedClassLevel, setSelectedClassLevel] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [filtersExpanded, setFiltersExpanded] = useState(true);
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const teacherProgramsRef = useRef<Program[]>([]);
 
   useEffect(() => {
-    fetchAllStudents();
-    loadDepartments();
-    loadAllCourses();
+    const init = async () => {
+      const u = authApi.getStoredUser();
+      if (u?.role === "teacher") {
+        const opts = await authApi.getTeacherFilterOptions();
+        if (opts) {
+          const progs = opts.programs as Program[];
+          teacherProgramsRef.current = progs;
+          setDepartments(opts.departments as Department[]);
+          setPrograms(progs);
+          if (opts.departments.length === 1) setSelectedDepartment(opts.departments[0].name || "");
+          if (opts.programs.length === 1) setSelectedProgramId(opts.programs[0]._id);
+        }
+      } else {
+        try {
+          const data = await departmentApi.getAll();
+          setDepartments(data || []);
+          if (u?.role === "department_head" && u?.departmentId) {
+            const raw = (u as { departmentId?: string | { _id?: string } }).departmentId;
+            const id = raw != null && typeof raw === "object" && "_id" in raw
+              ? String((raw as { _id: string })._id)
+              : typeof raw === "string" ? raw : "";
+            if (id) {
+              const dept = (data || []).find((d) => d._id === id);
+              if (dept) setSelectedDepartment(dept.name);
+            }
+          }
+        } catch (e) {
+          console.error("Bölümler yüklenemedi:", e);
+        }
+      }
+      fetchAllStudents();
+      loadAllCourses();
+    };
+    init();
   }, []);
 
   useEffect(() => {
+    const u = authApi.getStoredUser();
+    if (u?.role === "teacher") {
+      if (selectedDepartment) {
+        const filtered = teacherProgramsRef.current.filter(
+          (p) => (p as { department?: { _id: string; name?: string } }).department?.name === selectedDepartment
+        );
+        setPrograms(filtered);
+        if (!selectedProgramId || !filtered.some((p) => p._id === selectedProgramId)) setSelectedProgramId("");
+        const dept = departments.find((d) => d.name === selectedDepartment);
+        if (dept) loadCoursesByDepartment(dept.name);
+      } else {
+        setPrograms(teacherProgramsRef.current);
+        setSelectedProgramId("");
+        setSelectedCourseId("");
+        loadAllCourses();
+      }
+      return;
+    }
     if (selectedDepartment) {
-      // Find department ID from name
       const department = departments.find(d => d.name === selectedDepartment);
       if (department) {
         loadPrograms(department._id);
-        if (!selectedProgramId) {
-          loadCoursesByDepartment(department.name);
-        }
+        if (!selectedProgramId) loadCoursesByDepartment(department.name);
       } else {
         setPrograms([]);
         setSelectedProgramId("");
@@ -81,7 +140,7 @@ export default function StudentsPage() {
   const loadDepartments = async () => {
     try {
       const data = await departmentApi.getAll();
-      setDepartments(data);
+      setDepartments(data || []);
     } catch (error: any) {
       console.error("Bölümler yüklenemedi:", error);
     }
@@ -203,6 +262,37 @@ export default function StudentsPage() {
 
   const hasActiveFilters = searchQuery.trim() !== "" || selectedDepartment !== "" || selectedProgramId !== "" || selectedClassLevel !== "" || selectedCourseId !== "";
 
+  const toggleStudentSelect = (id: string) => {
+    const next = new Set(selectedStudents);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedStudents(next);
+  };
+
+  const toggleStudentSelectAll = () => {
+    if (selectedStudents.size === filteredStudents.length) {
+      setSelectedStudents(new Set());
+    } else {
+      setSelectedStudents(new Set(filteredStudents.map((s) => s._id)));
+    }
+  };
+
+  const handleBulkDeleteStudents = async () => {
+    if (selectedStudents.size === 0) return;
+    try {
+      setIsBulkDeleting(true);
+      await Promise.all(Array.from(selectedStudents).map((id) => studentApi.remove(id)));
+      toast.success(`${selectedStudents.size} öğrenci silindi`);
+      setBulkDeleteDialogOpen(false);
+      setSelectedStudents(new Set());
+      fetchAllStudents();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Toplu silme başarısız");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   // Statistics
   const stats = useMemo(() => {
     const totalStudents = students.length;
@@ -234,15 +324,17 @@ export default function StudentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-full bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 px-3 py-4 sm:px-4 sm:py-6 md:px-6 overflow-x-hidden">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 min-w-0">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              
-              <div>
-                
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 flex-shrink-0">
+                <Users className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100 truncate">Öğrenciler</h1>
                 <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">
                   Öğrencileri yönetin ve akademik performanslarını görüntüleyin
                 </p>
@@ -260,44 +352,44 @@ export default function StudentsPage() {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-3 sm:p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 sm:hover:-translate-y-1">
             <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
-                <Users className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+            <div className="relative flex items-center gap-2 sm:gap-4">
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300 flex-shrink-0">
+                <Users className="h-5 w-5 sm:h-6 sm:w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
               </div>
-              <div className="flex-1">
-                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Toplam Öğrenci</p>
-                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-0.5 sm:mb-1">Toplam Öğrenci</p>
+                <p className="text-xl sm:text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
                   {stats.totalStudents}
                 </p>
               </div>
             </div>
           </Card>
-          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-3 sm:p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 sm:hover:-translate-y-1">
             <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
-                <Building2 className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+            <div className="relative flex items-center gap-2 sm:gap-4">
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300 flex-shrink-0">
+                <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
               </div>
-              <div className="flex-1">
-                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Farklı Bölüm</p>
-                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-0.5 sm:mb-1">Farklı Bölüm</p>
+                <p className="text-xl sm:text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
                   {stats.uniqueDepartments}
                 </p>
               </div>
             </div>
           </Card>
-          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-3 sm:p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 sm:hover:-translate-y-1 col-span-2 sm:col-span-1">
             <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
-                <GraduationCap className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+            <div className="relative flex items-center gap-2 sm:gap-4">
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300 flex-shrink-0">
+                <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
               </div>
-              <div className="flex-1">
-                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Sınıf Seviyesi</p>
-                <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-0.5 sm:mb-1">Sınıf Seviyesi</p>
+                <p className="text-xl sm:text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
                   {stats.uniqueClassLevels}
                 </p>
               </div>
@@ -354,6 +446,7 @@ export default function StudentsPage() {
                       id="department-filter"
                       value={selectedDepartment}
                       onChange={(e) => setSelectedDepartment(e.target.value)}
+                      disabled={authApi.getStoredUser()?.role === "department_head"}
                       className="h-10 sm:h-11 text-sm border-brand-navy/20 focus:border-brand-navy/50"
                     >
                       <option value="">Tüm Bölümler</option>
@@ -363,6 +456,12 @@ export default function StudentsPage() {
                         </option>
                       ))}
                     </Select>
+                    {authApi.getStoredUser()?.role === "department_head" && selectedDepartment && (
+                      <p className="text-xs text-muted-foreground">Kendi bölümünüz otomatik seçildi.</p>
+                    )}
+                    {authApi.getStoredUser()?.role === "teacher" && (
+                      <p className="text-xs text-muted-foreground">Sadece atandığınız bölüm ve programlar.</p>
+                    )}
                   </div>
 
                   {/* Program Filter */}
@@ -545,26 +644,67 @@ export default function StudentsPage() {
         </Card>
 
         {/* Students List */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
-                <Users className="h-5 w-5 text-brand-navy dark:text-slate-200" />
-              </div>
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">Öğrenci Listesi</h2>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  {filteredStudents.length !== students.length 
-                    ? `${filteredStudents.length} / ${students.length} öğrenci gösteriliyor`
-                    : `Sistemdeki tüm öğrenciler (${students.length})`}
-                </p>
+        <div className="space-y-4 min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full flex-shrink-0"></div>
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 flex-shrink-0">
+                  <Users className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-brand-navy dark:text-slate-100">Öğrenci Listesi</h2>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                    {filteredStudents.length !== students.length 
+                      ? `${filteredStudents.length} / ${students.length} öğrenci gösteriliyor`
+                      : `Sistemdeki tüm öğrenciler (${students.length})`}
+                  </p>
+                </div>
               </div>
             </div>
+            {!isLoading && filteredStudents.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleStudentSelectAll}
+                  className="flex items-center gap-2 text-sm font-medium text-brand-navy dark:text-slate-200 hover:opacity-80"
+                >
+                  {selectedStudents.size === filteredStudents.length ? (
+                    <CheckSquare className="h-5 w-5 flex-shrink-0" />
+                  ) : (
+                    <Square className="h-5 w-5 flex-shrink-0" />
+                  )}
+                  <span className="whitespace-nowrap">{selectedStudents.size === filteredStudents.length ? "Tümünü Kaldır" : "Tümünü Seç"}</span>
+                </button>
+                <span className="text-xs text-slate-500">
+                  {selectedStudents.size > 0 && `${selectedStudents.size} seçili`}
+                </span>
+              </div>
+            )}
           </div>
 
+          {selectedStudents.size > 0 && (
+            <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-gradient-to-r from-brand-navy/5 to-brand-navy/10 dark:from-brand-navy/20 dark:to-brand-navy/10">
+              <CardContent className="p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-brand-navy dark:text-slate-100">
+                  {selectedStudents.size} öğrenci seçildi
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setSelectedStudents(new Set())} className="h-9">
+                    <X className="h-4 w-4 mr-1 sm:mr-2" />
+                    Seçimi Kaldır
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)} className="h-9">
+                    <Trash2 className="h-4 w-4 mr-1 sm:mr-2" />
+                    Seçilenleri Sil
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
-            <CardContent className="p-4 sm:p-6">
+            <CardContent className="p-3 sm:p-4 md:p-6">
               {isLoading ? (
                 <div className="space-y-4">
                   {[1, 2, 3, 4].map((i) => (
@@ -582,11 +722,56 @@ export default function StudentsPage() {
                   </p>
                 </div>
               ) : (
-                <StudentTable students={filteredStudents} courses={courses} onDelete={fetchAllStudents} />
+                <div className="min-w-0 overflow-x-auto -mx-1 px-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 sm:hidden">Tabloyu yatay kaydırarak tüm sütunları görebilirsiniz.</p>
+                  <StudentTable
+                    students={filteredStudents}
+                    courses={courses}
+                    onDelete={fetchAllStudents}
+                    selectedIds={selectedStudents}
+                    onToggleSelect={toggleStudentSelect}
+                    onToggleSelectAll={toggleStudentSelectAll}
+                  />
+                </div>
               )}
             </CardContent>
           </Card>
         </div>
+
+        <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Seçili öğrencileri sil</AlertDialogTitle>
+              <AlertDialogDescription>
+                {selectedStudents.size} öğrenci silinecek. Bu işlem geri alınamaz.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="max-h-48 overflow-y-auto py-2">
+              <ul className="text-sm text-muted-foreground space-y-1">
+                {Array.from(selectedStudents).slice(0, 10).map((id) => {
+                  const s = students.find((x) => x._id === id);
+                  return s ? <li key={id}>• {s.name} ({s.studentNumber})</li> : null;
+                })}
+                {selectedStudents.size > 10 && <li>... ve {selectedStudents.size - 10} öğrenci daha</li>}
+              </ul>
+            </div>
+            <AlertDialogFooter>
+              <Button variant="outline" onClick={() => setBulkDeleteDialogOpen(false)} disabled={isBulkDeleting}>
+                İptal
+              </Button>
+              <Button variant="destructive" onClick={handleBulkDeleteStudents} disabled={isBulkDeleting}>
+                {isBulkDeleting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Siliniyor...
+                  </>
+                ) : (
+                  `${selectedStudents.size} Öğrenciyi Sil`
+                )}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

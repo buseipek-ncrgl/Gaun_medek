@@ -11,6 +11,8 @@ const StudentExamResultSchema = new mongoose.Schema(
     percentage: { type: Number, required: true }, // Yüzde (totalScore / maxScore * 100)
     outcomePerformance: { type: Object, default: {} }, // ÖÇ performansları
     programOutcomePerformance: { type: Object, default: {} }, // PÇ performansları
+    // Geçme: percentage >= exam.passingScore ise true; geçen tüm ÖÇ/PÇ geçer, kalan hepsinden kalır
+    passed: { type: Boolean, default: false },
   },
   {
     timestamps: true,

@@ -13,9 +13,11 @@ import { type POAchievement } from "@/lib/api/assessmentApi";
 
 interface POAchievementTableProps {
   achievements: POAchievement[];
+  /** Sınav geçme puanı (0-100). Yoksa 60 kullanılır. */
+  passingThreshold?: number;
 }
 
-export function POAchievementTable({ achievements }: POAchievementTableProps) {
+export function POAchievementTable({ achievements, passingThreshold = 60 }: POAchievementTableProps) {
   if (achievements.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -25,7 +27,7 @@ export function POAchievementTable({ achievements }: POAchievementTableProps) {
   }
 
   const getProgressColor = (percentage: number) => {
-    if (percentage >= 50) return "bg-green-500"; // 50 puan eşiği
+    if (percentage >= passingThreshold) return "bg-green-500";
     return "bg-red-500";
   };
 
@@ -62,7 +64,7 @@ export function POAchievementTable({ achievements }: POAchievementTableProps) {
                 <TableCell className="text-center">
                   <span
                     className={`font-semibold ${
-                      percentage >= 50
+                      percentage >= passingThreshold
                         ? "text-green-600"
                         : "text-red-600"
                     }`}

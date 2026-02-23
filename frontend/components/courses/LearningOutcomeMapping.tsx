@@ -256,24 +256,24 @@ export function LearningOutcomeMapping({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 min-w-0">
       {/* Header - Outside Card */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
-              <Target className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+      <div className="space-y-3 sm:space-y-4">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-1 h-6 sm:h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full flex-shrink-0"></div>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 flex-shrink-0">
+              <Target className="h-4 w-4 sm:h-5 sm:w-5 text-brand-navy dark:text-slate-200" />
             </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">ÖÇ → PÇ Eşlemesi</h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400">Her öğrenme çıktısı için hangi program çıktılarına katkıda bulunduğunu seçin</p>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-xl md:text-2xl font-bold text-brand-navy dark:text-slate-100 break-words">ÖÇ → PÇ Eşlemesi</h2>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 break-words">Her öğrenme çıktısı için hangi program çıktılarına katkıda bulunduğunu seçin</p>
             </div>
           </div>
         </div>
 
         {/* Sticky Save Button and Controls */}
-        <div className="sticky top-4 z-10 flex flex-wrap items-center gap-3 p-4 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-brand-navy/20 dark:border-slate-700/50 rounded-lg shadow-modern">
+        <div className="sticky top-2 sm:top-4 z-10 flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-brand-navy/20 dark:border-slate-700/50 rounded-lg shadow-modern">
           <Button
             ref={saveButtonRef}
             onClick={handleSave}

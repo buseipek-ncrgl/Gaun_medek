@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/ui/sidebar";
-import { Topbar } from "@/components/ui/topbar";
+import { LayoutSwitcher } from "@/components/auth/LayoutSwitcher";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { SidebarProvider } from "@/components/providers/SidebarProvider";
@@ -10,13 +9,20 @@ import { SidebarProvider } from "@/components/providers/SidebarProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "NTMYO Ölçme Değerlendirme Yönetim Sistemi",
-  description: "NTMYO Ölçme Değerlendirme Yönetim Sistemi - Sınav değerlendirme ve çıktı analiz sistemi",
+  title: "Naci Topçuoğlu MYO Ölçme Değerlendirme Yönetim Sistemi",
+  description: "Naci Topçuoğlu Meslek Yüksekokulu Ölçme Değerlendirme Yönetim Sistemi - Sınav değerlendirme ve çıktı analiz sistemi",
   icons: {
     icon: "/assets/ntmyo-logo.png",
     shortcut: "/assets/ntmyo-logo.png",
     apple: "/assets/ntmyo-logo.png",
   },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -26,18 +32,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr" suppressHydrationWarning>
+      <head>
+        <meta charSet="utf-8" />
+      </head>
       <body className={inter.className}>
         <ThemeProvider>
           <SidebarProvider>
-            <div className="flex h-screen overflow-hidden">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden lg:ml-64">
-                <Topbar />
-                <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6">
-                  {children}
-                </main>
-              </div>
-            </div>
+            <LayoutSwitcher>{children}</LayoutSwitcher>
           </SidebarProvider>
           <Toaster 
             position="top-right" 

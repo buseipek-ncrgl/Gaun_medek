@@ -33,9 +33,7 @@ export default function ExamUploadPage() {
   const [studentNumber, setStudentNumber] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<StatusStep>("idle");
-  const [scores, setScores] = useState<
-    Array<{ questionNumber: number; score: number; learningOutcomeCode: string | null }>
-  >([]);
+  const [scores, setScores] = useState<Array<{ questionNumber: number; score: number }>>([]);
   const [totalScore, setTotalScore] = useState<number | null>(null);
   const [maxTotalScore, setMaxTotalScore] = useState<number | null>(null);
   const [percentage, setPercentage] = useState<number | null>(null);
@@ -93,9 +91,7 @@ export default function ExamUploadPage() {
     setFallbackMessage(null);
     setStatus("pdf");
     try {
-      // Tek çağrı, ilerleme UI'da gösteriliyor
       const result = await examApi.submitScore(examId, studentNumber, file);
-      // Backend adımlarını tek istekte yapıyor; biz statüleri kullanıcıya bilgi amaçlı güncelliyoruz
       setStatus("process");
       if (result?.markers && result.markers.success === false) {
         setFallbackMessage("Şablon modu kullanıldı.");
@@ -249,12 +245,25 @@ export default function ExamUploadPage() {
                 </div>
               </div>
 
-              {/* Bilgi Notu */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Not:</strong> Bu sınav için genel puan sistemi kullanılmaktadır. Soru bazlı detaylı skorlar gösterilmemektedir.
-                </p>
-              </div>
+              {/* Soru bazlı puanlar */}
+              {scores.length > 0 && (
+                <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300 px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                    Soru bazlı puanlar
+                  </p>
+                  <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 p-3">
+                    {scores.map(({ questionNumber, score }) => (
+                      <div
+                        key={questionNumber}
+                        className="text-center p-2 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                      >
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Soru {questionNumber}</p>
+                        <p className="font-semibold text-slate-900 dark:text-slate-100">{score}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </CardContent>

@@ -1,6 +1,28 @@
 import Student from "../models/Student.js";
 import Score from "../models/Score.js";
 import { createNotification } from "./notificationController.js";
+import { getCourseFilterForUser } from "../middleware/authMiddleware.js";
+
+/** Türkçe karakter mojibake düzeltmesi: yanlış encoding ile kaydedilmiş metni düzeltir. Zaten doğru UTF-8 Türkçe içeren metne dokunmaz. */
+function fixTurkishEncoding(str) {
+  if (!str || typeof str !== "string") return str;
+  try {
+    const hasValidTurkish = /[çğıöşüÇĞİÖŞÜ]/.test(str);
+    if (!hasValidTurkish) {
+      const decoded = Buffer.from(str, "latin1").toString("utf8");
+      if (decoded !== str && !decoded.includes("\uFFFD")) str = decoded;
+    }
+  } catch (_) {}
+  // Excel/yanlış kayıt mojibake: harf arası 1→ı, _e→ş (örn. Y1ld1z→Yıldız, Ay_e→Ayşe)
+  str = str.replace(/([a-zA-ZçğıöşüÇĞİÖŞÜ])1([a-zA-ZçğıöşüÇĞİÖŞÜ])/g, "$1ı$2");
+  str = str.replace(/([a-zA-ZçğıöşüÇĞİÖŞÜ])_e([a-zA-ZçğıöşüÇĞİÖŞÜ\s])/g, "$1ş$2");
+  str = str.replace(/([a-zA-ZçğıöşüÇĞİÖŞÜ])_u([a-zA-ZçğıöşüÇĞİÖŞÜ\s])/g, "$1ü$2");
+  str = str.replace(/([a-zA-ZçğıöşüÇĞİÖŞÜ])_o([a-zA-ZçğıöşüÇĞİÖŞÜ\s])/g, "$1ö$2");
+  str = str.replace(/([a-zA-ZçğıöşüÇĞİÖŞÜ])_c([a-zA-ZçğıöşüÇĞİÖŞÜ\s])/g, "$1ç$2");
+  str = str.replace(/([a-zA-ZçğıöşüÇĞİÖŞÜ])_g([a-zA-ZçğıöşüÇĞİÖŞÜ\s])/g, "$1ğ$2");
+  str = str.replace(/([a-zA-ZçğıöşüÇĞİÖŞÜ])_i([a-zA-ZçğıöşüÇĞİÖŞÜ\s])/g, "$1ı$2");
+  return str;
+}
 
 // Create a new Student
 const createStudent = async (req, res) => {
@@ -21,7 +43,7 @@ const createStudent = async (req, res) => {
     if (existingStudent) {
       return res.status(400).json({
         success: false,
-        message: "Student with this student number already exists",
+        message: "Bu öğrenci numarası zaten kayıtlı. Farklı bir numara girin.",
       });
     }
 
@@ -68,8 +90,8 @@ const createStudent = async (req, res) => {
       console.error("Failed to create student notification:", notifError);
     }
 
-    // Transform department ID to name for response
     const studentObj = savedStudent.toObject();
+    if (studentObj.name) studentObj.name = fixTurkishEncoding(studentObj.name);
     if (studentObj.department) {
       try {
         const mongoose = (await import("mongoose")).default;
@@ -96,19 +118,58 @@ const createStudent = async (req, res) => {
   }
 };
 
-// Get all Students
+// Rol bazlı öğrenci filtresi: bölüm başkanı kendi bölümü, öğretmen atanmış derslerdeki öğrenciler
+function getStudentFilterForUser(user) {
+  if (!user) return {};
+  if (user.role === "super_admin") return {};
+  if (user.role === "department_head" && user.departmentId) {
+    const deptId = user.departmentId._id || user.departmentId;
+    const idStr = deptId && (typeof deptId === "string" ? deptId : deptId.toString?.());
+    if (idStr) return { department: idStr };
+    return {};
+  }
+  if (user.role === "teacher") {
+    return { __teacherFilter: getCourseFilterForUser(user) };
+  }
+  return {};
+}
+
+// Get all Students (rol varsa: süper admin tümü, bölüm başkanı kendi bölümü, öğretmen atanmış derslerdeki öğrenciler)
 const getStudents = async (req, res) => {
   try {
     const Department = (await import("../models/Department.js")).default;
-    const students = await Student.find().sort({ studentNumber: 1 });
+    const Course = (await import("../models/Course.js")).default;
+    const mongoose = (await import("mongoose")).default;
 
-    // Transform department ID to name
+    let query = {};
+    const filter = getStudentFilterForUser(req.user || null);
+    if (filter.__teacherFilter) {
+      const courseFilter = filter.__teacherFilter;
+      const courses = await Course.find(courseFilter).select("students").lean();
+      const studentNumbers = new Set();
+      courses.forEach((c) => {
+        (c.students || []).forEach((s) => {
+          if (s && s.studentNumber) studentNumbers.add(String(s.studentNumber).trim());
+        });
+      });
+      if (studentNumbers.size === 0) {
+        query = { _id: null };
+      } else {
+        query = { studentNumber: { $in: Array.from(studentNumbers) } };
+      }
+    } else if (Object.keys(filter).length > 0 && !filter.__teacherFilter) {
+      query = filter;
+    }
+
+    const students = await Student.find(query).sort({ studentNumber: 1 });
+
+    // Transform department ID to name; Türkçe karakter düzeltmesi
     const transformedStudents = await Promise.all(
       students.map(async (student) => {
         const studentObj = student.toObject();
+        if (studentObj.name) studentObj.name = fixTurkishEncoding(studentObj.name);
         if (studentObj.department) {
           try {
-            // Check if department is an ObjectId string
             const mongoose = (await import("mongoose")).default;
             if (mongoose.Types.ObjectId.isValid(studentObj.department)) {
               const dept = await Department.findById(studentObj.department);
@@ -117,7 +178,6 @@ const getStudents = async (req, res) => {
               }
             }
           } catch (err) {
-            // If department is already a string, keep it as is
             console.log("Department lookup failed, keeping as string:", err.message);
           }
         }
@@ -152,8 +212,8 @@ const getStudentById = async (req, res) => {
       });
     }
 
-    // Transform department ID to name if it's an ObjectId
     const studentObj = student.toObject();
+    if (studentObj.name) studentObj.name = fixTurkishEncoding(studentObj.name);
     if (studentObj.department) {
       try {
         // Check if department is an ObjectId string
@@ -197,8 +257,8 @@ const getStudentByNumber = async (req, res) => {
       });
     }
 
-    // Transform department ID to name if it's an ObjectId
     const studentObj = student.toObject();
+    if (studentObj.name) studentObj.name = fixTurkishEncoding(studentObj.name);
     if (studentObj.department) {
       try {
         // Check if department is an ObjectId string
@@ -231,7 +291,10 @@ const getStudentByNumber = async (req, res) => {
 const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, department, classLevel } = req.body;
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const name = body.name !== undefined ? body.name : (body.data && body.data.name);
+    const department = body.department !== undefined ? body.department : (body.data && body.data.department);
+    const classLevel = body.classLevel !== undefined ? body.classLevel : (body.data && body.data.classLevel);
 
     // Check if Student exists
     const existingStudent = await Student.findById(id);
@@ -243,7 +306,7 @@ const updateStudent = async (req, res) => {
     }
 
     // Do NOT allow studentNumber to change
-    if (req.body.studentNumber) {
+    if (body.studentNumber || (body.data && body.data.studentNumber)) {
       return res.status(400).json({
         success: false,
         message: "Student number cannot be changed",
@@ -252,10 +315,14 @@ const updateStudent = async (req, res) => {
 
     // Build update object with only provided fields
     const updateData = {};
-    if (name !== undefined) updateData.name = name;
-    if (classLevel !== undefined) updateData.classLevel = classLevel;
-    
-    // Convert department name to ID if it's a name
+    if (name !== undefined && name !== null) {
+      // İstemci zaten UTF-8 gönderiyor; fixTurkishEncoding sadece mojibake için, kayıtta uygulama (bozulmayı önler)
+      updateData.name = String(name).trim();
+    }
+    if (classLevel !== undefined && classLevel !== null) {
+      const level = Number(classLevel);
+      if (!Number.isNaN(level)) updateData.classLevel = level;
+    }
     if (department !== undefined) {
       const Department = (await import("../models/Department.js")).default;
       if (department && typeof department === 'string') {
@@ -278,19 +345,40 @@ const updateStudent = async (req, res) => {
       }
     }
 
-    const updatedStudent = await Student.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    );
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Güncellenecek alan yok. name, department veya classLevel gönderin.",
+      });
+    }
 
-    // Transform department ID to name for response
-    const Department = (await import("../models/Department.js")).default;
-    const studentObj = updatedStudent.toObject();
+    const doc = await Student.findById(id);
+    if (!doc) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+    if (updateData.name !== undefined) doc.name = updateData.name;
+    if (updateData.classLevel !== undefined) doc.classLevel = updateData.classLevel;
+    if (updateData.department !== undefined) doc.department = updateData.department;
+    await doc.save();
+
+    const updatedStudent = await Student.findById(id).lean();
+    if (!updatedStudent) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found after update",
+      });
+    }
+
+    const studentObj = { ...updatedStudent };
+    if (studentObj.name) studentObj.name = fixTurkishEncoding(studentObj.name);
     if (studentObj.department) {
       try {
         const mongoose = (await import("mongoose")).default;
         if (mongoose.Types.ObjectId.isValid(studentObj.department)) {
+          const Department = (await import("../models/Department.js")).default;
           const dept = await Department.findById(studentObj.department);
           if (dept) {
             studentObj.department = dept.name;

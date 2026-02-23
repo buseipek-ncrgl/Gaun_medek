@@ -229,6 +229,49 @@ async function extractStudentNumber(digitBoxes) {
 }
 
 /**
+ * Extract full student number from a single box (tüm haneler tek kutuda)
+ * @param {Buffer} imageBuffer - Single cropped image containing the full student number
+ * @returns {Promise<string|null>} Student number string or null
+ */
+async function extractStudentNumberFromSingleBox(imageBuffer) {
+  try {
+    const genAI = getGeminiClient();
+    const model = getGeminiModel(genAI);
+    const base64Image = imageBuffer.toString("base64");
+    const prompt = `You are analyzing a cropped image from an exam paper. This image shows ONE box that contains the FULL student number (all digits in a single box).
+
+INSTRUCTIONS:
+1. Extract the complete student number - all digits in one box (typically 7-12 digits, e.g. 20231021, 2023123456)
+2. The number may be handwritten or printed
+3. Return ONLY the digits, no spaces, no dashes, no labels
+4. If the box is empty or no number is visible, return exactly: EMPTY
+
+Return ONLY the digits or EMPTY.`;
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: base64Image,
+          mimeType: "image/png",
+        },
+      },
+    ]);
+    const text = result.response.text().trim();
+    console.log(`🤖 Gemini single-box student number: "${text}"`);
+    if (!text || text.toLowerCase() === "empty") return null;
+    const match = text.replace(/\s/g, "").match(/\d{5,12}/);
+    if (match) {
+      console.log(`  ✅ Extracted student number: ${match[0]}`);
+      return match[0];
+    }
+    return null;
+  } catch (error) {
+    console.error(`  ❌ extractStudentNumberFromSingleBox error: ${error.message}`);
+    return null;
+  }
+}
+
+/**
  * Extract exam ID from 2 digit boxes
  * @param {Array<Buffer>} digitBoxes - Array of 2 image buffers
  * @returns {Promise<string>} Exam ID string (2 digits)
@@ -257,6 +300,7 @@ async function extractScores(scoreBoxes) {
 export {
   extractNumberFromImage,
   extractStudentNumber,
+  extractStudentNumberFromSingleBox,
   extractExamId,
   extractScores,
   extractStudentIdFromImage,

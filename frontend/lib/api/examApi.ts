@@ -12,6 +12,8 @@ export interface Exam {
     questionNumber: number;
     learningOutcomeCode: string;
   }>;
+  /** Geçme notu (0-100). Bu puan ve üzeri alan öğrenci tüm ÖÇ/PÇ'den geçer. */
+  passingScore?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -89,6 +91,8 @@ export interface CreateExamDto {
     questionNumber: number;
     learningOutcomeCode: string;
   }>;
+  /** Geçme notu (0-100). Örn. 40 yazılırsa 40 ve üzeri geçer. */
+  passingScore?: number;
 }
 
 export interface UpdateExamDto {
@@ -100,6 +104,8 @@ export interface UpdateExamDto {
     questionNumber: number;
     learningOutcomeCode: string;
   }>;
+  /** Geçme notu (0-100). */
+  passingScore?: number;
 }
 
 export const examApi = {
@@ -217,6 +223,15 @@ export const examApi = {
     const response = await apiClient.get(`/exams/${examId}/batch-status`, {
       params: { batchId },
     });
+    return response.data.data;
+  },
+
+  /** OBS format: Toplu puan yükleme (öğrenci no + puan listesi). Excel frontend'de parse edilip buraya gönderilir. */
+  uploadScores: async (
+    examId: string,
+    payload: { maxScore?: number; scores: Array<{ studentNumber: string; score: number }> }
+  ): Promise<{ updated: number; total: number; errors: Array<{ studentNumber?: string; message: string }> }> => {
+    const response = await apiClient.post(`/exams/${examId}/upload-scores`, payload);
     return response.data.data;
   },
 };

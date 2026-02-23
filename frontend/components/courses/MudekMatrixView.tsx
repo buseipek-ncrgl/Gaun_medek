@@ -306,57 +306,58 @@ export function MudekMatrixView({
   }
 
   return (
-    <div id="mudek-matrix-content" className="space-y-6">
+    <div id="mudek-matrix-content" className="space-y-4 sm:space-y-6 min-w-0 w-full">
       {/* Header - Outside Card */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
-              <GraduationCap className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+      <div className="space-y-3 sm:space-y-4 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-1 h-6 sm:h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full flex-shrink-0"></div>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 flex-shrink-0">
+              <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5 text-brand-navy dark:text-slate-200" />
             </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">NTMYO Matrisi</h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400">Öğrenme Çıktıları (ÖÇ) ve Program Çıktıları (PÇ) arasındaki ilişki matrisi</p>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-xl md:text-2xl font-bold text-brand-navy dark:text-slate-100 break-words">NTMYO Matrisi</h2>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 break-words">ÖÇ ve PÇ ilişki matrisi</p>
             </div>
           </div>
         </div>
 
         {/* Sticky Save Button and Controls */}
-        <div className="sticky top-4 z-10 flex flex-wrap items-center gap-3 p-4 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-brand-navy/20 dark:border-slate-700/50 rounded-lg shadow-modern">
+        <div className="sticky top-2 sm:top-4 z-10 flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-brand-navy/20 dark:border-slate-700/50 rounded-lg shadow-modern">
           <Button
             ref={saveButtonRef}
             onClick={handleSave}
             disabled={isSaving || !hasChanges}
-            className="h-11 px-6 bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-brand-navy/90 hover:to-[#0f3a6b]/90 text-white shadow-lg hover:shadow-xl transition-all"
+            className="h-10 sm:h-11 px-4 sm:px-6 bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-brand-navy/90 hover:to-[#0f3a6b]/90 text-white shadow-lg hover:shadow-xl transition-all text-sm"
           >
             {isSaving ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-1.5 sm:mr-2 animate-spin" />
                 Kaydediliyor...
               </>
             ) : (
               <>
-                <Save className="h-4 w-4 mr-2" />
-                Değişiklikleri Kaydet
+                <Save className="h-4 w-4 mr-1.5 sm:mr-2" />
+                <span className="hidden sm:inline">Değişiklikleri Kaydet</span>
+                <span className="sm:hidden">Kaydet</span>
               </>
             )}
           </Button>
           
           {hasChanges && (
-            <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
-              <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
-              <span>Kaydedilmemiş değişiklikler var</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-amber-600 dark:text-amber-400">
+              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-amber-500 animate-pulse flex-shrink-0"></div>
+              <span className="truncate max-w-[140px] sm:max-w-none">Kaydedilmemiş değişiklikler</span>
             </div>
           )}
 
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-1 sm:gap-2 ml-auto">
             <Button
               variant="ghost"
               size="sm"
               onClick={handleUndo}
               disabled={historyIndex <= 0}
-              className="h-9 w-9 p-0 hover:bg-brand-navy/10"
+              className="h-8 w-8 sm:h-9 sm:w-9 p-0 hover:bg-brand-navy/10 flex-shrink-0"
               title="Geri Al"
             >
               <RotateCcw className="h-4 w-4 text-brand-navy dark:text-slate-200" />
@@ -366,7 +367,7 @@ export function MudekMatrixView({
               size="sm"
               onClick={handleRedo}
               disabled={historyIndex >= history.length - 1}
-              className="h-9 w-9 p-0 hover:bg-brand-navy/10"
+              className="h-8 w-8 sm:h-9 sm:w-9 p-0 hover:bg-brand-navy/10 flex-shrink-0"
               title="Yinele"
             >
               <RotateCw className="h-4 w-4 text-brand-navy dark:text-slate-200" />
@@ -375,37 +376,37 @@ export function MudekMatrixView({
               variant="ghost"
               size="sm"
               onClick={handleExportPDF}
-              className="h-9 px-3 hover:bg-brand-navy/10"
+              className="h-8 sm:h-9 px-2 sm:px-3 hover:bg-brand-navy/10 flex-shrink-0"
               title="PDF İndir"
             >
-              <Download className="h-4 w-4 mr-2 text-brand-navy dark:text-slate-200" />
-              <span className="text-sm">PDF</span>
+              <Download className="h-4 w-4 sm:mr-2 text-brand-navy dark:text-slate-200" />
+              <span className="hidden sm:inline text-sm">PDF</span>
             </Button>
           </div>
         </div>
 
         {/* Search and Filter */}
-        <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
-          <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern overflow-hidden">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col gap-3">
+              <div className="relative w-full min-w-0">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                 <Input
                   placeholder="ÖÇ ara (kod veya açıklama)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 border-brand-navy/20 focus:border-brand-navy"
+                  className="pl-10 border-brand-navy/20 focus:border-brand-navy w-full"
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-brand-navy dark:text-slate-200" />
-                <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Filter className="h-4 w-4 text-brand-navy dark:text-slate-200 flex-shrink-0" />
+                <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1 flex-wrap">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setFilterType("all")}
                     className={cn(
-                      "h-8 px-3 text-xs",
+                      "h-7 sm:h-8 px-2 sm:px-3 text-xs",
                       filterType === "all" 
                         ? "bg-white dark:bg-slate-600 text-brand-navy dark:text-white shadow-sm" 
                         : "text-slate-600 dark:text-slate-300"
@@ -418,7 +419,7 @@ export function MudekMatrixView({
                     size="sm"
                     onClick={() => setFilterType("selected")}
                     className={cn(
-                      "h-8 px-3 text-xs",
+                      "h-7 sm:h-8 px-2 sm:px-3 text-xs",
                       filterType === "selected" 
                         ? "bg-white dark:bg-slate-600 text-brand-navy dark:text-white shadow-sm" 
                         : "text-slate-600 dark:text-slate-300"
@@ -431,7 +432,7 @@ export function MudekMatrixView({
                     size="sm"
                     onClick={() => setFilterType("unselected")}
                     className={cn(
-                      "h-8 px-3 text-xs",
+                      "h-7 sm:h-8 px-2 sm:px-3 text-xs",
                       filterType === "unselected" 
                         ? "bg-white dark:bg-slate-600 text-brand-navy dark:text-white shadow-sm" 
                         : "text-slate-600 dark:text-slate-300"
@@ -447,44 +448,44 @@ export function MudekMatrixView({
       </div>
 
       {/* İstatistikler */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 min-w-0">
+        <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-4 sm:p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 sm:hover:-translate-y-1">
           <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <div className="relative flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
-              <Target className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+          <div className="relative flex items-center gap-3 sm:gap-4">
+            <div className="p-2 sm:p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300 flex-shrink-0">
+              <Target className="h-5 w-5 sm:h-6 sm:w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Toplam ÖÇ</p>
-              <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+              <p className="text-2xl sm:text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
                 {learningOutcomes.length}
               </p>
             </div>
           </div>
         </Card>
-        <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+        <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-4 sm:p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 sm:hover:-translate-y-1">
           <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <div className="relative flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
-              <GraduationCap className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+          <div className="relative flex items-center gap-3 sm:gap-4">
+            <div className="p-2 sm:p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300 flex-shrink-0">
+              <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Toplam PÇ</p>
-              <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+              <p className="text-2xl sm:text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
                 {programOutcomes.length}
               </p>
             </div>
           </div>
         </Card>
-        <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+        <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-4 sm:p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 sm:hover:-translate-y-1">
           <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <div className="relative flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
-              <Info className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+          <div className="relative flex items-center gap-3 sm:gap-4">
+            <div className="p-2 sm:p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300 flex-shrink-0">
+              <Info className="h-5 w-5 sm:h-6 sm:w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
             </div>
-            <div className="flex-1">
-              <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Ortalama Eşleme</p>
-              <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Ort. Eşleme</p>
+              <p className="text-2xl sm:text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
                 {avgMappingsPerLO}
               </p>
             </div>
@@ -492,21 +493,22 @@ export function MudekMatrixView({
         </Card>
       </div>
 
-      {/* Matris Tablosu */}
-      <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
+      {/* Matris Tablosu - mobilde yatay/dikey kaydırma */}
+      <p className="text-xs text-slate-500 dark:text-slate-400 sm:hidden px-1">Matrisi yatay kaydırarak tüm sütunları görebilirsiniz.</p>
+      <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern overflow-hidden">
         <CardContent className="p-0">
-          <div 
+          <div
             ref={tableRef}
-            className="overflow-x-auto overflow-y-auto w-full -mx-4 sm:mx-0 px-4 sm:px-0"
-            style={{ maxHeight: "600px" }}
+            className="overflow-x-auto overflow-y-auto w-full min-w-0"
+            style={{ maxHeight: "min(500px, 65vh)" }}
           >
-            <div className="inline-block min-w-full align-middle">
-              <Table className="border-2 w-full min-w-[800px] text-xs sm:text-sm">
+            <div className="inline-block align-middle">
+              <Table className="border-2 w-full min-w-[480px] sm:min-w-[800px] text-xs sm:text-sm">
               <TableHeader className="sticky top-0 z-20 bg-gradient-to-r from-brand-navy to-[#0f3a6b]">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="sticky left-0 z-30 text-white font-bold text-center min-w-[120px] border-r-2 border-white/20 bg-gradient-to-r from-brand-navy to-[#0f3a6b]">
-                    <div className="flex flex-col items-center gap-1">
-                      <span>ÖÇ Kodu</span>
+                  <TableHead className="sticky left-0 z-30 text-white font-bold text-center min-w-[72px] sm:min-w-[120px] border-r-2 border-white/20 bg-gradient-to-r from-brand-navy to-[#0f3a6b]">
+                    <div className="flex flex-col items-center gap-0.5 sm:gap-1">
+                      <span className="text-[10px] sm:text-xs whitespace-nowrap">ÖÇ Kodu</span>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -516,33 +518,33 @@ export function MudekMatrixView({
                             handleBulkSelectRow(originalIndex, true);
                           });
                         }}
-                        className="h-6 px-2 text-xs text-white/90 hover:text-white hover:bg-white/20 mt-1"
+                        className="h-5 sm:h-6 px-1.5 sm:px-2 text-white/90 hover:text-white hover:bg-white/20 mt-0.5 sm:mt-1"
                         title="Tümünü Seç"
                       >
                         <CheckSquare className="h-3 w-3" />
                       </Button>
                     </div>
                   </TableHead>
-                  <TableHead className="sticky left-[120px] z-20 text-white font-bold min-w-[300px] border-r-2 border-white/20 bg-gradient-to-r from-brand-navy to-[#0f3a6b]">
-                    ÖÇ Açıklaması
+                  <TableHead className="sticky left-[72px] sm:left-[120px] z-20 text-white font-bold min-w-[160px] sm:min-w-[300px] border-r-2 border-white/20 bg-gradient-to-r from-brand-navy to-[#0f3a6b]">
+                    <span className="line-clamp-2 sm:line-clamp-none">ÖÇ Açıklaması</span>
                   </TableHead>
                   {programOutcomes.map((po) => (
                     <TableHead
                       key={po.code}
-                      className="text-white font-bold text-center min-w-[100px] border-r-2 border-white/20 last:border-r-0 relative group"
+                      className="text-white font-bold text-center min-w-[44px] sm:min-w-[100px] border-r-2 border-white/20 last:border-r-0 relative group py-2"
                       onMouseEnter={() => setHighlightedCol(po.code)}
                       onMouseLeave={() => setHighlightedCol(null)}
                     >
-                      <div className="flex flex-col items-center gap-1">
-                        <span>{po.code}</span>
-                        <span className="text-xs font-normal opacity-90">
+                      <div className="flex flex-col items-center gap-0.5 sm:gap-1">
+                        <span className="text-[10px] sm:text-xs whitespace-nowrap">{po.code}</span>
+                        <span className="text-[10px] sm:text-xs font-normal opacity-90 hidden sm:inline">
                           {coverageByPO.find((c) => c.code === po.code)?.count || 0} ÖÇ
                         </span>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleBulkSelectColumn(po.code, true)}
-                          className="h-6 px-2 text-xs text-white/90 hover:text-white hover:bg-white/20 mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="h-5 sm:h-6 px-1 sm:px-2 text-white/90 hover:text-white hover:bg-white/20 mt-0.5 sm:mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
                           title="Tümünü Seç"
                         >
                           <CheckSquare className="h-3 w-3" />
@@ -568,15 +570,15 @@ export function MudekMatrixView({
                       onMouseEnter={() => setHighlightedRow(originalIndex)}
                       onMouseLeave={() => setHighlightedRow(null)}
                     >
-                      <TableCell className="sticky left-0 z-10 font-bold text-center bg-white dark:bg-slate-800 border-r-2 border-brand-navy/20 dark:border-slate-700/50">
-                        <Badge variant="default" className="bg-gradient-to-r from-brand-navy to-[#0f3a6b] text-white">
+                      <TableCell className="sticky left-0 z-10 font-bold text-center bg-white dark:bg-slate-800 border-r-2 border-brand-navy/20 dark:border-slate-700/50 min-w-[72px] sm:min-w-[120px]">
+                        <Badge variant="default" className="bg-gradient-to-r from-brand-navy to-[#0f3a6b] text-white text-[10px] sm:text-xs px-1.5 sm:px-2">
                           {lo.code}
                         </Badge>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleBulkSelectRow(originalIndex, selectedPOs.length < programOutcomes.length)}
-                          className="h-6 px-2 text-xs mt-1 hover:bg-brand-navy/10"
+                          className="h-5 sm:h-6 px-1.5 sm:px-2 text-xs mt-0.5 sm:mt-1 hover:bg-brand-navy/10"
                           title={selectedPOs.length < programOutcomes.length ? "Tümünü Seç" : "Tümünü Kaldır"}
                         >
                           {selectedPOs.length < programOutcomes.length ? (
@@ -586,8 +588,8 @@ export function MudekMatrixView({
                           )}
                         </Button>
                       </TableCell>
-                      <TableCell className="sticky left-[120px] z-10 bg-white dark:bg-slate-800 border-r-2 border-brand-navy/20 dark:border-slate-700/50">
-                        <p className="text-sm text-foreground">{lo.description}</p>
+                      <TableCell className="sticky left-[72px] sm:left-[120px] z-10 bg-white dark:bg-slate-800 border-r-2 border-brand-navy/20 dark:border-slate-700/50 min-w-[160px] sm:min-w-[300px]">
+                        <p className="text-xs sm:text-sm text-foreground break-words">{lo.description}</p>
                         {selectedPOs.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1">
                             {selectedPOs.map((poCode: string) => (
@@ -628,15 +630,15 @@ export function MudekMatrixView({
                               setHighlightedCol(null);
                             }}
                           >
-                            <div className="flex items-center justify-center">
+                            <div className="flex items-center justify-center p-0.5">
                               <div className={cn(
-                                "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
+                                "w-6 h-6 sm:w-8 sm:h-8 rounded-md sm:rounded-lg flex items-center justify-center transition-all",
                                 isMapped 
-                                  ? "bg-gradient-to-br from-brand-navy to-[#0f3a6b] text-white shadow-md hover:shadow-lg hover:scale-110" 
+                                  ? "bg-gradient-to-br from-brand-navy to-[#0f3a6b] text-white shadow-md hover:shadow-lg sm:hover:scale-110" 
                                   : "border-2 border-brand-navy/30 hover:border-brand-navy hover:bg-brand-navy/10"
                               )}>
                                 {isMapped && (
-                                  <span className="text-sm font-bold">✓</span>
+                                  <span className="text-xs sm:text-sm font-bold">✓</span>
                                 )}
                               </div>
                             </div>
@@ -668,23 +670,23 @@ export function MudekMatrixView({
       )}
 
       {/* PÇ Kapsam Analizi */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
-              <Info className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+      <div className="space-y-3 sm:space-y-4 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-1 h-6 sm:h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full flex-shrink-0"></div>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 flex-shrink-0">
+              <Info className="h-4 w-4 sm:h-5 sm:w-5 text-brand-navy dark:text-slate-200" />
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">PÇ Kapsam Analizi</h2>
+            <h2 className="text-base sm:text-xl md:text-2xl font-bold text-brand-navy dark:text-slate-100 break-words">PÇ Kapsam Analizi</h2>
           </div>
         </div>
-        <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
-          <CardContent className="p-4 sm:p-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern overflow-hidden">
+          <CardContent className="p-3 sm:p-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
               {coverageByPO.map((coverage) => (
                 <div
                   key={coverage.code}
-                  className="group p-4 border border-brand-navy/20 dark:border-slate-700/50 rounded-lg bg-white/50 dark:bg-slate-800/50 hover:border-brand-navy/50 hover:shadow-md transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+                  className="group p-3 sm:p-4 border border-brand-navy/20 dark:border-slate-700/50 rounded-lg bg-white/50 dark:bg-slate-800/50 hover:border-brand-navy/50 hover:shadow-md transition-all duration-300 sm:hover:-translate-y-1 cursor-pointer"
                   onClick={() => {
                     setHighlightedCol(coverage.code);
                     setTimeout(() => setHighlightedCol(null), 2000);
@@ -715,11 +717,11 @@ export function MudekMatrixView({
       </div>
 
       {/* Bilgi Notu */}
-      <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <Info className="h-5 w-5 text-brand-navy dark:text-slate-200 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-slate-700 dark:text-slate-300">
+      <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern overflow-hidden">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex items-start gap-2 sm:gap-3">
+            <Info className="h-4 w-4 sm:h-5 sm:w-5 text-brand-navy dark:text-slate-200 mt-0.5 flex-shrink-0" />
+            <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 min-w-0">
               <p className="font-semibold mb-1 text-brand-navy dark:text-slate-100">Kullanım Kılavuzu:</p>
               <ul className="list-disc list-inside space-y-1">
                 <li>Matris üzerindeki hücrelere tıklayarak ÖÇ → PÇ eşlemesi yapabilirsiniz</li>

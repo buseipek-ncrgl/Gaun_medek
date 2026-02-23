@@ -1,6 +1,14 @@
 import sharp from "sharp";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function loadTemplate() {
+  const templatePath = path.join(__dirname, "questionTemplate.json");
+  return JSON.parse(fs.readFileSync(templatePath, "utf-8"));
+}
 
 // Check if OpenCV is enabled via environment variable
 const ENABLE_OPENCV = process.env.ENABLE_OPENCV === "true";
@@ -162,11 +170,13 @@ async function cropTotalScoreBox(pngBuffer, markers) {
   if (markers?.success) {
     try {
       const { warpedImage, totalScoreBox } = await warpAndDefineROIs(pngBuffer, markers);
-      const buf = await cropROI(warpedImage, totalScoreBox);
-      const filePath = saveTempImage(buf, `total_score_${Date.now()}.png`);
+      const ts = Date.now();
+      const filename = `total_score_${ts}.png`;
+      const filePath = saveTempImage(buf, filename);
       return {
         buffer: buf,
         imagePath: filePath,
+        imageFilename: filename,
       };
     } catch (warpError) {
       console.warn("⚠️ Warp failed, falling back to template coordinates:", warpError.message);
@@ -178,69 +188,126 @@ async function cropTotalScoreBox(pngBuffer, markers) {
   const imageMetadata = await sharp(pngBuffer).metadata();
   const imageWidth = imageMetadata.width || 2480;
   const imageHeight = imageMetadata.height || 3508;
-  
+  const template = loadTemplate();
+  const totalScoreBoxes = template.totalScoreBoxes || [];
+
   console.log(`📐 Image dimensions: ${imageWidth}x${imageHeight}`);
-  console.log(`📋 Using template fallback for total score box`);
-  
-  // Toplam Puan kutusu (ORİJİNAL sayfaya göre) ====
-  // Orijinal template size: 1654x2339
-  // Koordinatlar: (488, 1586, 1165, 1699) -> x=488, y=1586, w=677, h=113
-  // Görüntü boyutuna göre ölçekleme yapıyoruz
+  console.log(`📋 Using template fallback for total score`);
+
+  // Yeni şablon: 20 puan kutusu varsa hepsini kes, toplam puan sonradan 20'sinin toplamı olacak
+  if (totalScoreBoxes.length >= 20) {
+    const buffers = [];
+    for (let i = 0; i < 20; i++) {
+      const box = totalScoreBoxes[i];
+      const x = Math.round((box.xPercent || 0) * imageWidth / 100);
+      const y = Math.round((box.yPercent || 0) * imageHeight / 100);
+      const w = Math.max(1, Math.round((box.wPercent || 0) * imageWidth / 100));
+      const h = Math.max(1, Math.round((box.hPercent || 0) * imageHeight / 100));
+      if (x + w > imageWidth || y + h > imageHeight) continue;
+      try {
+        const buf = await sharp(pngBuffer)
+          .extract({ left: x, top: y, width: w, height: h })
+          .png()
+          .toBuffer();
+        buffers.push(buf);
+      } catch (e) {
+        console.warn(`⚠️ Crop box ${i + 1} failed:`, e.message);
+      }
+    }
+    if (buffers.length === 20) {
+      const ts = Date.now();
+      const filename = `total_score_boxes_${ts}.png`;
+      // Kullanıcının "kesilmiş hali" görmesi için 20 kutuyu tek görselde birleştir (4x5 grid)
+      try {
+        const meta = await sharp(buffers[0]).metadata();
+        const cellW = (meta.width || 50) + 8;
+        const cellH = (meta.height || 30) + 8;
+        const cols = 5;
+        const rows = 4;
+        const compositeWidth = cols * cellW;
+        const compositeHeight = rows * cellH;
+        const composites = [];
+        for (let i = 0; i < 20; i++) {
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          const left = col * cellW + 4;
+          const top = row * cellH + 4;
+          composites.push({
+            input: buffers[i],
+            left,
+            top,
+          });
+        }
+        const compositeBuffer = await sharp({
+          create: {
+            width: compositeWidth,
+            height: compositeHeight,
+            channels: 3,
+            background: { r: 240, g: 240, b: 240 },
+          },
+        })
+          .composite(composites)
+          .png()
+          .toBuffer();
+        const filePath = saveTempImage(compositeBuffer, filename);
+        console.log(`✅ Cropped 20 score boxes (template), composite saved: ${filePath}`);
+        return {
+          buffer: buffers[0],
+          imagePath: filePath,
+          imageFilename: filename,
+          buffers,
+        };
+      } catch (compositeErr) {
+        console.warn("⚠️ Composite image failed, saving first box only:", compositeErr.message);
+        const filePath = saveTempImage(buffers[0], filename);
+        return {
+          buffer: buffers[0],
+          imagePath: filePath,
+          imageFilename: path.basename(filePath),
+          buffers,
+        };
+      }
+    }
+    console.warn(`⚠️ Only ${buffers.length}/20 score boxes cropped, falling back to single box`);
+  }
+
+  // Tek toplam puan kutusu (eski şablon veya totalScoreBoxes yok)
   const ORIGINAL_TEMPLATE_WIDTH = 1654;
   const ORIGINAL_TEMPLATE_HEIGHT = 2339;
   const ORIGINAL_X = 488;
   const ORIGINAL_Y = 1586;
-  const ORIGINAL_W = 677;  // 1165 - 488
-  const ORIGINAL_H = 113;  // 1699 - 1586
-  
-  // Orijinal template'e göre yüzde hesapla, sonra gerçek görüntü boyutuna ölçekle
+  const ORIGINAL_W = 677;
+  const ORIGINAL_H = 113;
   const scaleX = imageWidth / ORIGINAL_TEMPLATE_WIDTH;
   const scaleY = imageHeight / ORIGINAL_TEMPLATE_HEIGHT;
-  
   const x = Math.round(ORIGINAL_X * scaleX);
   const y = Math.round(ORIGINAL_Y * scaleY);
   const w = Math.round(ORIGINAL_W * scaleX);
   const h = Math.round(ORIGINAL_H * scaleY);
-  
-  console.log(`📏 Scaled coordinates: x=${x}, y=${y}, w=${w}, h=${h} (scale: ${scaleX.toFixed(3)}x, ${scaleY.toFixed(3)}y)`);
-  
-  // Koordinatları doğrula
-  if (x === undefined || y === undefined || w === undefined || h === undefined || 
+
+  console.log(`📏 Scaled coordinates: x=${x}, y=${y}, w=${w}, h=${h}`);
+  if (x === undefined || y === undefined || w === undefined || h === undefined ||
       isNaN(x) || isNaN(y) || isNaN(w) || isNaN(h) || x < 0 || y < 0 || w <= 0 || h <= 0) {
     throw new Error(`Invalid coordinates for total score box: x=${x}, y=${y}, w=${w}, h=${h}`);
   }
-  
-  // Koordinatların görüntü sınırları içinde olduğunu kontrol et
-  if (x + w > imageWidth || y + h > imageHeight) {
-    console.warn(`⚠️ Total score box coordinates exceed image bounds. Adjusting...`);
-    const adjustedW = Math.min(w, imageWidth - x);
-    const adjustedH = Math.min(h, imageHeight - y);
-    if (adjustedW <= 0 || adjustedH <= 0) {
-      throw new Error(`Total score box cannot be cropped (out of bounds)`);
-    }
-    
+  const adjustedW = Math.min(w, imageWidth - x);
+  const adjustedH = Math.min(h, imageHeight - y);
+  if (adjustedW <= 0 || adjustedH <= 0) {
+    throw new Error(`Total score box cannot be cropped (out of bounds)`);
+  }
+  try {
     const buf = await sharp(pngBuffer)
       .extract({ left: x, top: y, width: adjustedW, height: adjustedH })
       .png()
       .toBuffer();
-    const filePath = saveTempImage(buf, `total_score_${Date.now()}.png`);
-    console.log(`✅ Cropped total score box (adjusted): x=${x}, y=${y}, w=${adjustedW}, h=${adjustedH}`);
+    const ts = Date.now();
+    const filename = `total_score_${ts}.png`;
+    const filePath = saveTempImage(buf, filename);
+    console.log(`✅ Cropped total score box: x=${x}, y=${y}, w=${adjustedW}, h=${adjustedH}`);
     return {
       buffer: buf,
       imagePath: filePath,
-    };
-  }
-  
-  try {
-    const buf = await sharp(pngBuffer)
-      .extract({ left: x, top: y, width: w, height: h })
-      .png()
-      .toBuffer();
-    const filePath = saveTempImage(buf, `total_score_${Date.now()}.png`);
-    console.log(`✅ Cropped total score box: x=${x}, y=${y}, w=${w}, h=${h}`);
-    return {
-      buffer: buf,
-      imagePath: filePath,
+      imageFilename: filename,
     };
   } catch (error) {
     throw new Error(`Failed to crop total score box: ${error.message}`);

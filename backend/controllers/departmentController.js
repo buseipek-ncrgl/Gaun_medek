@@ -27,6 +27,108 @@ export const getDepartments = async (req, res) => {
   }
 };
 
+// Create department
+export const createDepartment = async (req, res) => {
+  try {
+    const { code, name, nameEn } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Bölüm adı zorunludur.",
+      });
+    }
+    const existing = await Department.findOne({
+      $or: [
+        { name: name.trim() },
+        ...(code && code.trim() ? [{ code: code.trim() }] : []),
+      ],
+    });
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: "Bu ad veya kodla bölüm zaten var.",
+      });
+    }
+    const department = new Department({
+      code: code?.trim() || undefined,
+      name: name.trim(),
+      nameEn: nameEn?.trim(),
+    });
+    await department.save();
+    const populated = await Department.findById(department._id).populate("programs", "code name nameEn");
+    return res.status(201).json({
+      success: true,
+      data: populated,
+    });
+  } catch (error) {
+    console.error("Error creating department:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Bölüm oluşturulurken hata oluştu.",
+    });
+  }
+};
+
+// Update department
+export const updateDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { code, name, nameEn } = req.body;
+    const department = await Department.findById(id);
+    if (!department) {
+      return res.status(404).json({
+        success: false,
+        message: "Bölüm bulunamadı.",
+      });
+    }
+    if (name !== undefined && name.trim()) department.name = name.trim();
+    if (code !== undefined) department.code = code?.trim() || undefined;
+    if (nameEn !== undefined) department.nameEn = nameEn?.trim() || undefined;
+    await department.save();
+    const populated = await Department.findById(department._id).populate("programs", "code name nameEn");
+    return res.status(200).json({
+      success: true,
+      data: populated,
+    });
+  } catch (error) {
+    console.error("Error updating department:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Bölüm güncellenirken hata oluştu.",
+    });
+  }
+};
+
+// Delete department
+export const deleteDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const department = await Department.findById(id);
+    if (!department) {
+      return res.status(404).json({
+        success: false,
+        message: "Bölüm bulunamadı.",
+      });
+    }
+    await Program.deleteMany({ department: id });
+    await Course.updateMany(
+      { department: id },
+      { $unset: { department: "", program: "" } }
+    );
+    await Department.findByIdAndDelete(id);
+    return res.status(200).json({
+      success: true,
+      message: "Bölüm silindi.",
+    });
+  } catch (error) {
+    console.error("Error deleting department:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Bölüm silinirken hata oluştu.",
+    });
+  }
+};
+
 // Seed departments and programs (clears existing and recreates from JSON)
 export const seedDepartments = async (req, res) => {
   try {

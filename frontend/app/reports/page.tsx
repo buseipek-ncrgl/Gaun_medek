@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, ArrowRight, BarChart3, BookOpen, Users, Target, GraduationCap, Search, ExternalLink, Loader2, ChevronDown, ChevronUp, Filter, X } from "lucide-react";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import { courseApi, type Course } from "@/lib/api/courseApi";
 import { departmentApi, type Department } from "@/lib/api/departmentApi";
 import { programApi, type Program } from "@/lib/api/programApi";
 import { examApi } from "@/lib/api/examApi";
+import { authApi } from "@/lib/api/authApi";
 
 export default function ReportsPage() {
   const router = useRouter();
@@ -30,17 +31,56 @@ export default function ReportsPage() {
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [quickFilter, setQuickFilter] = useState<"all" | "withReport" | "withoutReport">("all");
 
+  const teacherProgramsRef = useRef<Program[]>([]);
+
   useEffect(() => {
-    fetchCourses();
-    loadDepartments();
+    const init = async () => {
+      const u = authApi.getStoredUser();
+      if (u?.role === "teacher") {
+        const opts = await authApi.getTeacherFilterOptions();
+        if (opts) {
+          const progs = opts.programs as Program[];
+          teacherProgramsRef.current = progs;
+          setDepartments(opts.departments as Department[]);
+          setPrograms(progs);
+          if (opts.departments.length === 1) setSelectedDepartmentId(opts.departments[0]._id);
+          if (opts.programs.length === 1) setSelectedProgramId(opts.programs[0]._id);
+        }
+      } else {
+        await loadDepartments();
+        if (u?.role === "department_head" && u?.departmentId) {
+          const raw = (u as { departmentId?: string | { _id?: string } }).departmentId;
+          const id = raw != null && typeof raw === "object" && "_id" in raw
+            ? String((raw as { _id: string })._id)
+            : typeof raw === "string" ? raw : "";
+          if (id) setSelectedDepartmentId(id);
+        }
+      }
+      fetchCourses();
+    };
+    init();
   }, []);
 
   useEffect(() => {
+    const u = authApi.getStoredUser();
+    if (u?.role === "teacher") {
+      if (selectedDepartmentId) {
+        const filtered = teacherProgramsRef.current.filter(
+          (p) => (p as { department?: { _id: string } }).department?._id === selectedDepartmentId
+        );
+        setPrograms(filtered);
+        if (!selectedProgramId || !filtered.some((p) => p._id === selectedProgramId)) setSelectedProgramId("");
+        loadCoursesByDepartment(selectedDepartmentId);
+      } else {
+        setPrograms(teacherProgramsRef.current);
+        setSelectedProgramId("");
+        setSelectedCourseId("");
+      }
+      return;
+    }
     if (selectedDepartmentId) {
       loadPrograms(selectedDepartmentId);
-      if (!selectedProgramId) {
-        loadCoursesByDepartment(selectedDepartmentId);
-      }
+      if (!selectedProgramId) loadCoursesByDepartment(selectedDepartmentId);
     } else {
       setPrograms([]);
       setSelectedProgramId("");
@@ -63,7 +103,7 @@ export default function ReportsPage() {
   const loadDepartments = async () => {
     try {
       const data = await departmentApi.getAll();
-      setDepartments(data);
+      setDepartments(data || []);
     } catch (error: any) {
       console.error("Bölümler yüklenemedi:", error);
     }
@@ -265,18 +305,18 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 px-3 py-4 sm:px-4 sm:py-6 md:px-6 overflow-x-hidden">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 min-w-0">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="w-1 h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full"></div>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-1 h-7 sm:h-8 bg-gradient-to-b from-brand-navy to-brand-navy/60 rounded-full flex-shrink-0"></div>
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 flex-shrink-0">
               <BarChart3 className="h-5 w-5 text-brand-navy dark:text-slate-200" />
             </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-brand-navy dark:text-slate-100">NTMYO Raporları</h1>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-brand-navy dark:text-slate-100 truncate">NTMYO Raporları</h1>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                 Dersler için kapsamlı akreditasyon raporları oluşturun ve görüntüleyin
               </p>
             </div>
@@ -284,19 +324,19 @@ export default function ReportsPage() {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-3 sm:p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 sm:hover:-translate-y-1">
             <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
-                <BookOpen className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+            <div className="relative flex items-center gap-2 sm:gap-4">
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300 flex-shrink-0">
+                <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
               </div>
-              <div className="flex-1">
-                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Toplam Ders</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-0.5 sm:mb-1">Toplam Ders</p>
                 {isLoading ? (
-                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-6 sm:h-8 w-12 sm:w-16" />
                 ) : (
-                  <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                  <p className="text-xl sm:text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
                     {stats.totalCourses}
                   </p>
                 )}
@@ -304,18 +344,18 @@ export default function ReportsPage() {
             </div>
           </Card>
 
-          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+          <Card className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl p-3 sm:p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 sm:hover:-translate-y-1">
             <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300">
-                <FileText className="h-6 w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
+            <div className="relative flex items-center gap-2 sm:gap-4">
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-brand-navy/15 to-brand-navy/5 dark:from-brand-navy/25 dark:to-brand-navy/15 group-hover:from-white/20 group-hover:to-white/10 rounded-xl transition-all duration-300 flex-shrink-0">
+                <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-brand-navy dark:text-slate-200 group-hover:text-white transition-colors" />
               </div>
-              <div className="flex-1">
-                <p className="text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-1">Toplam Rapor</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs font-semibold text-brand-navy/70 dark:text-slate-400 group-hover:text-white/80 uppercase tracking-wide transition-colors mb-0.5 sm:mb-1">Toplam Rapor</p>
                 {isLoading ? (
-                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-6 sm:h-8 w-12 sm:w-16" />
                 ) : (
-                  <p className="text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                  <p className="text-xl sm:text-3xl font-bold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
                     {stats.totalWithReports}
                   </p>
                 )}
@@ -326,15 +366,15 @@ export default function ReportsPage() {
 
         {/* Filters */}
         <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10">
+          <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 flex-shrink-0">
                   <Filter className="h-4 w-4 text-brand-navy dark:text-slate-200" />
                 </div>
-                <div>
-                  <CardTitle className="text-lg font-semibold text-brand-navy dark:text-slate-100">Filtreler ve Arama</CardTitle>
-                  <CardDescription className="text-xs">
+                <div className="min-w-0">
+                  <CardTitle className="text-base sm:text-lg font-semibold text-brand-navy dark:text-slate-100">Filtreler ve Arama</CardTitle>
+                  <CardDescription className="text-xs hidden sm:block">
                     Dersleri bölüm, program, ders veya arama terimi ile filtreleyin
                   </CardDescription>
                 </div>
@@ -354,7 +394,7 @@ export default function ReportsPage() {
             </div>
           </CardHeader>
           {filtersExpanded && (
-            <CardContent className="space-y-4 pt-0">
+            <CardContent className="space-y-4 pt-0 px-3 sm:px-6 pb-4 sm:pb-6">
               {/* Quick Filters */}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-medium text-brand-navy/70 dark:text-slate-400">Hızlı Filtreler:</span>
@@ -463,7 +503,7 @@ export default function ReportsPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                 {/* Department Filter */}
                 <div className="space-y-2">
                   <Label htmlFor="department-filter" className="text-sm font-medium text-brand-navy dark:text-slate-200">
@@ -473,7 +513,8 @@ export default function ReportsPage() {
                     id="department-filter"
                     value={selectedDepartmentId}
                     onChange={(e) => setSelectedDepartmentId(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-brand-navy/20 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:border-brand-navy/50 focus:outline-none focus:ring-2 focus:ring-brand-navy/20"
+                    disabled={authApi.getStoredUser()?.role === "department_head"}
+                    className="flex h-10 w-full rounded-md border border-brand-navy/20 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:border-brand-navy/50 focus:outline-none focus:ring-2 focus:ring-brand-navy/20 disabled:opacity-80 disabled:cursor-not-allowed"
                   >
                     <option value="">Tüm Bölümler</option>
                     {departments.map((dept) => (
@@ -482,6 +523,12 @@ export default function ReportsPage() {
                       </option>
                     ))}
                   </select>
+                  {authApi.getStoredUser()?.role === "department_head" && selectedDepartmentId && (
+                    <p className="text-xs text-muted-foreground">Kendi bölümünüz otomatik seçildi.</p>
+                  )}
+                  {authApi.getStoredUser()?.role === "teacher" && (
+                    <p className="text-xs text-muted-foreground">Sadece atandığınız bölüm ve programlar.</p>
+                  )}
                 </div>
 
                 {/* Program Filter */}
@@ -555,10 +602,10 @@ export default function ReportsPage() {
 
         {/* Courses Grid */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <Card key={i} className="border-2 border-slate-200">
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <Skeleton className="h-6 w-3/4 mb-4" />
                   <Skeleton className="h-4 w-full mb-2" />
                   <Skeleton className="h-4 w-2/3" />
@@ -568,16 +615,16 @@ export default function ReportsPage() {
           </div>
         ) : filteredCourses.length === 0 ? (
           <Card className="border border-dashed border-brand-navy/30 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm">
-            <CardContent className="p-12 text-center">
-              <div className="p-4 rounded-full bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 w-fit mx-auto mb-4">
-                <FileText className="h-8 w-8 text-brand-navy/60 dark:text-slate-400" />
+            <CardContent className="p-6 sm:p-12 text-center">
+              <div className="p-3 sm:p-4 rounded-full bg-gradient-to-br from-brand-navy/10 to-brand-navy/5 dark:from-brand-navy/20 dark:to-brand-navy/10 w-fit mx-auto mb-4">
+                <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-brand-navy/60 dark:text-slate-400" />
               </div>
-              <p className="text-lg font-semibold text-brand-navy dark:text-slate-100 mb-2">
+              <p className="text-base sm:text-lg font-semibold text-brand-navy dark:text-slate-100 mb-2">
                 {searchQuery || selectedDepartmentId || activeFiltersCount > 0
                   ? "Filtrelerinize uygun ders bulunamadı"
                   : "Henüz ders bulunmamaktadır"}
               </p>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                 {searchQuery || selectedDepartmentId || activeFiltersCount > 0
                   ? "Farklı filtreler deneyin veya filtreleri temizleyin"
                   : "İlk dersinizi oluşturarak başlayın"}
@@ -585,7 +632,7 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {filteredCourses.map((course) => {
               const department = typeof course.department === 'object' && course.department !== null
                 ? course.department.name
@@ -596,14 +643,14 @@ export default function ReportsPage() {
               return (
                 <Card
                   key={course._id}
-                  className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+                  className="group relative overflow-hidden border border-brand-navy/20 dark:border-slate-700/50 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern hover:border-brand-navy/50 hover:shadow-lg transition-all duration-300 sm:hover:-translate-y-1 cursor-pointer"
                   onClick={() => handleViewReport(course._id)}
                 >
                   <div className="absolute inset-0 bg-gradient-to-b from-[#0a294e] via-[#0f3a6b] to-[#051d35] opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <CardContent className="p-5 relative">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
+                  <CardContent className="p-4 sm:p-5 relative">
+                    <div className="flex items-start justify-between gap-2 mb-3 sm:mb-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
                           <Badge variant="outline" className="font-mono text-xs border-brand-navy/30 group-hover:border-white/50 group-hover:bg-white/20 group-hover:text-white transition-colors">
                             {course.code}
                           </Badge>
@@ -617,39 +664,39 @@ export default function ReportsPage() {
                             </Badge>
                           )}
                         </div>
-                        <h3 className="font-semibold text-brand-navy dark:text-slate-100 mb-1 line-clamp-2 group-hover:text-white transition-colors">
+                        <h3 className="font-semibold text-brand-navy dark:text-slate-100 mb-1 line-clamp-2 break-words group-hover:text-white transition-colors text-sm sm:text-base">
                           {course.name}
                         </h3>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-3 group-hover:text-white/80 transition-colors">
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-2 sm:mb-3 group-hover:text-white/80 transition-colors truncate">
                           {department}
                         </p>
                       </div>
                       <ExternalLink className="h-4 w-4 text-brand-navy/60 dark:text-slate-400 flex-shrink-0 mt-1 group-hover:text-white transition-colors" />
                     </div>
                     
-                    <div className="grid grid-cols-3 gap-3 pt-3 border-t border-brand-navy/10 dark:border-slate-700/50 group-hover:border-white/20 transition-colors">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-2 sm:pt-3 border-t border-brand-navy/10 dark:border-slate-700/50 group-hover:border-white/20 transition-colors">
                       <div className="text-center">
-                        <p className="text-xs text-brand-navy/70 dark:text-slate-400 mb-1 group-hover:text-white/80 transition-colors">ÖÇ</p>
-                        <p className="text-sm font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                        <p className="text-[10px] sm:text-xs text-brand-navy/70 dark:text-slate-400 mb-0.5 sm:mb-1 group-hover:text-white/80 transition-colors">ÖÇ</p>
+                        <p className="text-xs sm:text-sm font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
                           {course.learningOutcomesCount || 0}
                         </p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs text-brand-navy/70 dark:text-slate-400 mb-1 group-hover:text-white/80 transition-colors">Sınav</p>
-                        <p className="text-sm font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                        <p className="text-[10px] sm:text-xs text-brand-navy/70 dark:text-slate-400 mb-0.5 sm:mb-1 group-hover:text-white/80 transition-colors">Sınav</p>
+                        <p className="text-xs sm:text-sm font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
                           {course.examCount || 0}
                         </p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs text-brand-navy/70 dark:text-slate-400 mb-1 group-hover:text-white/80 transition-colors">Öğrenci</p>
-                        <p className="text-sm font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
+                        <p className="text-[10px] sm:text-xs text-brand-navy/70 dark:text-slate-400 mb-0.5 sm:mb-1 group-hover:text-white/80 transition-colors">Öğrenci</p>
+                        <p className="text-xs sm:text-sm font-semibold text-brand-navy dark:text-slate-100 group-hover:text-white transition-colors">
                           {course.studentsCount || 0}
                         </p>
                       </div>
                     </div>
 
                     <Button
-                      className="w-full mt-4 bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-[#0f3a6b] hover:to-brand-navy text-white shadow-lg group-hover:shadow-xl transition-all duration-300"
+                      className="w-full mt-3 sm:mt-4 h-9 sm:h-10 text-sm bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-[#0f3a6b] hover:to-brand-navy text-white shadow-lg group-hover:shadow-xl transition-all duration-300"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleViewReport(course._id);

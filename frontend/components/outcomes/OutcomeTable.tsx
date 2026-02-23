@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Edit, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, AlertCircle, CheckSquare, Square } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -20,9 +20,15 @@ import { useState } from "react";
 interface OutcomeTableProps {
   outcomes: (LearningOutcome & { course?: any; department?: any })[];
   onDelete?: () => void;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onToggleSelectAll?: () => void;
+  /** Öğretmen: sadece görüntüleme, düzenleme/silme yok */
+  readOnly?: boolean;
 }
 
-export function OutcomeTable({ outcomes, onDelete }: OutcomeTableProps) {
+export function OutcomeTable({ outcomes, onDelete, selectedIds = new Set(), onToggleSelect, onToggleSelectAll, readOnly }: OutcomeTableProps) {
+  const allSelected = outcomes.length > 0 && selectedIds.size === outcomes.length;
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedOutcome, setSelectedOutcome] = useState<LearningOutcome | null>(null);
 
@@ -53,12 +59,19 @@ export function OutcomeTable({ outcomes, onDelete }: OutcomeTableProps) {
         <Table>
           <TableHeader>
             <TableRow className="bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:bg-gradient-to-r hover:from-brand-navy hover:to-[#0f3a6b]">
+              {!readOnly && onToggleSelectAll != null && (
+                <TableHead className="text-white font-bold w-12">
+                  <button type="button" onClick={onToggleSelectAll} className="p-1 rounded hover:bg-white/20">
+                    {allSelected ? <CheckSquare className="h-5 w-5 text-white" /> : <Square className="h-5 w-5 text-white" />}
+                  </button>
+                </TableHead>
+              )}
               <TableHead className="text-white font-bold w-[120px]">ÖÇ Kodu</TableHead>
               <TableHead className="text-white font-bold">Açıklama</TableHead>
               <TableHead className="text-white font-bold w-[200px]">Ders</TableHead>
               <TableHead className="text-white font-bold w-[200px]">Bölüm</TableHead>
               <TableHead className="text-white font-bold text-center w-[150px]">Program Çıktıları</TableHead>
-              <TableHead className="text-white font-bold text-right w-[120px]">İşlemler</TableHead>
+              {!readOnly && <TableHead className="text-white font-bold text-right w-[120px]">İşlemler</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -79,6 +92,13 @@ export function OutcomeTable({ outcomes, onDelete }: OutcomeTableProps) {
                     index % 2 === 0 ? "bg-white dark:bg-slate-800" : "bg-slate-50/50 dark:bg-slate-800/50"
                   )}
                 >
+                  {!readOnly && onToggleSelect != null && (
+                    <TableCell className="w-12">
+                      <button type="button" onClick={() => onToggleSelect(outcome._id)} className="p-1 rounded hover:bg-brand-navy/10">
+                        {selectedIds.has(outcome._id) ? <CheckSquare className="h-5 w-5 text-brand-navy dark:text-slate-200" /> : <Square className="h-5 w-5 text-brand-navy/50 dark:text-slate-400" />}
+                      </button>
+                    </TableCell>
+                  )}
                   <TableCell className="font-semibold">
                     <Badge variant="default" className="bg-gradient-to-r from-brand-navy to-[#0f3a6b] text-white shadow-md">
                       {outcome.code}
@@ -136,28 +156,30 @@ export function OutcomeTable({ outcomes, onDelete }: OutcomeTableProps) {
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        asChild
-                        className="h-8 w-8 hover:bg-brand-navy/10 hover:border-brand-navy/50 transition-all"
-                      >
-                        <Link href={`/outcomes/${outcome._id}`}>
-                          <Edit className="h-4 w-4 text-brand-navy dark:text-slate-200" />
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleDeleteClick(outcome)}
-                        className="h-8 w-8 hover:bg-destructive/90 transition-all"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+                  {!readOnly && (
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          asChild
+                          className="h-8 w-8 hover:bg-brand-navy/10 hover:border-brand-navy/50 transition-all"
+                        >
+                          <Link href={`/outcomes/${outcome._id}`}>
+                            <Edit className="h-4 w-4 text-brand-navy dark:text-slate-200" />
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => handleDeleteClick(outcome)}
+                          className="h-8 w-8 hover:bg-destructive/90 transition-all"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               );
             })}

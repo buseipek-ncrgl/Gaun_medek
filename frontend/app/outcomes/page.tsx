@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Filter, X, Target, ChevronDown, ChevronUp, CheckCircle2, AlertCircle } from "lucide-react";
+import { Plus, Search, Filter, X, Target, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, CheckSquare, Square, Trash2, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,21 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
 import { OutcomeTable } from "@/components/outcomes/OutcomeTable";
 import { learningOutcomeApi, type LearningOutcome } from "@/lib/api/learningOutcomeApi";
 import { courseApi, type Course } from "@/lib/api/courseApi";
+import { parseOutcomeFile } from "@/lib/utils/outcomeImport";
 import { departmentApi, type Department } from "@/lib/api/departmentApi";
 import { programApi, type Program } from "@/lib/api/programApi";
+import { authApi } from "@/lib/api/authApi";
 
 export default function OutcomesPage() {
   const router = useRouter();
@@ -32,13 +42,59 @@ export default function OutcomesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filtersExpanded, setFiltersExpanded] = useState(true);
+  const [selectedOutcomes, setSelectedOutcomes] = useState<Set<string>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isImportingLO, setIsImportingLO] = useState(false);
+  const loFileInputRef = useRef<HTMLInputElement>(null);
+  const teacherProgramsRef = useRef<Program[]>([]);
 
   useEffect(() => {
-    fetchAllOutcomes();
-    loadDepartments();
+    const init = async () => {
+      const u = authApi.getStoredUser();
+      if (u?.role === "teacher") {
+        const opts = await authApi.getTeacherFilterOptions();
+        if (opts) {
+          const progs = opts.programs as Program[];
+          teacherProgramsRef.current = progs;
+          setDepartments(opts.departments as Department[]);
+          setPrograms(progs);
+          if (opts.departments.length === 1) setSelectedDepartmentId(opts.departments[0]._id);
+          if (opts.programs.length === 1) setSelectedProgramId(opts.programs[0]._id);
+        }
+      } else {
+        await loadDepartments();
+        if (u?.role === "department_head" && u?.departmentId) {
+          const raw = (u as { departmentId?: string | { _id?: string } }).departmentId;
+          const id = raw != null && typeof raw === "object" && "_id" in raw
+            ? String((raw as { _id: string })._id)
+            : typeof raw === "string" ? raw : "";
+          if (id) setSelectedDepartmentId(id);
+        }
+      }
+      fetchAllOutcomes();
+    };
+    init();
   }, []);
 
   useEffect(() => {
+    const u = authApi.getStoredUser();
+    if (u?.role === "teacher") {
+      if (selectedDepartmentId) {
+        const filtered = teacherProgramsRef.current.filter(
+          (p) => (p as { department?: { _id: string } }).department?._id === selectedDepartmentId
+        );
+        setPrograms(filtered);
+        if (!selectedProgramId || !filtered.some((p) => p._id === selectedProgramId)) setSelectedProgramId("");
+        loadCoursesByDepartment(selectedDepartmentId);
+      } else {
+        setPrograms(teacherProgramsRef.current);
+        setSelectedProgramId("");
+        setSelectedCourseId("");
+        loadAllCourses();
+      }
+      return;
+    }
     if (selectedDepartmentId) {
       loadPrograms(selectedDepartmentId);
       if (!selectedProgramId) {
@@ -270,6 +326,75 @@ export default function OutcomesPage() {
 
   const hasActiveFilters = selectedDepartmentId || selectedProgramId || selectedCourseId || searchQuery.trim() !== "" || filterType !== "all";
 
+  const toggleOutcomeSelect = (id: string) => {
+    const next = new Set(selectedOutcomes);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedOutcomes(next);
+  };
+
+  const toggleOutcomeSelectAll = () => {
+    if (selectedOutcomes.size === filteredOutcomes.length) setSelectedOutcomes(new Set());
+    else setSelectedOutcomes(new Set(filteredOutcomes.map((o) => o._id)));
+  };
+
+  const handleLOFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !selectedCourseId) return;
+    const isExcel = /\.(xlsx?|xls)$/i.test(file.name);
+    const isTxt = /\.(txt|csv)$/i.test(file.name);
+    if (!isExcel && !isTxt) {
+      toast.error("Lütfen .xls, .xlsx veya .txt/.csv dosyası seçin.");
+      return;
+    }
+    try {
+      setIsImportingLO(true);
+      const rows = await parseOutcomeFile(file);
+      if (rows.length === 0) {
+        toast.error("Dosyada geçerli satır bulunamadı. Sütunlar: kod, açıklama (veya code, description).");
+        return;
+      }
+      let added = 0;
+      let skipped = 0;
+      for (const row of rows) {
+        try {
+          await learningOutcomeApi.create({
+            courseId: selectedCourseId,
+            code: row.code.trim(),
+            description: row.description.trim() || row.code.trim(),
+          });
+          added++;
+        } catch (err: any) {
+          if (err?.response?.status === 400) skipped++;
+          else throw err;
+        }
+      }
+      toast.success(`${added} ÖÇ eklendi.${skipped ? ` ${skipped} satır zaten mevcut olduğu için atlandı.` : ""}`);
+      fetchAllOutcomes();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Dosya içe aktarılamadı.");
+    } finally {
+      setIsImportingLO(false);
+    }
+  };
+
+  const handleBulkDeleteOutcomes = async () => {
+    if (selectedOutcomes.size === 0) return;
+    try {
+      setIsBulkDeleting(true);
+      await Promise.all(Array.from(selectedOutcomes).map((id) => learningOutcomeApi.remove(id)));
+      toast.success(`${selectedOutcomes.size} öğrenme çıktısı silindi`);
+      setBulkDeleteDialogOpen(false);
+      setSelectedOutcomes(new Set());
+      fetchAllOutcomes();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Toplu silme başarısız");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header - Outside Card */}
@@ -283,14 +408,16 @@ export default function OutcomesPage() {
               </div>
             </div>
           </div>
-          <Button 
-            onClick={() => router.push("/outcomes/new")}
-            className="h-11 sm:h-12 px-4 sm:px-6 bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-brand-navy/90 hover:to-[#0f3a6b]/90 text-white shadow-lg hover:shadow-xl transition-all flex-shrink-0"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Yeni Öğrenme Çıktısı</span>
-            <span className="sm:hidden">Yeni ÖÇ</span>
-          </Button>
+          {authApi.getStoredUser()?.role !== "teacher" && (
+            <Button 
+              onClick={() => router.push("/outcomes/new")}
+              className="h-11 sm:h-12 px-4 sm:px-6 bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-brand-navy/90 hover:to-[#0f3a6b]/90 text-white shadow-lg hover:shadow-xl transition-all flex-shrink-0"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Yeni Öğrenme Çıktısı</span>
+              <span className="sm:hidden">Yeni ÖÇ</span>
+            </Button>
+          )}
         </div>
 
         {/* Statistics Cards */}
@@ -430,6 +557,7 @@ export default function OutcomesPage() {
                       id="department-filter"
                       value={selectedDepartmentId}
                       onChange={(e) => setSelectedDepartmentId(e.target.value)}
+                      disabled={authApi.getStoredUser()?.role === "department_head"}
                       className="h-10 text-sm border-brand-navy/20 focus:border-brand-navy"
                     >
                       <option value="">Tüm Bölümler</option>
@@ -439,6 +567,12 @@ export default function OutcomesPage() {
                         </option>
                       ))}
                     </Select>
+                    {authApi.getStoredUser()?.role === "department_head" && selectedDepartmentId && (
+                      <p className="text-xs text-muted-foreground">Kendi bölümünüz otomatik seçildi.</p>
+                    )}
+                    {authApi.getStoredUser()?.role === "teacher" && (
+                      <p className="text-xs text-muted-foreground">Sadece atandığınız bölüm ve programlar listelenir.</p>
+                    )}
                   </div>
 
                   {/* Program Filter */}
@@ -506,6 +640,37 @@ export default function OutcomesPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* ÖÇ import - seçili derse göre */}
+                {authApi.getStoredUser()?.role !== "teacher" && (
+                  <div className="border-t border-brand-navy/10 dark:border-slate-700/50 pt-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">Seçili derse ÖÇ toplu ekleyin (bölüm/program/ders seçin, ardından dosya yükleyin)</p>
+                    <input
+                      ref={loFileInputRef}
+                      type="file"
+                      accept=".xls,.xlsx,.txt,.csv"
+                      className="hidden"
+                      onChange={handleLOFileSelect}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!selectedCourseId || isImportingLO}
+                      onClick={() => loFileInputRef.current?.click()}
+                      className="h-10"
+                    >
+                      {isImportingLO ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      XLS / TXT ile ÖÇ içe aktar
+                    </Button>
+                    {!selectedCourseId && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">İçe aktarmak için önce bir ders seçin.</p>
+                    )}
+                  </div>
+                )}
 
                 {/* Active Filters Badges */}
                 {hasActiveFilters && (
@@ -583,6 +748,28 @@ export default function OutcomesPage() {
         </Card>
       </div>
 
+      {/* Select all + bulk bar (öğretmen sadece görüntüleme) */}
+      {authApi.getStoredUser()?.role !== "teacher" && !isLoading && filteredOutcomes.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <button type="button" onClick={toggleOutcomeSelectAll} className="flex items-center gap-2 text-sm font-medium text-brand-navy dark:text-slate-200 hover:opacity-80">
+            {selectedOutcomes.size === filteredOutcomes.length ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
+            {selectedOutcomes.size === filteredOutcomes.length ? "Tümünü Kaldır" : "Tümünü Seç"}
+          </button>
+          <span className="text-xs text-slate-500">{selectedOutcomes.size > 0 && `${selectedOutcomes.size} seçili`}</span>
+        </div>
+      )}
+      {authApi.getStoredUser()?.role !== "teacher" && selectedOutcomes.size > 0 && (
+        <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-gradient-to-r from-brand-navy/5 to-brand-navy/10 dark:from-brand-navy/20 dark:to-brand-navy/10">
+          <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
+            <p className="text-sm font-semibold text-brand-navy dark:text-slate-100">{selectedOutcomes.size} öğrenme çıktısı seçildi</p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setSelectedOutcomes(new Set())}><X className="h-4 w-4 mr-1" />Seçimi Kaldır</Button>
+              <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)}><Trash2 className="h-4 w-4 mr-1" />Seçilenleri Sil</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Table Card */}
       <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
         <CardContent className="p-0">
@@ -592,10 +779,32 @@ export default function OutcomesPage() {
               <p>Öğrenme çıktıları yükleniyor...</p>
             </div>
           ) : (
-            <OutcomeTable outcomes={filteredOutcomes} onDelete={fetchAllOutcomes} />
+            <OutcomeTable
+              outcomes={filteredOutcomes}
+              onDelete={fetchAllOutcomes}
+              selectedIds={selectedOutcomes}
+              onToggleSelect={toggleOutcomeSelect}
+              onToggleSelectAll={toggleOutcomeSelectAll}
+              readOnly={authApi.getStoredUser()?.role === "teacher"}
+            />
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Seçili öğrenme çıktılarını sil</AlertDialogTitle>
+            <AlertDialogDescription>{selectedOutcomes.size} öğrenme çıktısı silinecek. Bu işlem geri alınamaz.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setBulkDeleteDialogOpen(false)} disabled={isBulkDeleting}>İptal</Button>
+            <Button variant="destructive" onClick={handleBulkDeleteOutcomes} disabled={isBulkDeleting}>
+              {isBulkDeleting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Siliniyor...</> : `${selectedOutcomes.size} ÖÇ Sil`}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

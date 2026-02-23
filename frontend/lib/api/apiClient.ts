@@ -13,18 +13,21 @@ console.log("   Base URL:", baseAPIURL);
 export const apiClient = axios.create({
   baseURL: baseAPIURL,
   headers: {
-    "Content-Type": "application/json",
+    "Content-Type": "application/json; charset=utf-8",
+    "Accept": "application/json; charset=utf-8",
   },
+  responseType: "json",
 });
 
-// Request interceptor
+// Request interceptor: token varsa Authorization header ekle
 apiClient.interceptors.request.use(
   (config) => {
-    // Add auth token if available
-    // const token = localStorage.getItem("token");
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("medek_token");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
     return config;
   },
   (error) => {

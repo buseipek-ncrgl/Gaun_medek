@@ -20,6 +20,7 @@ import { Select } from "@/components/ui/select";
 import { courseApi } from "@/lib/api/courseApi";
 import { departmentApi, type Department } from "@/lib/api/departmentApi";
 import { programApi, type Program } from "@/lib/api/programApi";
+import { authApi } from "@/lib/api/authApi";
 import { ExamSettingsComponent, type ExamSettings } from "@/components/courses/ExamSettings";
 import { StudentImporter, type Student } from "@/components/courses/StudentImporter";
 import { OutcomeEditor } from "@/components/courses/OutcomeEditor";
@@ -47,6 +48,7 @@ export function CreateCourseModal({
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
+  const [isDepartmentHead, setIsDepartmentHead] = useState(false);
 
   // Form state
   const [name, setName] = useState("");
@@ -74,8 +76,23 @@ export function CreateCourseModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    loadDepartments();
-  }, []);
+    if (!open) return;
+    const init = async () => {
+      await loadDepartments();
+      const user = await authApi.getMe().catch(() => null) ?? authApi.getStoredUser();
+      const role = (user as { role?: string })?.role;
+      const deptHead = role === "department_head";
+      setIsDepartmentHead(!!deptHead);
+      if (deptHead && user) {
+        const raw = (user as { departmentId?: string | { _id?: string } }).departmentId;
+        const id = raw != null && typeof raw === "object" && "_id" in raw
+          ? String((raw as { _id: string })._id)
+          : typeof raw === "string" ? raw : "";
+        if (id) setDepartmentId(id);
+      }
+    };
+    init();
+  }, [open]);
 
   useEffect(() => {
     if (departmentId) {
@@ -379,9 +396,9 @@ export function CreateCourseModal({
                 <Select
                   id="departmentId"
                   value={departmentId}
-                  onChange={(e) => setDepartmentId(e.target.value)}
-                  disabled={isLoading || loadingDepartments}
-                  className={`h-10 text-sm ${errors.departmentId ? "border-destructive" : ""}`}
+                  onChange={(e) => !isDepartmentHead && setDepartmentId(e.target.value)}
+                  disabled={isLoading || loadingDepartments || isDepartmentHead}
+                  className={`h-10 text-sm ${errors.departmentId ? "border-destructive" : ""} ${isDepartmentHead ? "bg-muted cursor-default" : ""}`}
                 >
                   <option value="">
                     {loadingDepartments 
@@ -396,6 +413,9 @@ export function CreateCourseModal({
                     </option>
                   ))}
                 </Select>
+                {isDepartmentHead && (
+                  <p className="text-xs text-muted-foreground">Kendi bölümünüz otomatik seçildi.</p>
+                )}
                 {errors.departmentId && (
                   <p className="text-xs text-destructive">{errors.departmentId}</p>
                 )}

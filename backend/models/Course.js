@@ -36,12 +36,21 @@ const CourseSchema = new mongoose.Schema(
       maxScorePerQuestion: Number,
     },
 
+    /** Raporlarda kullanılacak geçme yüzdesi (0-100). Boşsa sınavların geçme puanlarının en düşüğü kullanılır. */
+    reportPassingThreshold: { type: Number, min: 0, max: 100, default: null },
+
     students: [
       {
         studentNumber: String,
         fullName: String,
       },
     ],
+    // Öğretmen ataması: bu dersi görebilecek kullanıcı (teacher rolü)
+    instructorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
   },
   { timestamps: true }
 );

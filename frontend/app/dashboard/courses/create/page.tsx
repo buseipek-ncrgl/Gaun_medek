@@ -17,6 +17,7 @@ import { StudentImporter, type Student } from "@/components/courses/StudentImpor
 import { courseApi } from "@/lib/api/courseApi";
 import { departmentApi, type Department } from "@/lib/api/departmentApi";
 import { programApi, type Program } from "@/lib/api/programApi";
+import { authApi } from "@/lib/api/authApi";
 
 export default function CreateCoursePage() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function CreateCoursePage() {
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
+  const [isDepartmentHead, setIsDepartmentHead] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     courseInfo: true,
     learningOutcomes: true,
@@ -68,7 +70,21 @@ export default function CreateCoursePage() {
   const errorRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
-    loadDepartments();
+    const init = async () => {
+      const user = await authApi.getMe().catch(() => null) ?? authApi.getStoredUser();
+      const role = (user as { role?: string })?.role;
+      const deptHead = role === "department_head";
+      setIsDepartmentHead(!!deptHead);
+      await loadDepartments();
+      if (deptHead && user) {
+        const raw = (user as { departmentId?: string | { _id?: string } }).departmentId;
+        const id = raw != null && typeof raw === "object" && "_id" in raw
+          ? String((raw as { _id: string })._id)
+          : typeof raw === "string" ? raw : "";
+        if (id) setDepartmentId(id);
+      }
+    };
+    init();
   }, []);
 
   useEffect(() => {
@@ -367,16 +383,18 @@ export default function CreateCoursePage() {
 
                 <div ref={(el) => { errorRefs.current.department = el; }} className="space-y-3">
                   <Label htmlFor="department" className="text-lg font-semibold text-slate-700 flex items-center gap-2">
-                    Bölüm / Program <span className="text-red-500 font-bold">*</span>
+                    Bölüm <span className="text-red-500 font-bold">*</span>
                   </Label>
                   <Select
                     id="department"
                     value={departmentId}
-                    onChange={(e) => setDepartmentId(e.target.value)}
-                    disabled={loadingDepartments}
+                    onChange={(e) => !isDepartmentHead && setDepartmentId(e.target.value)}
+                    disabled={loadingDepartments || isDepartmentHead}
                     className={`h-14 text-lg border-2 transition-all ${
                       errors.department 
                         ? "border-[#bf1e1d] focus:border-[#bf1e1d] focus:ring-[#bf1e1d]/20" 
+                        : isDepartmentHead
+                        ? "border-gray-200 bg-slate-50 cursor-default"
                         : "border-gray-300 focus:border-[#0a294e] focus:ring-[#0a294e]/20"
                     } rounded-xl shadow-sm`}
                   >
@@ -387,6 +405,9 @@ export default function CreateCoursePage() {
                       </option>
                     ))}
                   </Select>
+                  {isDepartmentHead && (
+                    <p className="text-sm text-slate-500">Kendi bölümünüz otomatik seçildi.</p>
+                  )}
                   {loadingDepartments && (
                     <p className="text-sm text-slate-500">Bölümler yükleniyor...</p>
                   )}

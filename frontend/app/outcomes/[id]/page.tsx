@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { OutcomeForm } from "@/components/outcomes/OutcomeForm";
 import { learningOutcomeApi, type LearningOutcome } from "@/lib/api/learningOutcomeApi";
+import { authApi } from "@/lib/api/authApi";
 import { ArrowLeft } from "lucide-react";
 
 export default function EditOutcomePage() {
@@ -19,10 +20,12 @@ export default function EditOutcomePage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (outcomeId) {
-      fetchOutcome();
+    if (authApi.getStoredUser()?.role === "teacher") {
+      router.replace("/outcomes");
+      return;
     }
-  }, [outcomeId]);
+    if (outcomeId) fetchOutcome();
+  }, [outcomeId, router]);
 
   const fetchOutcome = async () => {
     try {

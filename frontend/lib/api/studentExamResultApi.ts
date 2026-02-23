@@ -3,6 +3,7 @@ import { apiClient } from "./apiClient";
 export interface StudentExamResult {
   _id: string;
   studentNumber: string;
+  studentName?: string;
   examId: string;
   courseId: string;
   totalScore: number;

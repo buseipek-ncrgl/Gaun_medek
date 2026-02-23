@@ -44,6 +44,13 @@ const ExamSchema = new mongoose.Schema(
         },
       },
     ],
+    // Geçme notu (0-100). Öğrenci bu puan ve üzeri alırsa sınavdan geçer; tüm ÖÇ/PÇ geçmiş sayılır.
+    passingScore: {
+      type: Number,
+      default: 60,
+      min: 0,
+      max: 100,
+    },
   },
   {
     timestamps: true,

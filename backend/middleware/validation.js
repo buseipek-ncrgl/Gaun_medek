@@ -116,6 +116,16 @@ export const examSchemas = {
     examType: commonSchemas.examType.optional(),
     examCode: commonSchemas.examCode.optional(),
     learningOutcomes: commonSchemas.learningOutcomes,
+    maxScore: Joi.number().min(0).max(100).optional(),
+    passingScore: Joi.number().min(0).max(100).optional(),
+    questions: Joi.array()
+      .items(
+        Joi.object({
+          questionNumber: Joi.number().integer().min(1),
+          learningOutcomeCode: Joi.string().allow('').optional(),
+        })
+      )
+      .optional(),
   }),
 
   getById: Joi.object({

@@ -30,6 +30,8 @@ export interface Course {
   students?: Array<{ studentNumber: string; fullName: string }>;
   studentsCount?: number;
   examCount?: number;
+  /** Raporlarda kullanılacak geçme yüzdesi (0-100). Boşsa sınavların geçme puanı kullanılır. */
+  reportPassingThreshold?: number | null;
   midtermExams?: Array<{ examCode: string; examType: string }>;
   finalExams?: Array<{ examCode: string; examType: string }>;
   createdAt?: string;
@@ -63,6 +65,7 @@ export interface CreateCourseDto {
   midtermExam?: ExamSettingsInput;
   finalExam?: ExamSettingsInput;
   students?: StudentInput[];
+  reportPassingThreshold?: number | null;
 }
 
 export interface UpdateCourseDto {
@@ -76,6 +79,7 @@ export interface UpdateCourseDto {
   midtermExam?: ExamSettingsInput;
   finalExam?: ExamSettingsInput;
   students?: StudentInput[];
+  reportPassingThreshold?: number | null;
 }
 
 export const courseApi = {

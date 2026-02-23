@@ -65,6 +65,7 @@ export default function EditCoursePage() {
     maxScorePerQuestion: 0,
   });
   const [students, setStudents] = useState<Array<{ studentNumber: string; fullName: string }>>([]);
+  const [reportPassingThreshold, setReportPassingThreshold] = useState<number | "">("");
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -183,6 +184,8 @@ export default function EditCoursePage() {
           maxScorePerQuestion: (course as any).finalExam.maxScorePerQuestion || 0,
         });
       }
+      const rpt = (course as any).reportPassingThreshold;
+      setReportPassingThreshold(rpt != null && rpt !== "" ? Number(rpt) : "");
 
       // Load students
       if ((course as any).students && Array.isArray((course as any).students)) {
@@ -322,6 +325,7 @@ export default function EditCoursePage() {
           questionCount: finalExam.questionCount,
           maxScorePerQuestion: finalExam.maxScorePerQuestion,
         },
+        reportPassingThreshold: reportPassingThreshold === "" ? null : Math.min(100, Math.max(0, Number(reportPassingThreshold))),
         students: students.map((s) => ({
           studentNumber: s.studentNumber.trim(),
           fullName: s.fullName.trim(),
@@ -357,13 +361,13 @@ export default function EditCoursePage() {
 
   return (
     <div className="min-h-screen bg-background p-4 sm:p-6">
-      <div className="max-w-4xl mx-auto space-y-4">
+      <div className="w-full max-w-7xl mx-auto space-y-4">
         {/* Header */}
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.back()}
+            onClick={() => router.push("/dashboard/courses")}
             className="px-2"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -598,6 +602,21 @@ export default function EditCoursePage() {
                   errors={errors}
                   disabled={isLoading}
                 />
+                <div className="pt-2 border-t">
+                  <Label className="text-sm">Rapor geçme yüzdesi (opsiyonel)</Label>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Raporlarda yeşil/kırmızı eşiği. Boş bırakılırsa sınavların geçme puanları kullanılır (0–100).
+                  </p>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    placeholder="Örn. 50"
+                    value={reportPassingThreshold === "" ? "" : reportPassingThreshold}
+                    onChange={(e) => setReportPassingThreshold(e.target.value === "" ? "" : Number(e.target.value))}
+                    className="max-w-[120px]"
+                  />
+                </div>
               </CardContent>
             )}
           </Card>
@@ -636,12 +655,12 @@ export default function EditCoursePage() {
 
           {/* Fixed Submit Button */}
           <div className="sticky bottom-0 bg-background border-t border-border p-4 -mx-4 -mb-4 shadow-lg">
-            <div className="max-w-4xl mx-auto flex justify-end gap-3">
+            <div className="w-full max-w-7xl mx-auto flex justify-end gap-3">
               <Button
                 type="button"
                 variant="outline"
                 size="default"
-                onClick={() => router.back()}
+                onClick={() => router.push("/dashboard/courses")}
                 disabled={isLoading}
                 className="h-10 text-sm px-6"
               >

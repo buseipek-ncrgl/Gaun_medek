@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Plus, Loader2, BookOpen, Filter, X, ChevronDown, ChevronUp, Trash2, CheckSquare, Square, Users, FileText, Target } from "lucide-react";
 import { toast } from "sonner";
@@ -25,9 +25,17 @@ import { courseApi, type Course } from "@/lib/api/courseApi";
 import { examApi } from "@/lib/api/examApi";
 import { departmentApi, type Department } from "@/lib/api/departmentApi";
 import { programApi, type Program } from "@/lib/api/programApi";
+import { authApi } from "@/lib/api/authApi";
+
+/** Ders ekleme/düzenleme/silme sadece yönetici ve bölüm başkanında. Öğretmen sadece görüntüleyebilir. */
+function canManageCourses(role: string | undefined): boolean {
+  return role === "super_admin" || role === "department_head";
+}
 
 export default function DashboardCoursesPage() {
   const router = useRouter();
+  const user = authApi.getStoredUser();
+  const canAdd = canManageCourses(user?.role);
   const [courses, setCourses] = useState<Course[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -43,19 +51,54 @@ export default function DashboardCoursesPage() {
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const teacherProgramsRef = useRef<Program[]>([]);
 
   useEffect(() => {
-    fetchCourses();
-    loadDepartments();
+    const init = async () => {
+      const u = authApi.getStoredUser();
+      if (u?.role === "teacher") {
+        const opts = await authApi.getTeacherFilterOptions();
+        if (opts) {
+          const progs = opts.programs as Program[];
+          teacherProgramsRef.current = progs;
+          setDepartments(opts.departments as Department[]);
+          setPrograms(progs);
+          if (opts.departments.length === 1) setSelectedDepartmentId(opts.departments[0]._id);
+          if (opts.programs.length === 1) setSelectedProgramId(opts.programs[0]._id);
+        }
+      } else {
+        await loadDepartments();
+        if (u?.role === "department_head" && u?.departmentId) {
+          const raw = (u as { departmentId?: string | { _id?: string } }).departmentId;
+          const id = raw != null && typeof raw === "object" && "_id" in raw
+            ? String((raw as { _id: string })._id)
+            : typeof raw === "string" ? raw : "";
+          if (id) setSelectedDepartmentId(id);
+        }
+      }
+      fetchCourses();
+    };
+    init();
   }, []);
 
   useEffect(() => {
-    if (selectedDepartmentId) {
-      loadPrograms(selectedDepartmentId);
-      // Reset program selection when department changes
-      if (selectedProgramId) {
+    const u = authApi.getStoredUser();
+    if (u?.role === "teacher") {
+      if (selectedDepartmentId) {
+        const filtered = teacherProgramsRef.current.filter(
+          (p) => (p as { department?: { _id: string } }).department?._id === selectedDepartmentId
+        );
+        setPrograms(filtered);
+        if (selectedProgramId && !filtered.some((p) => p._id === selectedProgramId)) setSelectedProgramId("");
+      } else {
+        setPrograms(teacherProgramsRef.current);
         setSelectedProgramId("");
       }
+      return;
+    }
+    if (selectedDepartmentId) {
+      loadPrograms(selectedDepartmentId);
+      if (selectedProgramId) setSelectedProgramId("");
     } else {
       setPrograms([]);
       setSelectedProgramId("");
@@ -65,7 +108,7 @@ export default function DashboardCoursesPage() {
   const loadDepartments = async () => {
     try {
       const data = await departmentApi.getAll();
-      setDepartments(data);
+      setDepartments(data || []);
     } catch (error: any) {
       console.error("Bölümler yüklenemedi:", error);
     }
@@ -315,8 +358,8 @@ export default function DashboardCoursesPage() {
   const totalLearningOutcomes = courses.reduce((sum, course) => sum + (course.learningOutcomes?.length || 0), 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-full bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 p-3 sm:p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 min-w-0">
         {/* Header */}
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -341,15 +384,17 @@ export default function DashboardCoursesPage() {
                   </div>
                 </CardContent>
               </Card>
-              <Button
-                size="lg"
-                onClick={() => setCreateModalOpen(true)}
-                className="w-full sm:w-auto h-11 sm:h-12 text-sm sm:text-base px-4 sm:px-6 font-semibold bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-brand-navy/90 hover:to-[#0f3a6b]/90 text-white shadow-lg hover:shadow-xl transition-all"
-              >
-                <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                <span className="hidden sm:inline">Yeni Ders Oluştur</span>
-                <span className="sm:hidden">Yeni Ders</span>
-              </Button>
+              {canAdd && (
+                <Button
+                  size="lg"
+                  onClick={() => setCreateModalOpen(true)}
+                  className="w-full sm:w-auto h-11 sm:h-12 text-sm sm:text-base px-4 sm:px-6 font-semibold bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-brand-navy/90 hover:to-[#0f3a6b]/90 text-white shadow-lg hover:shadow-xl transition-all"
+                >
+                  <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                  <span className="hidden sm:inline">Yeni Ders Oluştur</span>
+                  <span className="sm:hidden">Yeni Ders</span>
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -403,6 +448,7 @@ export default function DashboardCoursesPage() {
                   id="department-filter"
                   value={selectedDepartmentId}
                   onChange={(e) => setSelectedDepartmentId(e.target.value)}
+                  disabled={user?.role === "department_head"}
                   className="h-10 text-sm"
                 >
                   <option value="">Tüm Bölümler</option>
@@ -412,6 +458,12 @@ export default function DashboardCoursesPage() {
                     </option>
                   ))}
                 </Select>
+                {user?.role === "department_head" && selectedDepartmentId && (
+                  <p className="text-xs text-muted-foreground">Kendi bölümünüz otomatik seçildi.</p>
+                )}
+                {user?.role === "teacher" && (
+                  <p className="text-xs text-muted-foreground">Sadece atandığınız bölüm ve programlar.</p>
+                )}
               </div>
 
               {/* Program Filter */}
@@ -503,8 +555,8 @@ export default function DashboardCoursesPage() {
         </Card>
         </div>
 
-        {/* Select All Bar - Below Filters */}
-        {!isLoading && filteredCourses.length > 0 && (
+        {/* Select All Bar - Below Filters (sadece yönetici/bölüm başkanı) */}
+        {!isLoading && filteredCourses.length > 0 && canAdd && (
           <div className="flex items-center justify-between p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg border border-brand-navy/10">
             <button
               onClick={toggleSelectAll}
@@ -592,9 +644,9 @@ export default function DashboardCoursesPage() {
               <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 max-w-md">
                 {hasActiveFilters
                   ? "Farklı bir filtre veya arama terimi deneyin"
-                  : "İlk dersinizi oluşturarak başlayın"}
+                  : canAdd ? "İlk dersinizi oluşturarak başlayın" : "Atanmış dersleriniz burada listelenir"}
               </p>
-              {!hasActiveFilters && (
+              {!hasActiveFilters && canAdd && (
                 <Button
                   size="lg"
                   onClick={() => setCreateModalOpen(true)}
@@ -613,22 +665,25 @@ export default function DashboardCoursesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredCourses.map((course) => (
               <div key={course._id} className="relative">
-                {/* Checkbox - Top Right */}
-                <div className="absolute top-3 right-3 z-10">
-                  <button
-                    onClick={() => toggleCourseSelection(course._id)}
-                    className="p-1.5 rounded-md bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-brand-navy/20 shadow-md hover:bg-brand-navy/10 transition-all"
-                  >
-                    {selectedCourses.has(course._id) ? (
-                      <CheckSquare className="h-5 w-5 text-brand-navy dark:text-slate-200" />
-                    ) : (
-                      <Square className="h-5 w-5 text-brand-navy/50 dark:text-slate-400" />
-                    )}
-                  </button>
-                </div>
+                {canAdd && (
+                  <div className="absolute top-3 right-3 z-10">
+                    <button
+                      onClick={() => toggleCourseSelection(course._id)}
+                      className="p-1.5 rounded-md bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-brand-navy/20 shadow-md hover:bg-brand-navy/10 transition-all"
+                    >
+                      {selectedCourses.has(course._id) ? (
+                        <CheckSquare className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                      ) : (
+                        <Square className="h-5 w-5 text-brand-navy/50 dark:text-slate-400" />
+                      )}
+                    </button>
+                  </div>
+                )}
                 <CourseCard
                   course={course}
                   onDelete={handleDeleteClick}
+                  canEdit={canAdd}
+                  canDelete={canAdd}
                 />
               </div>
             ))}

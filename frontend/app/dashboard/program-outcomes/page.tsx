@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, Loader2, GraduationCap, Building2, Target, Info, ChevronDown, ChevronUp, CheckCircle2, AlertCircle } from "lucide-react";
+import { Plus, Search, Loader2, GraduationCap, Building2, Target, Info, ChevronDown, ChevronUp, CheckCircle2, CheckSquare, Square, Trash2, X, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,9 +13,19 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { departmentApi, type Department } from "@/lib/api/departmentApi";
 import { programApi, type Program } from "@/lib/api/programApi";
+import { authApi } from "@/lib/api/authApi";
 import { programOutcomeApi, type ProgramOutcome } from "@/lib/api/programOutcomeApi";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
 import { ProgramOutcomeTable } from "@/components/programOutcomes/ProgramOutcomeTable";
 import { learningOutcomeApi } from "@/lib/api/learningOutcomeApi";
+import { parseOutcomeFile } from "@/lib/utils/outcomeImport";
 
 export default function ProgramOutcomesPage() {
   const router = useRouter();
@@ -37,11 +47,55 @@ export default function ProgramOutcomesPage() {
   const [newPOCode, setNewPOCode] = useState("");
   const [newPODescription, setNewPODescription] = useState("");
 
+  const [selectedPCCodes, setSelectedPCCodes] = useState<Set<string>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isImportingPO, setIsImportingPO] = useState(false);
+  const poFileInputRef = useRef<HTMLInputElement>(null);
+  const teacherProgramsRef = useRef<Program[]>([]);
+
   useEffect(() => {
-    loadDepartments();
+    const init = async () => {
+      const u = authApi.getStoredUser();
+      if (u?.role === "teacher") {
+        const opts = await authApi.getTeacherFilterOptions();
+        if (opts) {
+          const progs = opts.programs as Program[];
+          teacherProgramsRef.current = progs;
+          setDepartments(opts.departments as Department[]);
+          setPrograms(progs);
+          if (opts.departments.length === 1) setSelectedDepartmentId(opts.departments[0]._id);
+          if (opts.programs.length === 1) setSelectedProgramId(opts.programs[0]._id);
+        }
+      } else {
+        await loadDepartments();
+        if (u?.role === "department_head" && u?.departmentId) {
+          const raw = (u as { departmentId?: string | { _id?: string } }).departmentId;
+          const id = raw != null && typeof raw === "object" && "_id" in raw
+            ? String((raw as { _id: string })._id)
+            : typeof raw === "string" ? raw : "";
+          if (id) setSelectedDepartmentId(id);
+        }
+      }
+    };
+    init();
   }, []);
 
   useEffect(() => {
+    const u = authApi.getStoredUser();
+    if (u?.role === "teacher") {
+      if (selectedDepartmentId) {
+        const filtered = teacherProgramsRef.current.filter(
+          (p) => (p as { department?: { _id: string } }).department?._id === selectedDepartmentId
+        );
+        setPrograms(filtered);
+        if (!selectedProgramId || !filtered.some((p) => p._id === selectedProgramId)) setSelectedProgramId("");
+      } else {
+        setPrograms(teacherProgramsRef.current);
+        setSelectedProgramId("");
+      }
+      return;
+    }
     if (selectedDepartmentId) {
       loadPrograms(selectedDepartmentId);
     } else {
@@ -220,6 +274,76 @@ export default function ProgramOutcomesPage() {
     loadProgramOutcomes();
   };
 
+  const handlePOFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !selectedProgramId) return;
+    const isExcel = /\.(xlsx?|xls)$/i.test(file.name);
+    const isTxt = /\.(txt|csv)$/i.test(file.name);
+    if (!isExcel && !isTxt) {
+      toast.error("Lütfen .xls, .xlsx veya .txt/.csv dosyası seçin.");
+      return;
+    }
+    try {
+      setIsImportingPO(true);
+      const rows = await parseOutcomeFile(file);
+      if (rows.length === 0) {
+        toast.error("Dosyada geçerli satır bulunamadı. Sütunlar: kod, açıklama (veya code, description).");
+        return;
+      }
+      let added = 0;
+      let skipped = 0;
+      for (const row of rows) {
+        try {
+          await programOutcomeApi.addToProgram(selectedProgramId, {
+            code: row.code.trim(),
+            description: row.description.trim() || row.code.trim(),
+          });
+          added++;
+        } catch (err: any) {
+          if (err?.response?.status === 400) skipped++;
+          else throw err;
+        }
+      }
+      toast.success(`${added} PÇ eklendi.${skipped ? ` ${skipped} satır zaten mevcut olduğu için atlandı.` : ""}`);
+      await loadProgramOutcomes();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Dosya içe aktarılamadı.");
+    } finally {
+      setIsImportingPO(false);
+    }
+  };
+
+  const togglePCSelect = (code: string) => {
+    const next = new Set(selectedPCCodes);
+    if (next.has(code)) next.delete(code);
+    else next.add(code);
+    setSelectedPCCodes(next);
+  };
+
+  const togglePCSelectAll = () => {
+    if (selectedPCCodes.size === filteredProgramOutcomes.length) setSelectedPCCodes(new Set());
+    else setSelectedPCCodes(new Set(filteredProgramOutcomes.map((po) => po.code)));
+  };
+
+  const handleBulkDeletePCOutcomes = async () => {
+    if (selectedPCCodes.size === 0 || !selectedProgramId) return;
+    try {
+      setIsBulkDeleting(true);
+      for (const code of selectedPCCodes) {
+        await programOutcomeApi.deleteFromProgram(selectedProgramId, code);
+      }
+      toast.success(`${selectedPCCodes.size} program çıktısı silindi`);
+      setBulkDeleteDialogOpen(false);
+      setSelectedPCCodes(new Set());
+      loadProgramOutcomes();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Toplu silme başarısız");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   const selectedDepartment = departments.find((d) => d._id === selectedDepartmentId);
   const selectedProgram = programs.find((p) => p._id === selectedProgramId);
   const totalPOs = programOutcomes.length;
@@ -340,6 +464,7 @@ export default function ProgramOutcomesPage() {
                       setProgramOutcomes([]);
                       setFilteredProgramOutcomes([]);
                     }}
+                    disabled={authApi.getStoredUser()?.role === "department_head"}
                     className="h-10 text-sm border-brand-navy/20 focus:border-brand-navy"
                   >
                     <option value="">Bölüm Seçin</option>
@@ -349,6 +474,12 @@ export default function ProgramOutcomesPage() {
                       </option>
                     ))}
                   </Select>
+                  {authApi.getStoredUser()?.role === "department_head" && selectedDepartmentId && (
+                    <p className="text-xs text-muted-foreground">Kendi bölümünüz otomatik seçildi.</p>
+                  )}
+                  {authApi.getStoredUser()?.role === "teacher" && (
+                    <p className="text-xs text-muted-foreground">Sadece atandığınız bölüm ve programlar listelenir.</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="program-select" className="text-sm font-medium text-brand-navy dark:text-slate-200">
@@ -410,7 +541,8 @@ export default function ProgramOutcomesPage() {
 
       {selectedDepartmentId && (
         <>
-          {/* Add New PO - Collapsible */}
+          {/* Add New PO - Collapsible (öğretmen sadece görüntüleme) */}
+          {authApi.getStoredUser()?.role !== "teacher" && (
           <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
             <CardContent className="p-0">
               <div 
@@ -488,10 +620,35 @@ export default function ProgramOutcomesPage() {
                       </>
                     )}
                   </Button>
+                  <div className="border-t border-brand-navy/10 dark:border-slate-700/50 pt-4 mt-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">Dosyadan toplu PÇ ekleyin (seçili programa göre)</p>
+                    <input
+                      ref={poFileInputRef}
+                      type="file"
+                      accept=".xls,.xlsx,.txt,.csv"
+                      className="hidden"
+                      onChange={handlePOFileSelect}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!selectedProgramId || isImportingPO}
+                      onClick={() => poFileInputRef.current?.click()}
+                      className="h-10"
+                    >
+                      {isImportingPO ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      XLS / TXT ile içe aktar
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
           </Card>
+          )}
 
           {/* PO List */}
           {selectedProgramId && (
@@ -510,6 +667,27 @@ export default function ProgramOutcomesPage() {
                   </div>
                 </div>
               </div>
+
+              {authApi.getStoredUser()?.role !== "teacher" && !loadingPOs && filteredProgramOutcomes.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <button type="button" onClick={togglePCSelectAll} className="flex items-center gap-2 text-sm font-medium text-brand-navy dark:text-slate-200 hover:opacity-80">
+                    {selectedPCCodes.size === filteredProgramOutcomes.length ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
+                    {selectedPCCodes.size === filteredProgramOutcomes.length ? "Tümünü Kaldır" : "Tümünü Seç"}
+                  </button>
+                  <span className="text-xs text-slate-500">{selectedPCCodes.size > 0 && `${selectedPCCodes.size} seçili`}</span>
+                </div>
+              )}
+              {authApi.getStoredUser()?.role !== "teacher" && selectedPCCodes.size > 0 && (
+                <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-gradient-to-r from-brand-navy/5 to-brand-navy/10 dark:from-brand-navy/20 dark:to-brand-navy/10 mb-4">
+                  <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
+                    <p className="text-sm font-semibold text-brand-navy dark:text-slate-100">{selectedPCCodes.size} program çıktısı seçildi</p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setSelectedPCCodes(new Set())}><X className="h-4 w-4 mr-1" />Seçimi Kaldır</Button>
+                      <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)}><Trash2 className="h-4 w-4 mr-1" />Seçilenleri Sil</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
                 <CardContent className="p-4 sm:p-6 space-y-4">
@@ -534,10 +712,29 @@ export default function ProgramOutcomesPage() {
                       learningOutcomeCounts={learningOutcomeCounts}
                       programId={selectedProgramId}
                       onDelete={handleDeleteSuccess}
+                      selectedCodes={selectedPCCodes}
+                      onToggleSelect={togglePCSelect}
+                      onToggleSelectAll={togglePCSelectAll}
+                      readOnly={authApi.getStoredUser()?.role === "teacher"}
                     />
                   )}
                 </CardContent>
               </Card>
+
+              <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+                <AlertDialogContent className="max-w-md">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Seçili program çıktılarını sil</AlertDialogTitle>
+                    <AlertDialogDescription>{selectedPCCodes.size} program çıktısı silinecek. Bu işlem geri alınamaz.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <Button variant="outline" onClick={() => setBulkDeleteDialogOpen(false)} disabled={isBulkDeleting}>İptal</Button>
+                    <Button variant="destructive" onClick={handleBulkDeletePCOutcomes} disabled={isBulkDeleting}>
+                      {isBulkDeleting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Siliniyor...</> : `${selectedPCCodes.size} PÇ Sil`}
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
         </>

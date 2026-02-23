@@ -8,11 +8,14 @@ import { type LOAchievement } from "@/lib/api/scoreApi";
 interface StudentComparisonChartProps {
   students: Student[];
   studentAchievements: Record<string, LOAchievement[]>;
+  /** Sınav geçme puanı (0-100). Yoksa 60 kullanılır. */
+  passingThreshold?: number;
 }
 
 export function StudentComparisonChart({
   students,
   studentAchievements,
+  passingThreshold = 60,
 }: StudentComparisonChartProps) {
   // Calculate overall LO achievement for each student
   const studentData = students.map((student) => {
@@ -59,7 +62,7 @@ export function StudentComparisonChart({
         <div className="space-y-4">
           {studentData.map((data, index) => {
             const widthPercentage = maxPercentage > 0 ? (data.percentage / maxPercentage) * 100 : 0;
-            const color = data.percentage >= 50 ? "bg-green-500" : "bg-red-500"; // 50 puan eşiği
+            const color = data.percentage >= passingThreshold ? "bg-green-500" : "bg-red-500";
 
             return (
               <div key={index} className="space-y-1">
@@ -72,7 +75,7 @@ export function StudentComparisonChart({
                   </div>
                   <span
                     className={`font-semibold ${
-                      data.percentage >= 50
+                      data.percentage >= passingThreshold
                         ? "text-green-600 dark:text-green-400"
                         : "text-red-600 dark:text-red-400"
                     }`}

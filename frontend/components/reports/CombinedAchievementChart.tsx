@@ -19,9 +19,11 @@ import { type LOAchievement, type POAchievement } from "@/lib/api/assessmentApi"
 interface CombinedAchievementChartProps {
   loAchievements: LOAchievement[];
   poAchievements: POAchievement[];
+  /** Sınav geçme puanı (0-100). Yoksa 60 kullanılır. */
+  passingThreshold?: number;
 }
 
-export function CombinedAchievementChart({ loAchievements, poAchievements }: CombinedAchievementChartProps) {
+export function CombinedAchievementChart({ loAchievements, poAchievements, passingThreshold = 60 }: CombinedAchievementChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   if (loAchievements.length === 0 && poAchievements.length === 0) {
@@ -53,8 +55,7 @@ export function CombinedAchievementChart({ loAchievements, poAchievements }: Com
   ];
 
   const getColor = (value: number) => {
-    // 50 puan eşiği: >=50 yeşil, <50 kırmızı
-    return value >= 50 ? "#22c55e" : "#ef4444";
+    return value >= passingThreshold ? "#22c55e" : "#ef4444";
   };
 
   // Force bar fill colors after render
@@ -172,11 +173,11 @@ export function CombinedAchievementChart({ loAchievements, poAchievements }: Com
         <div className="mt-4 flex items-center justify-center gap-6 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-[#22c55e]"></div>
-            <span className="text-muted-foreground">Başarılı (≥50%)</span>
+            <span className="text-muted-foreground">Başarılı (≥{passingThreshold}%)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-[#ef4444]"></div>
-            <span className="text-muted-foreground">Başarısız (&lt;50%)</span>
+            <span className="text-muted-foreground">Başarısız (&lt;{passingThreshold}%)</span>
           </div>
         </div>
       </CardContent>

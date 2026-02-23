@@ -108,6 +108,16 @@ app.options('*', cors(corsOptions));
 
 app.use(express.json());
 
+// Tüm JSON yanıtlarında UTF-8 charset (Türkçe karakterler için)
+app.use((req, res, next) => {
+  const _json = res.json.bind(res);
+  res.json = function (body) {
+    res.set("Content-Type", "application/json; charset=utf-8");
+    return res.send(JSON.stringify(body));
+  };
+  next();
+});
+
 // Apply rate limiting to all API routes (skip in development)
 if (process.env.NODE_ENV === 'production') {
   app.use('/api', generalLimiter);
@@ -168,8 +178,10 @@ import aiRoutes from "./routes/aiRoutes.js";
 import assessmentRoutes from "./routes/assessmentRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 
 // Mount all routes
+app.use("/api/auth", authRoutes);
 // Apply rate limiting only in production
 if (process.env.NODE_ENV === 'production') {
   app.use("/api/courses", createUpdateLimiter, courseRoutes);

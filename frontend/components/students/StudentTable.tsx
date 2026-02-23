@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Edit, Trash2, Eye } from "lucide-react";
+import { Edit, Trash2, Eye, CheckSquare, Square } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -22,11 +22,15 @@ interface StudentTableProps {
   students: Student[];
   courses?: Course[];
   onDelete?: () => void;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onToggleSelectAll?: () => void;
 }
 
-export function StudentTable({ students, courses = [], onDelete }: StudentTableProps) {
+export function StudentTable({ students, courses = [], onDelete, selectedIds = new Set(), onToggleSelect, onToggleSelectAll }: StudentTableProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const allSelected = students.length > 0 && selectedIds.size === students.length;
 
   const handleDeleteClick = (student: Student) => {
     setSelectedStudent(student);
@@ -101,10 +105,25 @@ export function StudentTable({ students, courses = [], onDelete }: StudentTableP
 
   return (
     <>
-      <div className="rounded-md border border-brand-navy/20 dark:border-slate-700/50 overflow-hidden">
-        <Table>
+      <div className="rounded-md border border-brand-navy/20 dark:border-slate-700/50 overflow-x-auto overflow-y-visible min-w-0">
+        <Table className="min-w-[640px]">
           <TableHeader>
             <TableRow className="bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-brand-navy hover:to-[#0f3a6b]">
+              {onToggleSelectAll != null && (
+                <TableHead className="text-white font-semibold w-12">
+                  <button
+                    type="button"
+                    onClick={onToggleSelectAll}
+                    className="p-1 rounded hover:bg-white/20"
+                  >
+                    {allSelected ? (
+                      <CheckSquare className="h-5 w-5 text-white" />
+                    ) : (
+                      <Square className="h-5 w-5 text-white" />
+                    )}
+                  </button>
+                </TableHead>
+              )}
               <TableHead className="text-white font-semibold">Öğrenci Numarası</TableHead>
               <TableHead className="text-white font-semibold">İsim</TableHead>
               <TableHead className="text-white font-semibold">Bölüm</TableHead>
@@ -119,6 +138,21 @@ export function StudentTable({ students, courses = [], onDelete }: StudentTableP
                 key={student._id}
                 className="hover:bg-brand-navy/5 dark:hover:bg-slate-800/50 transition-colors"
               >
+                {onToggleSelect != null && (
+                  <TableCell className="w-12">
+                    <button
+                      type="button"
+                      onClick={() => onToggleSelect(student._id)}
+                      className="p-1 rounded hover:bg-brand-navy/10"
+                    >
+                      {selectedIds.has(student._id) ? (
+                        <CheckSquare className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                      ) : (
+                        <Square className="h-5 w-5 text-brand-navy/50 dark:text-slate-400" />
+                      )}
+                    </button>
+                  </TableCell>
+                )}
                 <TableCell className="font-medium">
                   <Badge variant="outline" className="font-mono bg-brand-navy/10 text-brand-navy border-brand-navy/30">
                     {student.studentNumber}
@@ -157,13 +191,13 @@ export function StudentTable({ students, courses = [], onDelete }: StudentTableP
                     <span className="text-slate-400">-</span>
                   )}
                 </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
+                <TableCell className="text-right whitespace-nowrap">
+                  <div className="flex justify-end gap-1 sm:gap-2">
                     <Button
                       variant="ghost"
                       size="icon"
                       asChild
-                      className="h-8 w-8 hover:bg-brand-navy/10 hover:text-brand-navy"
+                      className="h-8 w-8 min-w-[2rem] hover:bg-brand-navy/10 hover:text-brand-navy"
                     >
                       <Link href={`/students/${student._id}`}>
                         <Eye className="h-4 w-4" />
@@ -173,7 +207,7 @@ export function StudentTable({ students, courses = [], onDelete }: StudentTableP
                       variant="ghost"
                       size="icon"
                       asChild
-                      className="h-8 w-8 hover:bg-brand-navy/10 hover:text-brand-navy"
+                      className="h-8 w-8 min-w-[2rem] hover:bg-brand-navy/10 hover:text-brand-navy"
                     >
                       <Link href={`/students/${student._id}?edit=true`}>
                         <Edit className="h-4 w-4" />
@@ -183,7 +217,7 @@ export function StudentTable({ students, courses = [], onDelete }: StudentTableP
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDeleteClick(student)}
-                      className="h-8 w-8 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                      className="h-8 w-8 min-w-[2rem] hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

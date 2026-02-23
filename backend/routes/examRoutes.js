@@ -13,10 +13,13 @@ import {
   startBatchScore,
   getBatchStatus,
   createOrUpdateStudentExamResult,
+  uploadScoresFromList,
+  getCropImage,
 } from "../controllers/examController.js";
 import { getExamAnalysis } from "../controllers/reportController.js";
 import { validate, examSchemas, studentExamResultSchemas } from "../middleware/validation.js";
 import { asyncHandler } from "../utils/errorHandler.js";
+import { optionalAuth } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -26,11 +29,13 @@ router.post("/create", validate(examSchemas.create, 'body'), asyncHandler(create
 // Backward compatibility
 router.post("/", validate(examSchemas.create, 'body'), asyncHandler(createExam));
 
-// GET /api/exams - Get all exams (must be before /course/:courseId)
-router.get("/", asyncHandler(getAllExams));
+// GET /api/exams - Get all exams (optionalAuth: role göre filtre)
+router.get("/", optionalAuth, asyncHandler(getAllExams));
+// Kesilmiş puan kutusu görseli (şablon kontrolü) - /:examId'den önce olmalı
+router.get("/crop-image/:filename", getCropImage);
 
-// GET /api/exams/course/:courseId - Spesifik route, :id'den önce
-router.get("/course/:courseId", validate(examSchemas.getByCourse, 'params'), asyncHandler(getExamsByCourse));
+// GET /api/exams/course/:courseId (optionalAuth: rol varsa erişim kontrolü)
+router.get("/course/:courseId", optionalAuth, validate(examSchemas.getByCourse, 'params'), asyncHandler(getExamsByCourse));
 
 // Get exam results by student number - MUST be before /:examId routes
 router.get("/student/:studentNumber/results", getExamResultsByStudent);
@@ -41,6 +46,8 @@ router.post("/:examId/score", upload.single("file"), submitExamScores);
 router.post("/:examId/batch-score", upload.array("files"), startBatchScore);
 // Manual score entry (genel puan girişi) - POST route
 router.post("/:examId/manual-score", validate(studentExamResultSchemas.createOrUpdate, 'body'), asyncHandler(createOrUpdateStudentExamResult));
+// OBS Excel toplu puan yükleme (body: { maxScore?, scores: [{ studentNumber, score }] })
+router.post("/:examId/upload-scores", asyncHandler(uploadScoresFromList));
 
 // GET routes with sub-paths - MUST be before /:id route to avoid conflict
 // These are more specific than /:id, so they must come first

@@ -10,9 +10,12 @@ import { type Course } from "@/lib/api/courseApi";
 interface CourseCardProps {
   course: Course;
   onDelete: (course: Course) => void;
+  /** Öğretmen sadece görüntüleyebilir; yönetici/bölüm başkanı düzenleyebilir/silebilir */
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
-export function CourseCard({ course, onDelete }: CourseCardProps) {
+export function CourseCard({ course, onDelete, canEdit = true, canDelete = true }: CourseCardProps) {
   const semester = course.semester || "-";
   const departmentName = (course as any).department?.name || (typeof (course as any).department === "string" ? (course as any).department : "(Eski kayıt – bölüm seçilmemiş)");
   const learningOutcomeCount = course.learningOutcomes?.length || 0;
@@ -148,25 +151,29 @@ export function CourseCard({ course, onDelete }: CourseCardProps) {
                 <span className="truncate">Detay</span>
               </Link>
             </Button>
-            <Button
-              asChild
-              variant="outline"
-              size="default"
-              className="flex-1 h-10 sm:h-11 text-sm sm:text-base font-semibold min-w-0 border-brand-navy/20 group-hover:border-white/30 group-hover:bg-white/10 group-hover:text-white transition-all"
-            >
-              <Link href={`/dashboard/courses/edit/${course._id}`} className="flex items-center justify-center min-w-0">
-                <Edit className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2 flex-shrink-0 text-foreground group-hover:text-white transition-colors" />
-                <span className="truncate">Düzenle</span>
-              </Link>
-            </Button>
-            <Button
-              variant="destructive"
-              size="default"
-              onClick={() => onDelete(course)}
-              className="h-10 sm:h-11 text-sm sm:text-base font-semibold px-3 sm:px-4 flex-shrink-0 group-hover:bg-red-600/20 group-hover:border-red-500/30 group-hover:text-red-300 transition-all"
-            >
-              <Trash2 className="h-4 w-4 sm:h-5 sm:w-5 text-foreground group-hover:text-red-300 transition-colors" />
-            </Button>
+            {canEdit && (
+              <Button
+                asChild
+                variant="outline"
+                size="default"
+                className="flex-1 h-10 sm:h-11 text-sm sm:text-base font-semibold min-w-0 border-brand-navy/20 group-hover:border-white/30 group-hover:bg-white/10 group-hover:text-white transition-all"
+              >
+                <Link href={`/dashboard/courses/edit/${course._id}`} className="flex items-center justify-center min-w-0">
+                  <Edit className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2 flex-shrink-0 text-foreground group-hover:text-white transition-colors" />
+                  <span className="truncate">Düzenle</span>
+                </Link>
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                variant="destructive"
+                size="default"
+                onClick={() => onDelete(course)}
+                className="h-10 sm:h-11 text-sm sm:text-base font-semibold px-3 sm:px-4 flex-shrink-0 group-hover:bg-red-600/20 group-hover:border-red-500/30 group-hover:text-red-300 transition-all"
+              >
+                <Trash2 className="h-4 w-4 sm:h-5 sm:w-5 text-foreground group-hover:text-red-300 transition-colors" />
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>

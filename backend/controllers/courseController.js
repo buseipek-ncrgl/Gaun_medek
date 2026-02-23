@@ -6,6 +6,7 @@ import ProgramOutcome from "../models/ProgramOutcome.js";
 import Exam from "../models/Exam.js";
 import Student from "../models/Student.js";
 import Question from "../models/Question.js";
+import { getCourseFilterForUser } from "../middleware/authMiddleware.js";
 
 // Create a new Course
 const createCourse = async (req, res) => {
@@ -21,6 +22,7 @@ const createCourse = async (req, res) => {
       midtermExam,
       finalExam,
       students,
+      reportPassingThreshold,
     } = req.body;
 
     // Validate required fields
@@ -134,6 +136,7 @@ const createCourse = async (req, res) => {
         questionCount: finalExam.questionCount,
         maxScorePerQuestion: finalExam.maxScorePerQuestion,
       },
+      reportPassingThreshold: reportPassingThreshold != null && reportPassingThreshold !== "" ? Math.min(100, Math.max(0, Number(reportPassingThreshold))) : null,
       students: students || [],
     });
 
@@ -251,10 +254,11 @@ const createCourse = async (req, res) => {
   }
 };
 
-// Get all Courses
+// Get all Courses (rol varsa: süper admin tümü, bölüm başkanı kendi bölümü, öğretmen atanmış dersler)
 const getCourses = async (req, res) => {
   try {
-    const courses = await Course.find()
+    const filter = getCourseFilterForUser(req.user || null);
+    const courses = await Course.find(filter)
       .populate("department", "name code")
       .populate("program", "code name nameEn")
       .sort({ updatedAt: -1 });
@@ -306,7 +310,7 @@ const getCourses = async (req, res) => {
   }
 };
 
-// Get a single Course by ID
+// Get a single Course by ID (rol varsa sadece yetkili ders)
 const getCourseById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -329,6 +333,17 @@ const getCourseById = async (req, res) => {
         success: false,
         message: "Ders bulunamadı.",
       });
+    }
+
+    if (req.user) {
+      const filter = { ...getCourseFilterForUser(req.user), _id: id };
+      const allowed = await Course.findOne(filter).select("_id").lean();
+      if (!allowed) {
+        return res.status(403).json({
+          success: false,
+          message: "Bu derse erişim yetkiniz yok.",
+        });
+      }
     }
 
     return res.status(200).json({
@@ -360,6 +375,7 @@ const updateCourse = async (req, res) => {
       midtermExam,
       finalExam,
       students,
+      reportPassingThreshold,
     } = req.body;
 
     // Check if Course exists
@@ -403,6 +419,10 @@ const updateCourse = async (req, res) => {
       updateData.program = programId || null; // Allow clearing program
     }
     if (semester !== undefined) updateData.semester = semester;
+    if (reportPassingThreshold !== undefined) {
+      const val = reportPassingThreshold === null || reportPassingThreshold === "" ? null : Math.min(100, Math.max(0, Number(reportPassingThreshold)));
+      updateData.reportPassingThreshold = val;
+    }
 
     // Handle learning outcomes
     if (learningOutcomes !== undefined) {
@@ -548,10 +568,11 @@ const updateCourse = async (req, res) => {
   }
 };
 
-// Delete a Course
+// Delete a Course (super_admin: tümü, department_head: sadece kendi bölümündekiler)
 const deleteCourse = async (req, res) => {
   try {
     const { id } = req.params;
+    const user = req.user;
 
     const course = await Course.findById(id);
     if (!course) {
@@ -559,6 +580,18 @@ const deleteCourse = async (req, res) => {
         success: false,
         message: "Ders bulunamadı.",
       });
+    }
+
+    // Bölüm başkanı sadece kendi bölümündeki dersi silebilir
+    if (user?.role === "department_head" && user.departmentId) {
+      const courseDeptStr = course.department ? (typeof course.department === "object" && course.department.toString ? course.department.toString() : String(course.department)) : "";
+      const userDeptStr = typeof user.departmentId === "object" && user.departmentId !== null ? (user.departmentId._id ? String(user.departmentId._id) : String(user.departmentId)) : String(user.departmentId || "");
+      if (courseDeptStr !== userDeptStr) {
+        return res.status(403).json({
+          success: false,
+          message: "Bu dersi silme yetkiniz yok. Sadece kendi bölümünüzdeki dersleri silebilirsiniz.",
+        });
+      }
     }
 
     // Delete associated Learning Outcomes

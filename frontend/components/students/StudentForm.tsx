@@ -40,7 +40,8 @@ interface StudentFormProps {
   mode: "create" | "edit";
   studentId?: string;
   initialData?: Student;
-  onSuccess?: () => void;
+  /** Edit modunda çağrılır; güncel öğrenci verisi ile ekranın yansıması için kullanılır. */
+  onSuccess?: (updatedStudent?: Student) => void;
 }
 
 export function StudentForm({
@@ -177,14 +178,22 @@ export function StudentForm({
         toast.success("Öğrenci başarıyla eklendi");
         router.push("/students");
       } else if (mode === "edit" && studentId) {
-        await studentApi.update(studentId, submitData as UpdateStudentDto);
+        const updated = await studentApi.update(studentId, submitData as UpdateStudentDto);
         toast.success("Öğrenci başarıyla güncellendi");
-        router.push("/students");
+        if (onSuccess) {
+          onSuccess(updated);
+        } else {
+          router.push("/students");
+        }
+      } else {
+        onSuccess?.();
       }
-      onSuccess?.();
     } catch (error: any) {
+      const msg = error.response?.data?.message || "";
       const errorMessage =
-        error.response?.data?.message || "Öğrenci kaydedilemedi. Bir hata oluştu.";
+        msg && /already exists|zaten var/i.test(msg)
+          ? "Bu öğrenci numarası zaten kayıtlı. Farklı bir numara girin."
+          : msg || "Öğrenci kaydedilemedi. Bir hata oluştu.";
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);

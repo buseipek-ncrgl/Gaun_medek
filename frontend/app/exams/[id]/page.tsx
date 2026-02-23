@@ -39,8 +39,11 @@ export default function EditExamPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <p className="text-muted-foreground">Sınav bilgileri yükleniyor...</p>
+      <div className="min-h-[50vh] flex items-center justify-center px-3 py-8">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-navy border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Sınav bilgileri yükleniyor...</p>
+        </div>
       </div>
     );
   }
@@ -50,30 +53,32 @@ export default function EditExamPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.back()}
-            className="px-2"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Geri
-          </Button>
-        </div>
-        <div className="flex gap-2">
+    <div className="min-w-0 w-full px-3 py-4 sm:px-4 sm:py-6 md:px-6 space-y-4 sm:space-y-6 overflow-x-hidden">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.back()}
+          className="w-fit px-2"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Geri
+        </Button>
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
+            size="sm"
             onClick={() => router.push(`/dashboard/exams/${examId}/upload`)}
+            className="flex-1 sm:flex-none"
           >
             <Upload className="h-4 w-4 mr-2" />
             Puanlama
           </Button>
           <Button
             variant="outline"
+            size="sm"
             onClick={() => router.push(`/dashboard/exams/${examId}/batch-upload`)}
+            className="flex-1 sm:flex-none"
           >
             <FileText className="h-4 w-4 mr-2" />
             Toplu Yükleme
@@ -81,16 +86,19 @@ export default function EditExamPage() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Sınav Bilgileri</CardTitle>
+      <Card className="overflow-hidden">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-lg sm:text-xl">Sınav Bilgileri</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6 pt-0">
           <ExamForm
             mode="edit"
             examId={examId}
             initialData={exam}
-            onSuccess={fetchExamData}
+            onSuccess={(updatedExam) => {
+              if (updatedExam) setExam(updatedExam);
+              else fetchExamData();
+            }}
           />
         </CardContent>
       </Card>

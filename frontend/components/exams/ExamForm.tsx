@@ -21,7 +21,8 @@ interface ExamFormProps {
   mode: "create" | "edit";
   examId?: string;
   initialData?: Exam;
-  onSuccess?: () => void;
+  /** Güncelleme sonrası güncel sınav verisi ile çağrılır (hemen yansıması için). */
+  onSuccess?: (updatedExam?: Exam) => void;
 }
 
 type QuestionRow = {
@@ -51,6 +52,11 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
     initialData?.examType || "midterm"
   );
   const [examCode, setExamCode] = useState(initialData?.examCode || "");
+  const [passingScore, setPassingScore] = useState<number>(() => {
+    const v = initialData?.passingScore;
+    if (typeof v === "number" && v >= 0 && v <= 100) return v;
+    return 60;
+  });
   const maxScore = 100; // Her zaman 100, sabit
   const [existingExams, setExistingExams] = useState<Exam[]>([]);
   const [examCodeError, setExamCodeError] = useState("");
@@ -113,6 +119,13 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
       loadCourseData();
     }
   }, [mode, initialData]);
+
+  // Düzenleme modunda initialData güncellendiğinde (örn. kayıt sonrası refetch) form state'ini senkronize et
+  useEffect(() => {
+    if (mode !== "edit" || !initialData) return;
+    const v = initialData.passingScore;
+    if (typeof v === "number" && v >= 0 && v <= 100) setPassingScore(v);
+  }, [mode, initialData?.passingScore]);
 
   // Soru bazlı işlem kaldırıldı - artık genel puan kullanılıyor
 
@@ -413,7 +426,8 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
         examType,
         examCode: examCode.trim(),
         maxScore: Number(maxScore),
-        learningOutcomes: uniqueLOs.length > 0 ? uniqueLOs : undefined, // Unique LOs for backward compatibility
+        learningOutcomes: uniqueLOs.length > 0 ? uniqueLOs : undefined,
+        passingScore: passingScore >= 0 && passingScore <= 100 ? passingScore : 60,
       };
 
       // Only include questions in update if in edit mode (always include in create)
@@ -435,13 +449,13 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
         
         router.push("/exams");
       } else if (mode === "edit" && examId) {
-        await examApi.update(examId, payload as UpdateExamDto);
+        const updated = await examApi.update(examId, payload as UpdateExamDto);
         toast.success("Sınav başarıyla güncellendi");
-        
-        // Dispatch event to notify other components (e.g., courses page)
         window.dispatchEvent(new CustomEvent('examUpdated', { 
           detail: { courseId, examId } 
         }));
+        onSuccess?.(updated);
+        return;
       }
       onSuccess?.();
     } catch (error: any) {
@@ -456,10 +470,10 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="courseId">
+    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 min-w-0">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        <div className="space-y-2 min-w-0">
+          <Label htmlFor="courseId" className="text-sm sm:text-base">
             Ders <span className="text-red-500">*</span>
           </Label>
           <Select
@@ -467,7 +481,7 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
             value={courseId}
             disabled={isSubmitting || mode === "edit"}
             onChange={(e) => setCourseId(e.target.value)}
-            className="h-12 text-base"
+            className="h-10 sm:h-12 text-sm sm:text-base w-full"
           >
             <option value="">Bir ders seçin</option>
             {courses.map((course) => (
@@ -478,8 +492,8 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="examType">
+        <div className="space-y-2 min-w-0">
+          <Label htmlFor="examType" className="text-sm sm:text-base">
             Sınav Türü <span className="text-red-500">*</span>
           </Label>
           <Select
@@ -487,7 +501,7 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
             value={examType}
             onChange={(e) => setExamType(e.target.value as "midterm" | "final")}
             disabled={isSubmitting}
-            className="h-12 text-base"
+            className="h-10 sm:h-12 text-sm sm:text-base w-full"
           >
             <option value="midterm">Vize</option>
             <option value="final">Final</option>
@@ -495,9 +509,9 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="examCode">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+        <div className="space-y-2 min-w-0 md:col-span-1">
+          <Label htmlFor="examCode" className="text-sm sm:text-base">
             Sınav Kodu <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -506,47 +520,68 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
             onChange={(e) => setExamCode(e.target.value)}
             disabled={isSubmitting}
             placeholder="Örn: VIZE-2025-1"
-            className={`h-12 text-base ${examCodeError ? "border-red-500 focus:border-red-500" : ""}`}
+            className={`h-10 sm:h-12 text-sm sm:text-base w-full ${examCodeError ? "border-red-500 focus:border-red-500" : ""}`}
           />
           {examCodeError && (
-            <p className="text-sm text-red-600 bg-red-50 p-2 rounded-lg">
+            <p className="text-xs sm:text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg break-words">
               {examCodeError}
             </p>
           )}
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="maxScore">
+        <div className="space-y-2 min-w-0">
+          <Label htmlFor="maxScore" className="text-sm sm:text-base">
             Maksimum Puan
           </Label>
-          <div className="h-12 text-base flex items-center px-4 bg-slate-50 dark:bg-slate-800 rounded-md border border-input">
-            <span className="text-lg font-semibold">100</span>
+          <div className="h-10 sm:h-12 text-sm sm:text-base flex items-center px-3 sm:px-4 bg-slate-50 dark:bg-slate-800 rounded-md border border-input">
+            <span className="font-semibold">100</span>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Sınav için maksimum toplam puan (sabit)
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Maksimum toplam puan (sabit)
+          </p>
+        </div>
+        <div className="space-y-2 min-w-0">
+          <Label htmlFor="passingScore" className="text-sm sm:text-base">
+            Geçme notu (0–100)
+          </Label>
+          <Input
+            id="passingScore"
+            type="number"
+            min={0}
+            max={100}
+            value={passingScore}
+            onChange={(e) => {
+              const n = parseInt(e.target.value, 10);
+              if (!Number.isNaN(n)) setPassingScore(Math.min(100, Math.max(0, n)));
+            }}
+            disabled={isSubmitting}
+            className="h-10 sm:h-12 text-sm sm:text-base w-full"
+          />
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Bu puan ve üzeri geçer sayılır.
           </p>
         </div>
       </div>
 
-      <Card className="border-2 border-gray-200">
-        <CardHeader>
-          <CardTitle>Sorular → ÖÇ Seçimi</CardTitle>
+      <Card className="border-2 border-gray-200 dark:border-slate-700 overflow-hidden">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Sorular → ÖÇ Seçimi</CardTitle>
           {!courseId && (
-            <p className="text-sm text-amber-600 mt-2">
+            <p className="text-xs sm:text-sm text-amber-600 mt-2">
               ⚠️ ÖÇ seçmek için önce bir ders seçmelisiniz.
             </p>
           )}
           {courseId && learningOutcomeOptions.length === 0 && (
-            <p className="text-sm text-amber-600 mt-2">
+            <p className="text-xs sm:text-sm text-amber-600 mt-2">
               ⚠️ Bu ders için henüz öğrenme çıktısı (ÖÇ) tanımlanmamış. Lütfen önce ders için ÖÇ ekleyin.
             </p>
           )}
           {courseId && learningOutcomeOptions.length > 0 && (
-            <p className="text-sm text-muted-foreground mt-2">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-2">
               Her soruyu ilgili öğrenme çıktısına (ÖÇ) eşleyin. MEDEK değerlendirmesi için zorunludur.
             </p>
           )}
           {courseId && questionCount === 0 && selectedCourse && (
-            <div className="text-sm text-amber-600 mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+            <div className="text-xs sm:text-sm text-amber-600 mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
               <p className="font-semibold mb-2">
               ⚠️ Bu ders için {examType === "midterm" ? "vize" : "final"} sınavı için soru sayısı tanımlanmamış.
               </p>
@@ -561,16 +596,16 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
                   const courseIdValue = typeof selectedCourse._id === 'string' ? selectedCourse._id : selectedCourse._id;
                   router.push(`/dashboard/courses/${courseIdValue}`);
                 }}
-                className="mt-2 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30"
+                className="mt-2 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30 text-xs sm:text-sm w-full sm:w-auto"
               >
                 Ders Düzenleme Sayfasına Git
               </Button>
             </div>
           )}
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0">
           {questionCount === 0 && (
-            <p className="text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {courseId && selectedCourse 
                 ? "Bu ders için soru sayısı tanımlanmamış. Lütfen ders düzenleme sayfasından soru sayısını ekleyin."
                 : "Soru sayısı girildiğinde satırlar oluşacak."}
@@ -579,10 +614,10 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
           {questions.map((q, idx) => (
             <div
               key={q.questionNumber}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 rounded-lg border bg-white"
+              className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 min-w-0"
             >
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-slate-600">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400">
                   Soru {q.questionNumber}
                 </span>
                 {!q.learningOutcomeCode && (
@@ -591,13 +626,13 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
                   </Badge>
                 )}
               </div>
-              <div className="space-y-1">
-                <Label>Öğrenme Çıktısı (ÖÇ) <span className="text-red-500">*</span></Label>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs sm:text-sm">Öğrenme Çıktısı (ÖÇ) <span className="text-red-500">*</span></Label>
                 <Select
                   value={q.learningOutcomeCode}
                   onChange={(e) => handleQuestionLoChange(idx, e.target.value)}
                   disabled={isSubmitting || learningOutcomeOptions.length === 0 || !courseId}
-                  className={`h-11 ${!q.learningOutcomeCode ? "border-amber-300" : ""}`}
+                  className={`h-10 sm:h-11 text-sm w-full ${!q.learningOutcomeCode ? "border-amber-300" : ""}`}
                 >
                   <option value="">ÖÇ seçin</option>
                   {learningOutcomeOptions.map((opt) => (
@@ -622,8 +657,8 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
         </CardContent>
       </Card>
 
-      <div className="flex gap-4">
-        <Button type="submit" disabled={isSubmitting} className="h-12 px-6">
+      <div className="flex flex-wrap gap-2 sm:gap-4">
+        <Button type="submit" disabled={isSubmitting} className="h-10 sm:h-12 px-4 sm:px-6 flex-1 sm:flex-none min-w-0">
           {isSubmitting
             ? "Kaydediliyor..."
             : mode === "create"
@@ -635,7 +670,7 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
           variant="outline"
           onClick={() => router.back()}
           disabled={isSubmitting}
-          className="h-12 px-6"
+          className="h-10 sm:h-12 px-4 sm:px-6 flex-1 sm:flex-none min-w-0"
         >
           İptal
         </Button>

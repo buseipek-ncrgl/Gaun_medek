@@ -1,4 +1,5 @@
 import express from "express";
+import { optionalAuth } from "../middleware/authMiddleware.js";
 import {
   createStudent,
   getStudents,
@@ -13,8 +14,8 @@ const router = express.Router();
 // POST /api/students/
 router.post("/", createStudent);
 
-// GET /api/students/
-router.get("/", getStudents);
+// GET /api/students/ (optionalAuth: bölüm başkanı/öğretmen kendi öğrencilerini görür)
+router.get("/", optionalAuth, getStudents);
 
 // GET /api/students/id/:id
 router.get("/id/:id", getStudentById);

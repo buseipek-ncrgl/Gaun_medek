@@ -54,6 +54,7 @@ export function ExamCreationWizard({ onSuccess }: ExamCreationWizardProps) {
   const [courseId, setCourseId] = useState("");
   const [examType, setExamType] = useState<"midterm" | "final">("midterm");
   const [examCode, setExamCode] = useState("");
+  const [passingScore, setPassingScore] = useState(60); // Geçme notu (0-100)
   const maxScore = 100; // Her zaman 100, sabit
   const [selectedLOs, setSelectedLOs] = useState<string[]>([]); // Sınav bazlı ÖÇ seçimi
   const [existingExams, setExistingExams] = useState<Exam[]>([]);
@@ -261,7 +262,8 @@ export function ExamCreationWizard({ onSuccess }: ExamCreationWizardProps) {
         examType,
         examCode: examCode.trim(),
         maxScore: Number(maxScore),
-        learningOutcomes: selectedLOs, // Sınav bazlı ÖÇ eşleme
+        learningOutcomes: selectedLOs,
+        passingScore: passingScore >= 0 && passingScore <= 100 ? passingScore : 60,
       };
 
       await examApi.create(payload);
@@ -489,6 +491,24 @@ export function ExamCreationWizard({ onSuccess }: ExamCreationWizardProps) {
                 </div>
               </CardContent>
             </Card>
+            <div className="space-y-2">
+              <Label htmlFor="wizard-passingScore">Geçme notu (0–100)</Label>
+              <Input
+                id="wizard-passingScore"
+                type="number"
+                min={0}
+                max={100}
+                value={passingScore}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  if (!Number.isNaN(n)) setPassingScore(Math.min(100, Math.max(0, n)));
+                }}
+                className="h-12 text-base max-w-[120px]"
+              />
+              <p className="text-sm text-muted-foreground">
+                Bu puan ve üzeri alan öğrenci sınavdan geçer; tüm ÖÇ/PÇ geçmiş sayılır.
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}

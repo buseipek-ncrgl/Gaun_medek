@@ -41,56 +41,84 @@ export function StudentImporter({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    try {
-      let text = "";
+    const isExcel = /\.(xlsx?|xls)$/i.test(file.name);
 
-      // Handle DOCX files
-      if (file.name.endsWith(".docx") || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+    try {
+      let parsedStudents: Student[] = [];
+
+      if (isExcel) {
+        // XLS / XLSX: xlsx kütüphanesi ile oku – 1. sütun öğrenci no, 2. sütun ad soyad
         try {
-          // Dynamic import for mammoth (only when needed)
-          const mammoth = await import("mammoth");
+          const XLSX = await import("xlsx");
           const arrayBuffer = await file.arrayBuffer();
-          const result = await mammoth.extractRawText({ arrayBuffer });
-          text = result.value;
-        } catch (docxError) {
-          console.error("DOCX parsing error:", docxError);
-          toast.error("DOCX dosyası okunamadı. Lütfen mammoth paketinin yüklü olduğundan emin olun: npm install mammoth");
+          const workbook = XLSX.read(arrayBuffer, { type: "array" });
+          const firstSheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[firstSheetName];
+          const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, defval: "" }) as (string | number)[][];
+          const seenNumbers = new Set<string>();
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || row.length < 1) continue;
+            const rawFirst = row[0];
+            const rawSecond = row[1];
+            const studentNumber = String(rawFirst ?? "").trim();
+            const fullName = rawSecond != null ? String(rawSecond).trim() : "";
+            if (!studentNumber) continue;
+            if (seenNumbers.has(studentNumber)) continue;
+            seenNumbers.add(studentNumber);
+            parsedStudents.push({
+              studentNumber,
+              fullName: fullName || `Öğrenci ${studentNumber}`,
+            });
+          }
+        } catch (excelError) {
+          console.error("Excel parsing error:", excelError);
+          toast.error("Excel dosyası okunamadı. Lütfen xlsx paketinin yüklü olduğundan emin olun: npm install xlsx");
           return;
         }
       } else {
-        // Handle TXT and CSV files
-        text = await file.text();
-      }
-
-      const lines = text.split(/\r?\n/).filter((line) => line.trim());
-
-      const parsedStudents: Student[] = [];
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-
-        // Parse format: "20231021 Ahmet Yılmaz"
-        const parts = trimmed.split(/\s+/);
-        if (parts.length >= 2) {
-          const studentNumber = parts[0];
-          const fullName = parts.slice(1).join(" ");
-
-          if (studentNumber && fullName) {
-            parsedStudents.push({ studentNumber, fullName });
+        // TXT, CSV, DOCX
+        let text = "";
+        if (file.name.endsWith(".docx") || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+          try {
+            const mammoth = await import("mammoth");
+            const arrayBuffer = await file.arrayBuffer();
+            const result = await mammoth.extractRawText({ arrayBuffer });
+            text = result.value;
+          } catch (docxError) {
+            console.error("DOCX parsing error:", docxError);
+            toast.error("DOCX dosyası okunamadı. Lütfen mammoth paketinin yüklü olduğundan emin olun: npm install mammoth");
+            return;
+          }
+        } else {
+          text = await file.text();
+        }
+        const lines = text.split(/\r?\n/).filter((line) => line.trim());
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          const parts = trimmed.split(/\s+/);
+          if (parts.length >= 2) {
+            const studentNumber = parts[0];
+            const fullName = parts.slice(1).join(" ");
+            if (studentNumber && fullName) {
+              parsedStudents.push({ studentNumber, fullName });
+            }
           }
         }
       }
 
       if (parsedStudents.length > 0) {
-        // Merge with existing students, avoid duplicates
         const existingNumbers = new Set(students.map((s) => s.studentNumber));
         const newStudents = parsedStudents.filter(
           (s) => !existingNumbers.has(s.studentNumber)
         );
-
         onChange([...students, ...newStudents]);
-        toast.success(`${newStudents.length} öğrenci eklendi`);
+        if (newStudents.length > 0) {
+          toast.success(`${newStudents.length} öğrenci eklendi`);
+        } else {
+          toast.info("Tüm öğrenciler zaten listede.");
+        }
       } else {
         toast.error("Dosyadan öğrenci bulunamadı");
       }
@@ -98,6 +126,7 @@ export function StudentImporter({
       console.error("File parsing error:", error);
       toast.error("Dosya okunamadı. Lütfen dosya formatını kontrol edin.");
     }
+    e.target.value = "";
   };
 
   const addManualStudent = () => {
@@ -161,7 +190,7 @@ export function StudentImporter({
             <div>
               <CardTitle className="text-base">Dosyadan Yükle</CardTitle>
               <CardDescription className="text-xs">
-                Öğrenci listesini içeren dosyayı yükleyin (.docx, .txt, .csv)
+                Öğrenci listesini içeren dosyayı yükleyin (.xls, .xlsx, .docx, .txt, .csv)
               </CardDescription>
             </div>
             <Button
@@ -183,12 +212,12 @@ export function StudentImporter({
               htmlFor="student-file"
               className="cursor-pointer text-sm font-semibold text-primary hover:underline"
             >
-              Öğrenci Listesini Yükle (.docx, .txt, .csv)
+              Öğrenci Listesini Yükle (.xls, .xlsx, .docx, .txt, .csv)
             </Label>
             <Input
               id="student-file"
               type="file"
-              accept=".docx,.txt,.csv"
+              accept=".xls,.xlsx,.docx,.txt,.csv"
               onChange={handleFileUpload}
               disabled={disabled}
               className="hidden"
@@ -198,8 +227,8 @@ export function StudentImporter({
                 <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
                 <div className="text-left">
                   <p className="font-semibold mb-0.5">Format:</p>
-                  <p>Her satırda "ÖğrenciNo Ad Soyad" şeklinde olmalıdır.</p>
-                  <p className="mt-0.5 text-xs">Örnek: 20231021 Ahmet Yılmaz</p>
+                  <p><strong>Excel (.xls, .xlsx):</strong> İlk sütun öğrenci no, ikinci sütun ad soyad.</p>
+                  <p><strong>TXT/CSV/DOCX:</strong> Her satırda &quot;ÖğrenciNo Ad Soyad&quot; (örn: 20231021 Ahmet Yılmaz).</p>
                 </div>
               </div>
             </div>
