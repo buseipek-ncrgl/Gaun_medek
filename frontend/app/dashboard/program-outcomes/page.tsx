@@ -541,8 +541,7 @@ export default function ProgramOutcomesPage() {
 
       {selectedDepartmentId && (
         <>
-          {/* Add New PO - Collapsible (öğretmen sadece görüntüleme) */}
-          {authApi.getStoredUser()?.role !== "teacher" && (
+          {/* Add New PO - Collapsible */}
           <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-modern">
             <CardContent className="p-0">
               <div 
@@ -648,7 +647,6 @@ export default function ProgramOutcomesPage() {
               )}
             </CardContent>
           </Card>
-          )}
 
           {/* PO List */}
           {selectedProgramId && (
@@ -668,7 +666,7 @@ export default function ProgramOutcomesPage() {
                 </div>
               </div>
 
-              {authApi.getStoredUser()?.role !== "teacher" && !loadingPOs && filteredProgramOutcomes.length > 0 && (
+              {!loadingPOs && filteredProgramOutcomes.length > 0 && (
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                   <button type="button" onClick={togglePCSelectAll} className="flex items-center gap-2 text-sm font-medium text-brand-navy dark:text-slate-200 hover:opacity-80">
                     {selectedPCCodes.size === filteredProgramOutcomes.length ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
@@ -677,7 +675,7 @@ export default function ProgramOutcomesPage() {
                   <span className="text-xs text-slate-500">{selectedPCCodes.size > 0 && `${selectedPCCodes.size} seçili`}</span>
                 </div>
               )}
-              {authApi.getStoredUser()?.role !== "teacher" && selectedPCCodes.size > 0 && (
+              {selectedPCCodes.size > 0 && (
                 <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-gradient-to-r from-brand-navy/5 to-brand-navy/10 dark:from-brand-navy/20 dark:to-brand-navy/10 mb-4">
                   <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
                     <p className="text-sm font-semibold text-brand-navy dark:text-slate-100">{selectedPCCodes.size} program çıktısı seçildi</p>
@@ -715,7 +713,7 @@ export default function ProgramOutcomesPage() {
                       selectedCodes={selectedPCCodes}
                       onToggleSelect={togglePCSelect}
                       onToggleSelectAll={togglePCSelectAll}
-                      readOnly={authApi.getStoredUser()?.role === "teacher"}
+                      readOnly={false}
                     />
                   )}
                 </CardContent>

@@ -117,8 +117,11 @@ const createCourse = async (req, res) => {
       });
     }
 
+    const user = req.user || {};
+    const isTeacher = user.role === "teacher";
+
     // Create course with ALL fields (PÇ geçici olarak devre dışı)
-    const course = new Course({
+    const courseData = {
       name: name.trim(),
       code: normalizedCode,
       description: description?.trim() || "",
@@ -138,8 +141,10 @@ const createCourse = async (req, res) => {
       },
       reportPassingThreshold: reportPassingThreshold != null && reportPassingThreshold !== "" ? Math.min(100, Math.max(0, Number(reportPassingThreshold))) : null,
       students: students || [],
-    });
+    };
+    if (isTeacher && user._id) courseData.instructorId = user._id;
 
+    const course = new Course(courseData);
     const savedCourse = await course.save();
 
     // Create LearningOutcome documents (legacy collection) and link them
@@ -292,6 +297,7 @@ const getCourses = async (req, res) => {
           : null,
         students: courseObj.students || [],
         studentsCount: courseObj.students?.length || 0,
+        instructorId: courseObj.instructorId || null,
         createdAt: courseObj.createdAt,
         updatedAt: courseObj.updatedAt,
       };
@@ -385,6 +391,21 @@ const updateCourse = async (req, res) => {
         success: false,
         message: "Ders bulunamadı.",
       });
+    }
+
+    // Öğretmen: kendi eklediği (instructorId) veya admin/bölüm başkanının atadığı (assignedCourseIds) dersi düzenleyebilir
+    const user = req.user;
+    if (user?.role === "teacher") {
+      const courseInstructorId = existingCourse.instructorId ? String(existingCourse.instructorId) : "";
+      const isInstructor = courseInstructorId === String(user._id);
+      const assignedIds = (user.assignedCourseIds || []).map((c) => (c && (c._id || c)).toString()).filter(Boolean);
+      const isAssigned = assignedIds.includes(String(existingCourse._id));
+      if (!isInstructor && !isAssigned) {
+        return res.status(403).json({
+          success: false,
+          message: "Bu dersi düzenleme yetkiniz yok. Sadece size atanan veya kendi eklediğiniz dersleri düzenleyebilirsiniz.",
+        });
+      }
     }
 
     // Validate unique code if changed
@@ -580,6 +601,20 @@ const deleteCourse = async (req, res) => {
         success: false,
         message: "Ders bulunamadı.",
       });
+    }
+
+    // Öğretmen: kendi eklediği (instructorId) veya admin/bölüm başkanının atadığı (assignedCourseIds) dersi silebilir
+    if (user?.role === "teacher") {
+      const courseInstructorId = course.instructorId ? String(course.instructorId) : "";
+      const isInstructor = courseInstructorId === String(user._id);
+      const assignedIds = (user.assignedCourseIds || []).map((c) => (c && (c._id || c)).toString()).filter(Boolean);
+      const isAssigned = assignedIds.includes(String(course._id));
+      if (!isInstructor && !isAssigned) {
+        return res.status(403).json({
+          success: false,
+          message: "Bu dersi silme yetkiniz yok. Sadece size atanan veya kendi eklediğiniz dersleri silebilirsiniz.",
+        });
+      }
     }
 
     // Bölüm başkanı sadece kendi bölümündeki dersi silebilir

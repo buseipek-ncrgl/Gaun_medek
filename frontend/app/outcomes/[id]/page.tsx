@@ -20,12 +20,8 @@ export default function EditOutcomePage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (authApi.getStoredUser()?.role === "teacher") {
-      router.replace("/outcomes");
-      return;
-    }
     if (outcomeId) fetchOutcome();
-  }, [outcomeId, router]);
+  }, [outcomeId]);
 
   const fetchOutcome = async () => {
     try {

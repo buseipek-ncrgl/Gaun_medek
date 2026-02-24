@@ -408,8 +408,7 @@ export default function OutcomesPage() {
               </div>
             </div>
           </div>
-          {authApi.getStoredUser()?.role !== "teacher" && (
-            <Button 
+          <Button 
               onClick={() => router.push("/outcomes/new")}
               className="h-11 sm:h-12 px-4 sm:px-6 bg-gradient-to-r from-brand-navy to-[#0f3a6b] hover:from-brand-navy/90 hover:to-[#0f3a6b]/90 text-white shadow-lg hover:shadow-xl transition-all flex-shrink-0"
             >
@@ -417,7 +416,6 @@ export default function OutcomesPage() {
               <span className="hidden sm:inline">Yeni Öğrenme Çıktısı</span>
               <span className="sm:hidden">Yeni ÖÇ</span>
             </Button>
-          )}
         </div>
 
         {/* Statistics Cards */}
@@ -642,35 +640,33 @@ export default function OutcomesPage() {
                 </div>
 
                 {/* ÖÇ import - seçili derse göre */}
-                {authApi.getStoredUser()?.role !== "teacher" && (
-                  <div className="border-t border-brand-navy/10 dark:border-slate-700/50 pt-4">
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">Seçili derse ÖÇ toplu ekleyin (bölüm/program/ders seçin, ardından dosya yükleyin)</p>
-                    <input
-                      ref={loFileInputRef}
-                      type="file"
-                      accept=".xls,.xlsx,.txt,.csv"
-                      className="hidden"
-                      onChange={handleLOFileSelect}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={!selectedCourseId || isImportingLO}
-                      onClick={() => loFileInputRef.current?.click()}
-                      className="h-10"
-                    >
-                      {isImportingLO ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Upload className="h-4 w-4 mr-2" />
-                      )}
-                      XLS / TXT ile ÖÇ içe aktar
-                    </Button>
-                    {!selectedCourseId && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">İçe aktarmak için önce bir ders seçin.</p>
+                <div className="border-t border-brand-navy/10 dark:border-slate-700/50 pt-4">
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">Seçili derse ÖÇ toplu ekleyin (bölüm/program/ders seçin, ardından dosya yükleyin)</p>
+                  <input
+                    ref={loFileInputRef}
+                    type="file"
+                    accept=".xls,.xlsx,.txt,.csv"
+                    className="hidden"
+                    onChange={handleLOFileSelect}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!selectedCourseId || isImportingLO}
+                    onClick={() => loFileInputRef.current?.click()}
+                    className="h-10"
+                  >
+                    {isImportingLO ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-2" />
                     )}
-                  </div>
-                )}
+                    XLS / TXT ile ÖÇ içe aktar
+                  </Button>
+                  {!selectedCourseId && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">İçe aktarmak için önce bir ders seçin.</p>
+                  )}
+                </div>
 
                 {/* Active Filters Badges */}
                 {hasActiveFilters && (
@@ -748,8 +744,8 @@ export default function OutcomesPage() {
         </Card>
       </div>
 
-      {/* Select all + bulk bar (öğretmen sadece görüntüleme) */}
-      {authApi.getStoredUser()?.role !== "teacher" && !isLoading && filteredOutcomes.length > 0 && (
+      {/* Select all + bulk bar */}
+      {!isLoading && filteredOutcomes.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <button type="button" onClick={toggleOutcomeSelectAll} className="flex items-center gap-2 text-sm font-medium text-brand-navy dark:text-slate-200 hover:opacity-80">
             {selectedOutcomes.size === filteredOutcomes.length ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
@@ -758,7 +754,7 @@ export default function OutcomesPage() {
           <span className="text-xs text-slate-500">{selectedOutcomes.size > 0 && `${selectedOutcomes.size} seçili`}</span>
         </div>
       )}
-      {authApi.getStoredUser()?.role !== "teacher" && selectedOutcomes.size > 0 && (
+      {selectedOutcomes.size > 0 && (
         <Card className="border border-brand-navy/20 dark:border-slate-700/50 bg-gradient-to-r from-brand-navy/5 to-brand-navy/10 dark:from-brand-navy/20 dark:to-brand-navy/10">
           <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
             <p className="text-sm font-semibold text-brand-navy dark:text-slate-100">{selectedOutcomes.size} öğrenme çıktısı seçildi</p>
@@ -785,7 +781,7 @@ export default function OutcomesPage() {
               selectedIds={selectedOutcomes}
               onToggleSelect={toggleOutcomeSelect}
               onToggleSelectAll={toggleOutcomeSelectAll}
-              readOnly={authApi.getStoredUser()?.role === "teacher"}
+              readOnly={false}
             />
           )}
         </CardContent>

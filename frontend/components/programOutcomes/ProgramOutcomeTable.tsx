@@ -25,7 +25,7 @@ interface ProgramOutcomeTableProps {
   selectedCodes?: Set<string>;
   onToggleSelect?: (code: string) => void;
   onToggleSelectAll?: () => void;
-  /** Öğretmen: sadece görüntüleme */
+  /** true ise ekleme/düzenleme/silme ve seçim gizlenir */
   readOnly?: boolean;
 }
 

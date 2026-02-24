@@ -10,10 +10,6 @@ import { authApi } from "@/lib/api/authApi";
 
 export default function NewOutcomePage() {
   const router = useRouter();
-  useEffect(() => {
-    if (authApi.getStoredUser()?.role === "teacher") router.replace("/outcomes");
-  }, [router]);
-  if (authApi.getStoredUser()?.role === "teacher") return null;
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">

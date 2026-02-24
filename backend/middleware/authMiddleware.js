@@ -73,9 +73,10 @@ export function getCourseFilterForUser(user) {
     return { department: user.departmentId };
   }
   if (user.role === "teacher") {
-    const ids = user.assignedCourseIds || [];
+    const raw = user.assignedCourseIds || [];
+    const ids = raw.map((c) => (c && typeof c === "object" && c._id ? c._id : c)).filter(Boolean);
     const instructorId = user._id;
-    if (ids.length === 0 && !instructorId) return { _id: null }; // hiç ders gösterme
+    if (ids.length === 0 && !instructorId) return { _id: null };
     if (ids.length === 0) return { instructorId };
     return {
       $or: [

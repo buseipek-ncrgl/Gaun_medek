@@ -13,8 +13,8 @@ import { optionalAuth, requireAuth, requireRole } from "../middleware/authMiddle
 
 const router = express.Router();
 
-// CREATE — sadece yönetici ve bölüm başkanı
-router.post("/create", optionalAuth, requireAuth, requireRole("super_admin", "department_head"), createCourse);
+// CREATE — admin, bölüm başkanı ve öğretmen (öğretmen sadece kendi eklediği dersleri görür)
+router.post("/create", optionalAuth, requireAuth, requireRole("super_admin", "department_head", "teacher"), createCourse);
 
 // SEED (get existing courses or seed sample)
 router.post("/seed", seedCourses);
@@ -31,10 +31,10 @@ router.get("/:id/report", getCourseReport);
 // GET ONE (optionalAuth: rol varsa erişim kontrolü)
 router.get("/:id", optionalAuth, getCourseById);
 
-// UPDATE — sadece yönetici ve bölüm başkanı
-router.put("/:id", optionalAuth, requireAuth, requireRole("super_admin", "department_head"), updateCourse);
+// UPDATE — admin, bölüm başkanı; öğretmen sadece kendi eklediği dersi
+router.put("/:id", optionalAuth, requireAuth, requireRole("super_admin", "department_head", "teacher"), updateCourse);
 
-// DELETE — sadece yönetici ve bölüm başkanı
-router.delete("/:id", optionalAuth, requireAuth, requireRole("super_admin", "department_head"), deleteCourse);
+// DELETE — admin, bölüm başkanı; öğretmen sadece kendi eklediği dersi
+router.delete("/:id", optionalAuth, requireAuth, requireRole("super_admin", "department_head", "teacher"), deleteCourse);
 
 export default router;

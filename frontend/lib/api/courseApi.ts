@@ -30,6 +30,8 @@ export interface Course {
   students?: Array<{ studentNumber: string; fullName: string }>;
   studentsCount?: number;
   examCount?: number;
+  /** Dersi ekleyen öğretmen (ObjectId). Öğretmen sadece kendi eklediği dersi düzenleyip silebilir. */
+  instructorId?: string | { _id: string } | null;
   /** Raporlarda kullanılacak geçme yüzdesi (0-100). Boşsa sınavların geçme puanı kullanılır. */
   reportPassingThreshold?: number | null;
   midtermExams?: Array<{ examCode: string; examType: string }>;

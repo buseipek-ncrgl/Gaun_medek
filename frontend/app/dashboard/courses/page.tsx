@@ -27,9 +27,32 @@ import { departmentApi, type Department } from "@/lib/api/departmentApi";
 import { programApi, type Program } from "@/lib/api/programApi";
 import { authApi } from "@/lib/api/authApi";
 
-/** Ders ekleme/düzenleme/silme sadece yönetici ve bölüm başkanında. Öğretmen sadece görüntüleyebilir. */
+/** Ders ekleme: admin, bölüm başkanı ve öğretmen. Öğretmen sadece kendi eklediği dersleri düzenleyip silebilir (CourseCard'da kontrol edilir). */
 function canManageCourses(role: string | undefined): boolean {
-  return role === "super_admin" || role === "department_head";
+  return role === "super_admin" || role === "department_head" || role === "teacher";
+}
+
+/** Stored user'dan kullanıcı id'si (backend _id veya id). */
+function getCurrentUserId(u: { _id?: string; id?: string } | null | undefined): string | null {
+  if (!u) return null;
+  const id = (u as any)._id ?? (u as any).id;
+  return id != null ? String(id) : null;
+}
+
+/** Dersin instructorId'si (string veya { _id }). */
+function getCourseInstructorId(course: Course): string | null {
+  const c = (course as any).instructorId;
+  if (c == null) return null;
+  if (typeof c === "string") return c;
+  if (typeof c === "object" && c._id) return String(c._id);
+  return null;
+}
+
+/** Öğretmenin atanmış ders id'leri (getStoredUser / getMe ile gelen assignedCourseIds). */
+function getTeacherAssignedCourseIds(u: { assignedCourseIds?: string[] | { _id: string }[] } | null | undefined): string[] {
+  const raw = u?.assignedCourseIds;
+  if (!Array.isArray(raw)) return [];
+  return raw.map((c) => (typeof c === "object" && c != null && (c as any)._id ? String((c as any)._id) : String(c))).filter(Boolean);
 }
 
 export default function DashboardCoursesPage() {
@@ -665,26 +688,38 @@ export default function DashboardCoursesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredCourses.map((course) => (
               <div key={course._id} className="relative">
-                {canAdd && (
-                  <div className="absolute top-3 right-3 z-10">
-                    <button
-                      onClick={() => toggleCourseSelection(course._id)}
-                      className="p-1.5 rounded-md bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-brand-navy/20 shadow-md hover:bg-brand-navy/10 transition-all"
-                    >
-                      {selectedCourses.has(course._id) ? (
-                        <CheckSquare className="h-5 w-5 text-brand-navy dark:text-slate-200" />
-                      ) : (
-                        <Square className="h-5 w-5 text-brand-navy/50 dark:text-slate-400" />
+                {(() => {
+                  const uid = getCurrentUserId(user ?? null);
+                  const cid = getCourseInstructorId(course);
+                  const assignedIds = getTeacherAssignedCourseIds(user ?? null);
+                  const isInstructor = user?.role === "teacher" && !!uid && !!cid && uid === cid;
+                  const isAssignedByAdmin = user?.role === "teacher" && assignedIds.includes(course._id);
+                  const canEditThis = canAdd && (user?.role !== "teacher" || isInstructor || isAssignedByAdmin);
+                  return (
+                    <>
+                      {canEditThis && (
+                        <div className="absolute top-3 right-3 z-10">
+                          <button
+                            onClick={() => toggleCourseSelection(course._id)}
+                            className="p-1.5 rounded-md bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-brand-navy/20 shadow-md hover:bg-brand-navy/10 transition-all"
+                          >
+                            {selectedCourses.has(course._id) ? (
+                              <CheckSquare className="h-5 w-5 text-brand-navy dark:text-slate-200" />
+                            ) : (
+                              <Square className="h-5 w-5 text-brand-navy/50 dark:text-slate-400" />
+                            )}
+                          </button>
+                        </div>
                       )}
-                    </button>
-                  </div>
-                )}
-                <CourseCard
-                  course={course}
-                  onDelete={handleDeleteClick}
-                  canEdit={canAdd}
-                  canDelete={canAdd}
-                />
+                      <CourseCard
+                        course={course}
+                        onDelete={handleDeleteClick}
+                        canEdit={canEditThis}
+                        canDelete={canEditThis}
+                      />
+                    </>
+                  );
+                })()}
               </div>
             ))}
           </div>
