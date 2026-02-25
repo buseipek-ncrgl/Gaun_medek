@@ -38,9 +38,15 @@ const ExamSchema = new mongoose.Schema(
           type: Number,
           required: true,
         },
+        /** Tek ÖÇ (eski format, geriye dönük uyumluluk) */
         learningOutcomeCode: {
           type: String,
           default: "",
+        },
+        /** Birden fazla ÖÇ (her soru için). Hesaplamalarda bu kullanılır; yoksa learningOutcomeCode kullanılır. */
+        learningOutcomeCodes: {
+          type: [String],
+          default: undefined,
         },
       },
     ],

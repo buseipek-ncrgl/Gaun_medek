@@ -28,6 +28,29 @@ import {
 } from "../utils/assessmentCalculator.js";
 import { getCourseFilterForUser } from "../middleware/authMiddleware.js";
 
+/** Soru için ÖÇ kodları (tek veya çoklu; geriye dönük uyumlu). */
+function getQuestionLOCodes(q) {
+  if (!q) return [];
+  const codes = q.learningOutcomeCodes;
+  if (Array.isArray(codes) && codes.length > 0) {
+    return codes.filter((c) => c != null && String(c).trim() !== "");
+  }
+  const single = q.learningOutcomeCode;
+  if (single != null && String(single).trim() !== "") return [String(single).trim()];
+  return [];
+}
+
+/** İstekten gelen soru satırını Exam'de saklanacak formata çevirir (learningOutcomeCodes array). */
+function normalizeQuestionRow(row) {
+  const questionNumber = row.questionNumber;
+  const codes = Array.isArray(row.learningOutcomeCodes) && row.learningOutcomeCodes.length > 0
+    ? row.learningOutcomeCodes.filter((c) => c != null && String(c).trim() !== "")
+    : (row.learningOutcomeCode != null && String(row.learningOutcomeCode).trim() !== ""
+      ? [String(row.learningOutcomeCode).trim()]
+      : []);
+  return { questionNumber, learningOutcomeCode: codes[0] || "", learningOutcomeCodes: codes };
+}
+
 // Helper: derive PO contributions from Exam → ÖÇ mapping
 const derivePCFromExam = (exam, course) => {
   const poMap = new Map();
@@ -36,12 +59,15 @@ const derivePCFromExam = (exam, course) => {
   );
 
   (exam.questions || []).forEach((q) => {
-    const relatedPOs = loMap.get(q.learningOutcomeCode) || [];
-    relatedPOs.forEach((poCode) => {
-      if (!poMap.has(poCode)) {
-        poMap.set(poCode, { code: poCode, fromQuestions: new Set() });
-      }
-      poMap.get(poCode).fromQuestions.add(q.questionNumber);
+    const loCodes = getQuestionLOCodes(q);
+    loCodes.forEach((loCode) => {
+      const relatedPOs = loMap.get(loCode) || [];
+      relatedPOs.forEach((poCode) => {
+        if (!poMap.has(poCode)) {
+          poMap.set(poCode, { code: poCode, fromQuestions: new Set() });
+        }
+        poMap.get(poCode).fromQuestions.add(q.questionNumber);
+      });
     });
   });
 
@@ -244,22 +270,22 @@ const createExam = async (req, res) => {
     // Use questions from request if provided, otherwise create from learning outcomes
     let examQuestions = [];
     if (questions && Array.isArray(questions) && questions.length > 0) {
-      // Use questions from frontend (question-based LO mapping)
-      examQuestions = questions;
+      examQuestions = questions.map(normalizeQuestionRow);
     } else if (questionCount > 0 && normalizedLOs && normalizedLOs.length > 0) {
-      // Create questions array from learning outcomes (backward compatibility)
       for (let i = 1; i <= questionCount; i++) {
+        const lo = normalizedLOs[(i - 1) % normalizedLOs.length] || "";
         examQuestions.push({
           questionNumber: i,
-          learningOutcomeCode: normalizedLOs[(i - 1) % normalizedLOs.length] || "",
+          learningOutcomeCode: lo,
+          learningOutcomeCodes: lo ? [lo] : [],
         });
       }
     } else if (questionCount > 0) {
-      // Create empty questions if no LOs selected yet
       for (let i = 1; i <= questionCount; i++) {
         examQuestions.push({
           questionNumber: i,
           learningOutcomeCode: "",
+          learningOutcomeCodes: [],
         });
       }
     }
@@ -487,34 +513,33 @@ const updateExam = async (req, res) => {
     // Use questions from request if provided, otherwise keep existing or create from learning outcomes
     let examQuestions = [];
     if (questions !== undefined) {
-      // Questions explicitly provided in request
       if (Array.isArray(questions) && questions.length > 0) {
-        // Use questions from frontend (question-based LO mapping)
-        examQuestions = questions;
+        examQuestions = questions.map(normalizeQuestionRow);
       } else if (questionCount > 0) {
-        // Empty array provided, create empty questions
         for (let i = 1; i <= questionCount; i++) {
           examQuestions.push({
             questionNumber: i,
             learningOutcomeCode: "",
+            learningOutcomeCodes: [],
           });
         }
       }
     } else if (normalizedLOs !== undefined && questionCount > 0) {
-      // No questions in request, but learningOutcomes provided - create from LOs
       if (normalizedLOs && normalizedLOs.length > 0) {
         for (let i = 1; i <= questionCount; i++) {
+          const lo = normalizedLOs[(i - 1) % normalizedLOs.length] || "";
           examQuestions.push({
             questionNumber: i,
-            learningOutcomeCode: normalizedLOs[(i - 1) % normalizedLOs.length] || "",
+            learningOutcomeCode: lo,
+            learningOutcomeCodes: lo ? [lo] : [],
           });
         }
       } else if (questionCount > 0) {
-        // Create empty questions if no LOs selected
         for (let i = 1; i <= questionCount; i++) {
           examQuestions.push({
             questionNumber: i,
             learningOutcomeCode: "",
+            learningOutcomeCodes: [],
           });
         }
       }
@@ -712,9 +737,7 @@ const startBatchScore = async (req, res) => {
             const examQuestions = exam.questions || [];
             const mappedLOCodes = new Set();
             examQuestions.forEach((q) => {
-              if (q.learningOutcomeCode && q.learningOutcomeCode.trim() !== "") {
-                mappedLOCodes.add(q.learningOutcomeCode);
-              }
+              getQuestionLOCodes(q).forEach((code) => mappedLOCodes.add(code));
             });
             
             // Eğer sınavda ÖÇ eşlemesi varsa sadece onları kullan, yoksa tüm ÖÇ'leri kullan
@@ -1060,9 +1083,7 @@ const submitExamScores = async (req, res) => {
       const examQuestions = exam.questions || [];
       const mappedLOCodes = new Set();
       examQuestions.forEach((q) => {
-        if (q.learningOutcomeCode && q.learningOutcomeCode.trim() !== "") {
-          mappedLOCodes.add(q.learningOutcomeCode);
-        }
+        getQuestionLOCodes(q).forEach((code) => mappedLOCodes.add(code));
       });
       const relevantLOs = mappedLOCodes.size > 0
         ? course.learningOutcomes.filter((lo) => mappedLOCodes.has(lo.code))
@@ -1228,9 +1249,7 @@ const createOrUpdateStudentExamResult = async (req, res) => {
       const examQuestions = exam.questions || [];
       const mappedLOCodes = new Set();
       examQuestions.forEach((q) => {
-        if (q.learningOutcomeCode && q.learningOutcomeCode.trim() !== "") {
-          mappedLOCodes.add(q.learningOutcomeCode);
-        }
+        getQuestionLOCodes(q).forEach((code) => mappedLOCodes.add(code));
       });
       const relevantLOs = mappedLOCodes.size > 0
         ? course.learningOutcomes.filter((lo) => mappedLOCodes.has(lo.code))
@@ -1337,9 +1356,7 @@ const uploadScoresFromList = async (req, res) => {
         const examQuestions = exam.questions || [];
         const mappedLOCodes = new Set();
         examQuestions.forEach((q) => {
-          if (q.learningOutcomeCode && q.learningOutcomeCode.trim() !== "") {
-            mappedLOCodes.add(q.learningOutcomeCode);
-          }
+          getQuestionLOCodes(q).forEach((code) => mappedLOCodes.add(code));
         });
         const relevantLOs = mappedLOCodes.size > 0
           ? course.learningOutcomes.filter((lo) => mappedLOCodes.has(lo.code))

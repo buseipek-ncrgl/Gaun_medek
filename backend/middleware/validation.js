@@ -123,6 +123,7 @@ export const examSchemas = {
         Joi.object({
           questionNumber: Joi.number().integer().min(1),
           learningOutcomeCode: Joi.string().allow('').optional(),
+          learningOutcomeCodes: Joi.array().items(Joi.string().trim()).min(0).optional(),
         })
       )
       .optional(),

@@ -82,19 +82,20 @@ export default function ExamDetailPage() {
     }));
   }, [exam, questionCount, mappedLOs]);
 
-  // Calculate mapped and unmapped questions
+  const getQuestionLOCodes = (q: any): string[] => {
+    const codes = q.learningOutcomeCodes;
+    if (Array.isArray(codes) && codes.length > 0) return codes.filter((c: string) => c?.trim());
+    const single = q.learningOutcomeCode;
+    if (single != null && String(single).trim() !== "") return [String(single).trim()];
+    return [];
+  };
+
   const mappedQuestions = useMemo(() => {
-    return questions.filter((q: any) => {
-      const loCode = q.learningOutcomeCode || "";
-      return loCode.trim() !== "";
-    });
+    return questions.filter((q: any) => getQuestionLOCodes(q).length > 0);
   }, [questions]);
 
   const unmappedQuestions = useMemo(() => {
-    return questions.filter((q: any) => {
-      const loCode = q.learningOutcomeCode || "";
-      return loCode.trim() === "";
-    });
+    return questions.filter((q: any) => getQuestionLOCodes(q).length === 0);
   }, [questions]);
 
   const mappingPercentage = useMemo(() => {
@@ -464,7 +465,8 @@ export default function ExamDetailPage() {
                         .slice()
                         .sort((a: any, b: any) => (a.questionNumber || 0) - (b.questionNumber || 0))
                         .map((q: any) => {
-                          const hasMapping = q.learningOutcomeCode && q.learningOutcomeCode.trim() !== "";
+                          const loCodes = getQuestionLOCodes(q);
+                          const hasMapping = loCodes.length > 0;
                           return (
                             <div
                               key={q.questionNumber}
@@ -484,16 +486,19 @@ export default function ExamDetailPage() {
                                     Soru {q.questionNumber}
                                   </Badge>
                                   <div className="flex flex-col gap-1">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
                                       <span className="text-sm text-slate-600 dark:text-slate-400">ÖÇ:</span>
                                       {hasMapping ? (
-                                        <Badge 
-                                          variant="outline" 
-                                          className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-500/30"
-                                        >
-                                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                                          {q.learningOutcomeCode}
-                                        </Badge>
+                                        loCodes.map((code) => (
+                                          <Badge 
+                                            key={code}
+                                            variant="outline" 
+                                            className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-500/30"
+                                          >
+                                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                                            {code}
+                                          </Badge>
+                                        ))
                                       ) : (
                                         <Badge 
                                           variant="outline" 
@@ -504,10 +509,12 @@ export default function ExamDetailPage() {
                                         </Badge>
                                       )}
                                     </div>
-                                    {hasMapping && loDescriptionByCode[q.learningOutcomeCode] && (
-                                      <p className="text-xs text-slate-600 dark:text-slate-400 break-words w-full">
-                                        {loDescriptionByCode[q.learningOutcomeCode]}
-                                      </p>
+                                    {hasMapping && loCodes.some((code) => loDescriptionByCode[code]) && (
+                                      <div className="text-xs text-slate-600 dark:text-slate-400 break-words w-full space-y-1">
+                                        {loCodes.filter((code) => loDescriptionByCode[code]).map((code) => (
+                                          <p key={code}><strong>{code}:</strong> {loDescriptionByCode[code]}</p>
+                                        ))}
+                                      </div>
                                     )}
                                   </div>
                                 </div>

@@ -5,14 +5,14 @@ export interface Exam {
   courseId: string | { _id: string; name: string; code: string; learningOutcomes?: Array<{ code: string; description: string }> };
   examType: "midterm" | "final";
   examCode: string;
-  maxScore: number; // Maksimum toplam puan (soru bazlı değil)
-  learningOutcomes?: string[]; // Sınav bazlı ÖÇ eşleme (ÖÇ kodları array'i)
-  questionCount?: number; // Soru sayısı (course'dan alınır)
-  questions?: Array<{ // Soru bazlı ÖÇ eşleme
+  maxScore: number;
+  learningOutcomes?: string[];
+  questionCount?: number;
+  questions?: Array<{
     questionNumber: number;
-    learningOutcomeCode: string;
+    learningOutcomeCode?: string;
+    learningOutcomeCodes?: string[];
   }>;
-  /** Geçme notu (0-100). Bu puan ve üzeri alan öğrenci tüm ÖÇ/PÇ'den geçer. */
   passingScore?: number;
   createdAt?: string;
   updatedAt?: string;
@@ -87,9 +87,9 @@ export interface CreateExamDto {
   examCode: string;
   maxScore: number; // Maksimum toplam puan
   learningOutcomes?: string[]; // Sınav bazlı ÖÇ eşleme (ÖÇ kodları array'i)
-  questions?: Array<{ // Soru bazlı ÖÇ eşleme
+  questions?: Array<{
     questionNumber: number;
-    learningOutcomeCode: string;
+    learningOutcomeCodes: string[];
   }>;
   /** Geçme notu (0-100). Örn. 40 yazılırsa 40 ve üzeri geçer. */
   passingScore?: number;
@@ -100,9 +100,9 @@ export interface UpdateExamDto {
   examCode?: string;
   maxScore?: number; // Maksimum toplam puan
   learningOutcomes?: string[]; // Sınav bazlı ÖÇ eşleme (ÖÇ kodları array'i)
-  questions?: Array<{ // Soru bazlı ÖÇ eşleme
+  questions?: Array<{
     questionNumber: number;
-    learningOutcomeCode: string;
+    learningOutcomeCodes: string[];
   }>;
   /** Geçme notu (0-100). */
   passingScore?: number;

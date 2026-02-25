@@ -9,6 +9,9 @@ import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronDown, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   examApi,
   type Exam,
@@ -27,7 +30,10 @@ interface ExamFormProps {
 
 type QuestionRow = {
   questionNumber: number;
-  learningOutcomeCode: string;
+  /** Tek ÖÇ (eski format, geriye dönük uyumluluk) */
+  learningOutcomeCode?: string;
+  /** Birden fazla ÖÇ (her soru için). Gönderimde bunu kullanıyoruz. */
+  learningOutcomeCodes: string[];
 };
 
 export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps) {
@@ -61,10 +67,26 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
   const [existingExams, setExistingExams] = useState<Exam[]>([]);
   const [examCodeError, setExamCodeError] = useState("");
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
+  const dropdownRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   useEffect(() => {
     fetchCourses();
   }, []);
+
+  // Açılır liste dışına tıklanınca kapat
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (openDropdownIndex === null) return;
+      const container = dropdownRefs.current[openDropdownIndex];
+      if (container && !container.contains(target)) {
+        setOpenDropdownIndex(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openDropdownIndex]);
 
   // Düzenleme modunda initialData'dan course bilgisini al ve courses array'ine ekle
   useEffect(() => {
@@ -286,53 +308,41 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
         // In edit mode, try to load existing questions from initialData first
         // If initialData questions changed (after update), use them
         if (mode === "edit" && initialData?.questions && Array.isArray(initialData.questions) && initialData.questions.length > 0) {
-          // Use questions from exam if available
           const examQuestions = initialData.questions;
-          // Ensure questions array matches questionCount
+          const toRow = (q: { questionNumber: number; learningOutcomeCode?: string; learningOutcomeCodes?: string[] }) => {
+            const codes = Array.isArray((q as any).learningOutcomeCodes) && (q as any).learningOutcomeCodes.length > 0
+              ? (q as any).learningOutcomeCodes
+              : ((q as any).learningOutcomeCode ? [(q as any).learningOutcomeCode] : []);
+            return { questionNumber: q.questionNumber, learningOutcomeCodes: codes };
+          };
           if (examQuestions.length === questionCount) {
-            console.log("📝 Using questions from exam:", examQuestions);
-            setQuestions(examQuestions);
-            prevLearningOutcomesRef.current = initialData.learningOutcomes;
-            prevQuestionsRef.current = examQuestions;
-            prevQuestionsLengthRef.current = questionCount;
+            setQuestions(examQuestions.map(toRow));
+            prevQuestionsRef.current = examQuestions.map(toRow);
           } else {
-            // Adjust questions array to match questionCount
             const adjustedQuestions = Array.from({ length: questionCount }, (_, i) => {
-              const existingQuestion = examQuestions.find(q => q.questionNumber === i + 1);
-              return existingQuestion || {
-                questionNumber: i + 1,
-                learningOutcomeCode: "",
-              };
+              const existing = examQuestions.find(q => q.questionNumber === i + 1);
+              return existing ? toRow(existing) : { questionNumber: i + 1, learningOutcomeCodes: [] as string[] };
             });
-            console.log("📝 Adjusted questions from exam:", adjustedQuestions);
             setQuestions(adjustedQuestions);
-            prevLearningOutcomesRef.current = initialData.learningOutcomes;
             prevQuestionsRef.current = adjustedQuestions;
-            prevQuestionsLengthRef.current = questionCount;
           }
+          prevLearningOutcomesRef.current = initialData.learningOutcomes;
+          prevQuestionsLengthRef.current = questionCount;
         } else if (initialLOs && initialLOs.length > 0) {
-          // Map existing learning outcomes to questions
-          // Backend'de learningOutcomes array'i unique LO kodlarını içeriyor
-          // Her soruya bir LO eşlemesi yapmak için LO'ları sorulara dağıtıyoruz
-          // Eğer soru sayısı LO sayısından fazlaysa, LO'ları tekrar kullanıyoruz
           const newQuestions = Array.from({ length: questionCount }, (_, i) => ({
             questionNumber: i + 1,
-            learningOutcomeCode: initialLOs[i % initialLOs.length] || "",
+            learningOutcomeCodes: [initialLOs[i % initialLOs.length] || ""].filter(Boolean),
           }));
-          console.log("📝 Setting questions with existing LOs:", newQuestions);
           setQuestions(newQuestions);
           prevLearningOutcomesRef.current = initialLOs;
           prevQuestionsRef.current = newQuestions;
           prevQuestionsLengthRef.current = questionCount;
         } else {
-          // Create mode or no existing learning outcomes - start with empty
-          // Only initialize if questions array is empty or length doesn't match
           if (prevQuestionsLengthRef.current === 0 || prevQuestionsLengthRef.current !== questionCount) {
             const newQuestions = Array.from({ length: questionCount }, (_, i) => ({
               questionNumber: i + 1,
-              learningOutcomeCode: "",
+              learningOutcomeCodes: [] as string[],
             }));
-            console.log("📝 Setting questions (empty):", newQuestions);
             setQuestions(newQuestions);
             prevQuestionsRef.current = newQuestions;
             prevQuestionsLengthRef.current = questionCount;
@@ -343,12 +353,16 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
       // Don't clear questions if questionCount is 0 - keep existing questions
       // This prevents losing mappings when course data is loading or missing
       if (mode === "edit" && initialData?.questions && Array.isArray(initialData.questions) && initialData.questions.length > 0) {
-        // Keep existing questions from exam
-        console.log("⚠️ Question count is 0, but keeping existing questions from exam:", initialData.questions.length);
         if (prevQuestionsLengthRef.current !== initialData.questions.length) {
-          setQuestions(initialData.questions);
+          const toRow = (q: any) => ({
+            questionNumber: q.questionNumber,
+            learningOutcomeCodes: Array.isArray(q.learningOutcomeCodes) && q.learningOutcomeCodes.length > 0
+              ? q.learningOutcomeCodes
+              : (q.learningOutcomeCode ? [q.learningOutcomeCode] : []),
+          });
+          setQuestions(initialData.questions.map(toRow));
           prevQuestionsLengthRef.current = initialData.questions.length;
-          prevQuestionsRef.current = initialData.questions;
+          prevQuestionsRef.current = initialData.questions.map(toRow);
         }
       } else if (prevQuestionsLengthRef.current > 0 && questions.length > 0) {
         // Keep current questions if they exist
@@ -367,16 +381,16 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
     // They will be initialized once course is loaded
   }, [questionCount, mode, initialData?.learningOutcomes, selectedCourse, courseId, examType]);
 
-  const handleQuestionLoChange = (index: number, loCode: string) => {
+  const handleQuestionLoToggle = (index: number, loCode: string) => {
     setQuestions((prev) =>
-      prev.map((q, idx) =>
-        idx === index
-          ? {
-              ...q,
-              learningOutcomeCode: loCode,
-            }
-          : q
-      )
+      prev.map((q, idx) => {
+        if (idx !== index) return q;
+        const codes = q.learningOutcomeCodes || [];
+        const next = codes.includes(loCode)
+          ? codes.filter((c) => c !== loCode)
+          : [...codes, loCode];
+        return { ...q, learningOutcomeCodes: next };
+      })
     );
   };
 
@@ -393,10 +407,9 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
       toast.error(examCodeError);
       return false;
     }
-    // Maksimum puan her zaman 100, validasyon gerekmez
     for (const q of questions) {
-      if (!q.learningOutcomeCode) {
-        toast.error(`Soru ${q.questionNumber} için ÖÇ seçmelisiniz`);
+      if (!q.learningOutcomeCodes?.length) {
+        toast.error(`Soru ${q.questionNumber} için en az bir ÖÇ seçmelisiniz`);
         return false;
       }
     }
@@ -412,13 +425,7 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
     if (!validateForm()) return;
     setIsSubmitting(true);
     try {
-      // Collect learning outcome codes from questions (preserve order, allow duplicates)
-      // Each question maps to one LO, so we collect all LO codes from questions
-      const selectedLOs = questions
-        .map((q) => q.learningOutcomeCode)
-        .filter((code): code is string => Boolean(code));
-      
-      // Also get unique LOs for the learningOutcomes array (for backward compatibility)
+      const selectedLOs = questions.flatMap((q) => q.learningOutcomeCodes || []);
       const uniqueLOs = Array.from(new Set(selectedLOs));
 
       const payload: CreateExamDto | UpdateExamDto = {
@@ -430,12 +437,15 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
         passingScore: passingScore >= 0 && passingScore <= 100 ? passingScore : 60,
       };
 
-      // Only include questions in update if in edit mode (always include in create)
       if (mode === "create") {
-        (payload as CreateExamDto).questions = questions.length > 0 ? questions : undefined;
+        (payload as CreateExamDto).questions = questions.length > 0
+          ? questions.map((q) => ({ questionNumber: q.questionNumber, learningOutcomeCodes: q.learningOutcomeCodes || [] }))
+          : undefined;
       } else if (mode === "edit") {
-        // In edit mode, always send questions to ensure they're saved
-        (payload as UpdateExamDto).questions = questions;
+        (payload as UpdateExamDto).questions = questions.map((q) => ({
+          questionNumber: q.questionNumber,
+          learningOutcomeCodes: q.learningOutcomeCodes || [],
+        }));
       }
 
       if (mode === "create") {
@@ -611,49 +621,123 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
                 : "Soru sayısı girildiğinde satırlar oluşacak."}
             </p>
           )}
-          {questions.map((q, idx) => (
-            <div
-              key={q.questionNumber}
-              className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 min-w-0"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400">
-                  Soru {q.questionNumber}
-                </span>
-                {!q.learningOutcomeCode && (
-                  <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                    ÖÇ seçilmedi
-                  </Badge>
-                )}
+          {questions.map((q, idx) => {
+            const selectedCodes = q.learningOutcomeCodes || [];
+            const hasSelection = selectedCodes.length > 0;
+            return (
+              <div
+                key={q.questionNumber}
+                className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 min-w-0"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400">
+                    Soru {q.questionNumber}
+                  </span>
+                  {!hasSelection && (
+                    <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                      ÖÇ seçilmedi
+                    </Badge>
+                  )}
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs sm:text-sm">Öğrenme Çıktıları (ÖÇ) <span className="text-red-500">*</span></Label>
+                  {selectedCodes.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 mb-2">
+                      {selectedCodes.map((code) => (
+                        <Badge
+                          key={code}
+                          variant="secondary"
+                          className="text-xs px-2 py-0.5 bg-[#0a294e]/10 text-[#0a294e] dark:bg-[#0a294e]/20 dark:text-slate-200"
+                        >
+                          {code}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleQuestionLoToggle(idx, code);
+                            }}
+                            className="ml-1 hover:text-red-600 rounded"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <div
+                    className="relative min-w-0"
+                    ref={(el) => {
+                      dropdownRefs.current[idx] = el;
+                    }}
+                  >
+                    <button
+                      type="button"
+                      disabled={isSubmitting || learningOutcomeOptions.length === 0 || !courseId}
+                      onClick={() => setOpenDropdownIndex(openDropdownIndex === idx ? null : idx)}
+                      className={cn(
+                        "flex items-center justify-between w-full min-h-[2.75rem] h-auto py-2 px-3 rounded-md border text-left text-sm font-medium transition-colors",
+                        "border-input bg-background hover:bg-accent hover:text-accent-foreground",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                        "disabled:pointer-events-none disabled:opacity-50",
+                        !hasSelection
+                          ? "border-amber-400 bg-amber-50/50 text-amber-800 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-200"
+                          : "border-slate-300 dark:border-slate-600"
+                      )}
+                    >
+                      <span className="truncate">
+                        {hasSelection
+                          ? `${selectedCodes.length} ÖÇ seçildi — tıklayarak ekleyin/çıkarın`
+                          : "ÖÇ seçin (birden fazla seçebilirsiniz)"}
+                      </span>
+                      <ChevronDown
+                        className={cn("h-4 w-4 shrink-0 ml-2 text-slate-600 dark:text-slate-400 transition-transform", openDropdownIndex === idx && "rotate-180")}
+                        aria-hidden
+                      />
+                    </button>
+                    {openDropdownIndex === idx && learningOutcomeOptions.length > 0 && (
+                      <div
+                        className="absolute left-0 right-0 top-full z-50 mt-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg max-h-60 overflow-auto"
+                        role="listbox"
+                      >
+                        {learningOutcomeOptions.map((opt) => {
+                          const isChecked = selectedCodes.includes(opt.code);
+                          return (
+                            <div
+                              key={opt.code}
+                              role="option"
+                              aria-selected={isChecked}
+                              className={cn(
+                                "flex items-center gap-2 p-2 cursor-pointer select-none border-b border-slate-100 dark:border-slate-700 last:border-b-0",
+                                "hover:bg-slate-100 dark:hover:bg-slate-700",
+                                isChecked && "bg-brand-navy/5 dark:bg-brand-navy/10"
+                              )}
+                              onClick={() => handleQuestionLoToggle(idx, opt.code)}
+                            >
+                              <Checkbox
+                                checked={isChecked}
+                                className="pointer-events-none shrink-0"
+                              />
+                              <span className="text-sm font-medium flex-1">{opt.label}</span>
+                              {isChecked && (
+                                <span className="text-xs text-green-600 dark:text-green-400 font-medium">✓</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  {!courseId && (
+                    <p className="text-xs text-amber-600 mt-1">Ders seçilmediği için ÖÇ seçilemiyor</p>
+                  )}
+                  {courseId && learningOutcomeOptions.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">Bu ders için ÖÇ tanımlanmamış</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">Her soru için birden fazla ÖÇ seçebilirsiniz.</p>
+                </div>
               </div>
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs sm:text-sm">Öğrenme Çıktısı (ÖÇ) <span className="text-red-500">*</span></Label>
-                <Select
-                  value={q.learningOutcomeCode}
-                  onChange={(e) => handleQuestionLoChange(idx, e.target.value)}
-                  disabled={isSubmitting || learningOutcomeOptions.length === 0 || !courseId}
-                  className={`h-10 sm:h-11 text-sm w-full ${!q.learningOutcomeCode ? "border-amber-300" : ""}`}
-                >
-                  <option value="">ÖÇ seçin</option>
-                  {learningOutcomeOptions.map((opt) => (
-                    <option key={opt.code} value={opt.code}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </Select>
-                {!courseId && (
-                  <p className="text-xs text-amber-600 mt-1">
-                    Ders seçilmediği için ÖÇ seçilemiyor
-                  </p>
-                )}
-                {courseId && learningOutcomeOptions.length === 0 && (
-                  <p className="text-xs text-amber-600 mt-1">
-                    Bu ders için ÖÇ tanımlanmamış
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </CardContent>
       </Card>
 
