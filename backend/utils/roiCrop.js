@@ -155,16 +155,17 @@ async function cropROI(warpedImageBuffer, roi) {
  * @returns {Promise<Object>} Cropped image buffer and file path
  */
 async function cropTotalScoreBox(pngBuffer, markers) {
-  // Save temp image helper
-  const saveTempImage = (buffer, filename) => {
-    const tempDir = path.join(process.cwd(), "temp", "exam_crops");
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-    const filePath = path.join(tempDir, filename);
-    fs.writeFileSync(filePath, buffer);
-    return filePath;
-  };
+  // Kırpılan alanları diske kaydetme (şimdilik devre dışı)
+  // const saveTempImage = (buffer, filename) => {
+  //   const tempDir = path.join(process.cwd(), "temp", "exam_crops");
+  //   if (!fs.existsSync(tempDir)) {
+  //     fs.mkdirSync(tempDir, { recursive: true });
+  //   }
+  //   const filePath = path.join(tempDir, filename);
+  //   fs.writeFileSync(filePath, buffer);
+  //   return filePath;
+  // };
+  const saveTempImage = (_buffer, _filename) => null; // kayıt kapalı
 
   // Marker başarıyla bulunmuşsa warp + totalScoreBox
   if (markers?.success) {
@@ -250,7 +251,7 @@ async function cropTotalScoreBox(pngBuffer, markers) {
           .png()
           .toBuffer();
         const filePath = saveTempImage(compositeBuffer, filename);
-        console.log(`✅ Cropped 20 score boxes (template), composite saved: ${filePath}`);
+        console.log(`✅ Cropped 20 score boxes (template)${filePath ? `, composite saved: ${filePath}` : " (kayıt devre dışı)"}`);
         return {
           buffer: buffers[0],
           imagePath: filePath,

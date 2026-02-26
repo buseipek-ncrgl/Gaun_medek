@@ -173,19 +173,19 @@ const derivePCFromExam = (exam, course) => {
   }));
 };
 
-// Yardımcı: temp dosya kaydet
-const saveTempImage = (buffer, filename) => {
-  const tempDir = path.join(process.cwd(), "temp", "exam_crops");
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir, { recursive: true });
-    console.log(`📁 Created temp directory: ${tempDir}`);
-  }
-  const filePath = path.join(tempDir, filename);
-  fs.writeFileSync(filePath, buffer);
-  const fileSize = (buffer.length / 1024).toFixed(2);
-  console.log(`💾 Saved crop image: ${filePath} (${fileSize} KB)`);
-  return filePath;
-};
+// Yardımcı: temp dosya kaydet (şimdilik devre dışı – kırpılan alanlar diske yazılmıyor)
+// const saveTempImage = (buffer, filename) => {
+//   const tempDir = path.join(process.cwd(), "temp", "exam_crops");
+//   if (!fs.existsSync(tempDir)) {
+//     fs.mkdirSync(tempDir, { recursive: true });
+//     console.log(`📁 Created temp directory: ${tempDir}`);
+//   }
+//   const filePath = path.join(tempDir, filename);
+//   fs.writeFileSync(filePath, buffer);
+//   const fileSize = (buffer.length / 1024).toFixed(2);
+//   console.log(`💾 Saved crop image: ${filePath} (${fileSize} KB)`);
+//   return filePath;
+// };
 
 // cropTotalScoreBox artık utils/roiCrop.js'de tanımlı
 

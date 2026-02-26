@@ -16,4 +16,7 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
+      # PDF→PNG: pdf-poppler Render'da çalışmaz; pdftoppm (poppler-utils) kullanılır
+      - key: ENABLE_PDF_POPPLER
+        value: "false"
 
