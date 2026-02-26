@@ -133,11 +133,13 @@ const createCourse = async (req, res) => {
         examCode: midtermExam.examCode,
         questionCount: midtermExam.questionCount,
         maxScorePerQuestion: midtermExam.maxScorePerQuestion,
+        questionMaxScores: Array.isArray(midtermExam.questionMaxScores) ? midtermExam.questionMaxScores : undefined,
       },
       finalExam: {
         examCode: finalExam.examCode,
         questionCount: finalExam.questionCount,
         maxScorePerQuestion: finalExam.maxScorePerQuestion,
+        questionMaxScores: Array.isArray(finalExam.questionMaxScores) ? finalExam.questionMaxScores : undefined,
       },
       reportPassingThreshold: reportPassingThreshold != null && reportPassingThreshold !== "" ? Math.min(100, Math.max(0, Number(reportPassingThreshold))) : null,
       students: students || [],
@@ -286,6 +288,7 @@ const getCourses = async (req, res) => {
               examCode: courseObj.midtermExam.examCode,
               questionCount: courseObj.midtermExam.questionCount,
               maxScorePerQuestion: courseObj.midtermExam.maxScorePerQuestion,
+              questionMaxScores: courseObj.midtermExam.questionMaxScores,
             }
           : null,
         finalExam: courseObj.finalExam
@@ -293,6 +296,7 @@ const getCourses = async (req, res) => {
               examCode: courseObj.finalExam.examCode,
               questionCount: courseObj.finalExam.questionCount,
               maxScorePerQuestion: courseObj.finalExam.maxScorePerQuestion,
+              questionMaxScores: courseObj.finalExam.questionMaxScores,
             }
           : null,
         students: courseObj.students || [],
@@ -470,6 +474,7 @@ const updateCourse = async (req, res) => {
         examCode: midtermExam.examCode,
         questionCount: midtermExam.questionCount,
         maxScorePerQuestion: midtermExam.maxScorePerQuestion,
+        questionMaxScores: Array.isArray(midtermExam.questionMaxScores) ? midtermExam.questionMaxScores : undefined,
       };
       // Update Exam document if exists
       const existingMidterm = await Exam.findOne({ courseId: id, type: "midterm" });
@@ -500,6 +505,7 @@ const updateCourse = async (req, res) => {
         examCode: finalExam.examCode,
         questionCount: finalExam.questionCount,
         maxScorePerQuestion: finalExam.maxScorePerQuestion,
+        questionMaxScores: Array.isArray(finalExam.questionMaxScores) ? finalExam.questionMaxScores : undefined,
       };
       // Update Exam document if exists
       const existingFinal = await Exam.findOne({ courseId: id, type: "final" });

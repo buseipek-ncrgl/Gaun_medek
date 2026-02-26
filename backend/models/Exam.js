@@ -48,6 +48,11 @@ const ExamSchema = new mongoose.Schema(
           type: [String],
           default: undefined,
         },
+        /** Soru başına max puan (örn. 10). Toplam genelde 100 olur. */
+        maxScore: {
+          type: Number,
+          default: 0,
+        },
       },
     ],
     // Geçme notu (0-100). Öğrenci bu puan ve üzeri alırsa sınavdan geçer; tüm ÖÇ/PÇ geçmiş sayılır.

@@ -20,6 +20,7 @@ import { studentApi, type Student } from "@/lib/api/studentApi";
 import { scoreApi, type Score, type LOAchievement, type POAchievement } from "@/lib/api/scoreApi";
 import { examApi } from "@/lib/api/examApi";
 import { courseApi, type Course } from "@/lib/api/courseApi";
+import { studentExamResultApi, type QuestionScoreItem } from "@/lib/api/studentExamResultApi";
 
 function StudentDetailContent() {
   const params = useParams();
@@ -35,6 +36,7 @@ function StudentDetailContent() {
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
   const [loAchievements, setLOAchievements] = useState<LOAchievement[]>([]);
   const [poAchievements, setPOAchievements] = useState<POAchievement[]>([]);
+  const [questionScoresByExamId, setQuestionScoresByExamId] = useState<Record<string, QuestionScoreItem[]>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -65,11 +67,26 @@ function StudentDetailContent() {
       setScores(scoresData);
       setCourses(coursesData);
 
-      // Fetch exam results if student data is available
+      // Fetch exam results and soru bazlı puanlar
       if (studentData?.studentNumber) {
         try {
           const resultsData = await examApi.getExamResultsByStudent(studentData.studentNumber);
           setExamResults(resultsData);
+          const studentNum = studentData.studentNumber;
+          const scoresMap: Record<string, QuestionScoreItem[]> = {};
+          await Promise.all(
+            (resultsData || []).map(async (r: any) => {
+              const eid = typeof r.examId === "object" && r.examId?._id ? r.examId._id : r.examId;
+              if (!eid) return;
+              try {
+                const data = await studentExamResultApi.getQuestionScores(eid, studentNum);
+                if (data.questionScores?.length) scoresMap[eid] = data.questionScores;
+              } catch {
+                // ignore
+              }
+            })
+          );
+          setQuestionScoresByExamId(scoresMap);
         } catch (error) {
           console.error("Failed to load exam results", error);
         }
@@ -593,7 +610,24 @@ function StudentDetailContent() {
                           </div>
                         </div>
                         
-                        {/* Soru bazlı puanlar artık gösterilmiyor - sadece toplam puan var */}
+                        {/* Soru bazlı puanlar (her sorudan kaç puan alındığı) */}
+                        {(() => {
+                          const examIdStr = typeof result.examId === "object" && result.examId?._id ? result.examId._id : result.examId;
+                          const qScores = examIdStr ? questionScoresByExamId[examIdStr] : undefined;
+                          if (!qScores?.length) return null;
+                          return (
+                            <div className="border-t border-brand-navy/10 dark:border-slate-700/50 pt-3 mt-3">
+                              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">Soru bazlı puanlar</p>
+                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                                {qScores.map((q) => (
+                                  <span key={q.questionNumber} className="text-slate-700 dark:text-slate-300">
+                                    Soru {q.questionNumber}: <strong>{Number(q.scoreValue ?? 0).toFixed(1)}</strong> / {q.maxScore}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
                         {result.outcomePerformance && Object.keys(result.outcomePerformance).length > 0 && (
                           <div className="border-t border-brand-navy/10 dark:border-slate-700/50 pt-3">
                             <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">Öğrenme Çıktısı Performansı:</p>

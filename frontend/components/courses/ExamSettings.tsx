@@ -9,6 +9,8 @@ export interface ExamSettings {
   examCode: string;
   questionCount: number;
   maxScorePerQuestion: number;
+  /** Soru bazlı max puan (opsiyonel; length = questionCount). */
+  questionMaxScores?: number[];
 }
 
 interface ExamSettingsProps {
@@ -28,12 +30,42 @@ export function ExamSettingsComponent({
   errors = {},
   disabled = false,
 }: ExamSettingsProps) {
-  const updateMidterm = (field: keyof ExamSettings, value: string | number) => {
+  const updateMidterm = (field: keyof ExamSettings, value: string | number | number[] | undefined) => {
     onMidtermChange({ ...midterm, [field]: value });
   };
 
-  const updateFinal = (field: keyof ExamSettings, value: string | number) => {
+  const updateFinal = (field: keyof ExamSettings, value: string | number | number[] | undefined) => {
     onFinalChange({ ...final, [field]: value });
+  };
+
+  const getMidtermScores = (): number[] => {
+    const n = midterm.questionCount || 0;
+    if (n <= 0) return [];
+    const existing = midterm.questionMaxScores;
+    if (Array.isArray(existing) && existing.length === n) return existing;
+    const defaultVal = midterm.maxScorePerQuestion || (n > 0 ? 100 / n : 0);
+    return Array.from({ length: n }, (_, i) => existing?.[i] ?? defaultVal);
+  };
+
+  const getFinalScores = (): number[] => {
+    const n = final.questionCount || 0;
+    if (n <= 0) return [];
+    const existing = final.questionMaxScores;
+    if (Array.isArray(existing) && existing.length === n) return existing;
+    const defaultVal = final.maxScorePerQuestion || (n > 0 ? 100 / n : 0);
+    return Array.from({ length: n }, (_, i) => existing?.[i] ?? defaultVal);
+  };
+
+  const setMidtermQuestionScore = (index: number, value: number) => {
+    const arr = getMidtermScores();
+    arr[index] = value;
+    updateMidterm("questionMaxScores", [...arr]);
+  };
+
+  const setFinalQuestionScore = (index: number, value: number) => {
+    const arr = getFinalScores();
+    arr[index] = value;
+    updateFinal("questionMaxScores", [...arr]);
   };
 
   return (
@@ -99,7 +131,7 @@ export function ExamSettingsComponent({
 
           <div className="space-y-1.5">
             <Label htmlFor="midterm-max-score" className="text-sm">
-              Soru Başına Maksimum Puan <span className="text-destructive">*</span>
+              Soru Başına Maksimum Puan (varsayılan) <span className="text-destructive">*</span>
             </Label>
             <Input
               id="midterm-max-score"
@@ -124,6 +156,34 @@ export function ExamSettingsComponent({
               <p className="text-xs text-destructive">{errors.midtermMaxScore}</p>
             )}
           </div>
+
+          {midterm.questionCount > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-sm">Her sorunun puanı (isteğe bağlı)</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {getMidtermScores().map((score, i) => (
+                  <div key={i} className="space-y-0.5">
+                    <Label htmlFor={`midterm-q-${i}`} className="text-xs text-muted-foreground">
+                      Soru {i + 1}
+                    </Label>
+                    <Input
+                      id={`midterm-q-${i}`}
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={score || ""}
+                      onChange={(e) =>
+                        setMidtermQuestionScore(i, parseFloat(e.target.value) || 0)
+                      }
+                      placeholder="0"
+                      disabled={disabled}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -186,7 +246,7 @@ export function ExamSettingsComponent({
 
           <div className="space-y-1.5">
             <Label htmlFor="final-max-score" className="text-sm">
-              Soru Başına Maksimum Puan <span className="text-destructive">*</span>
+              Soru Başına Maksimum Puan (varsayılan) <span className="text-destructive">*</span>
             </Label>
             <Input
               id="final-max-score"
@@ -211,6 +271,34 @@ export function ExamSettingsComponent({
               <p className="text-xs text-destructive">{errors.finalMaxScore}</p>
             )}
           </div>
+
+          {final.questionCount > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-sm">Her sorunun puanı (isteğe bağlı)</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {getFinalScores().map((score, i) => (
+                  <div key={i} className="space-y-0.5">
+                    <Label htmlFor={`final-q-${i}`} className="text-xs text-muted-foreground">
+                      Soru {i + 1}
+                    </Label>
+                    <Input
+                      id={`final-q-${i}`}
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={score || ""}
+                      onChange={(e) =>
+                        setFinalQuestionScore(i, parseFloat(e.target.value) || 0)
+                      }
+                      placeholder="0"
+                      disabled={disabled}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

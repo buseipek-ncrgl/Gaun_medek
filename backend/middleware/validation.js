@@ -124,6 +124,7 @@ export const examSchemas = {
           questionNumber: Joi.number().integer().min(1),
           learningOutcomeCode: Joi.string().allow('').optional(),
           learningOutcomeCodes: Joi.array().items(Joi.string().trim()).min(0).optional(),
+          maxScore: Joi.number().min(0).max(100).optional(),
         })
       )
       .optional(),
@@ -146,8 +147,11 @@ export const studentExamResultSchemas = {
     studentNumber: commonSchemas.studentNumber,
     examId: commonSchemas.objectId,
     courseId: commonSchemas.objectId,
-    totalScore: commonSchemas.totalScore,
-    percentage: commonSchemas.percentage,
+    totalScore: Joi.number().min(0).optional(),
+    percentage: Joi.number().min(0).max(100).optional(),
+    questionScores: Joi.array()
+      .items(Joi.object({ questionNumber: Joi.number().integer().min(1), score: Joi.number().min(0) }))
+      .optional(),
   }),
 };
 

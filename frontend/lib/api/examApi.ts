@@ -12,6 +12,7 @@ export interface Exam {
     questionNumber: number;
     learningOutcomeCode?: string;
     learningOutcomeCodes?: string[];
+    maxScore?: number;
   }>;
   passingScore?: number;
   createdAt?: string;
@@ -69,6 +70,10 @@ export interface BatchStatusItem {
   studentNumber: string | null;
   status: "success" | "failed";
   message?: string;
+  /** Hesaplanan toplam puan (başarılı işlemde) */
+  totalScore?: number | null;
+  /** Soru bazlı puanlar [s1, s2, ...] (başarılı işlemde, 20 kutu varsa) */
+  questionScores?: number[];
 }
 
 export interface BatchStatusResponse {
@@ -90,6 +95,7 @@ export interface CreateExamDto {
   questions?: Array<{
     questionNumber: number;
     learningOutcomeCodes: string[];
+    maxScore?: number;
   }>;
   /** Geçme notu (0-100). Örn. 40 yazılırsa 40 ve üzeri geçer. */
   passingScore?: number;
@@ -103,6 +109,7 @@ export interface UpdateExamDto {
   questions?: Array<{
     questionNumber: number;
     learningOutcomeCodes: string[];
+    maxScore?: number;
   }>;
   /** Geçme notu (0-100). */
   passingScore?: number;

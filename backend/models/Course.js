@@ -28,12 +28,16 @@ const CourseSchema = new mongoose.Schema(
       examCode: String,
       questionCount: Number,
       maxScorePerQuestion: Number,
+      /** Soru bazlı max puan (opsiyonel; length = questionCount). */
+      questionMaxScores: [Number],
     },
 
     finalExam: {
       examCode: String,
       questionCount: Number,
       maxScorePerQuestion: Number,
+      /** Soru bazlı max puan (opsiyonel; length = questionCount). */
+      questionMaxScores: [Number],
     },
 
     /** Raporlarda kullanılacak geçme yüzdesi (0-100). Boşsa sınavların geçme puanlarının en düşüğü kullanılır. */

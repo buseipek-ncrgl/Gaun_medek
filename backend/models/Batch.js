@@ -14,6 +14,10 @@ const BatchStatusItemSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+  /** Başarılı işlemde hesaplanan toplam puan (gösterim için). */
+  totalScore: { type: Number, default: null },
+  /** Soru bazlı puanlar [s1, s2, ...] (gösterim için). */
+  questionScores: { type: [Number], default: undefined },
 }, { _id: false });
 
 const BatchSchema = new mongoose.Schema(

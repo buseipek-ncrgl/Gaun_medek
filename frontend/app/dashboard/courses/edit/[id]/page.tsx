@@ -175,6 +175,7 @@ export default function EditCoursePage() {
           examCode: (course as any).midtermExam.examCode || "",
           questionCount: (course as any).midtermExam.questionCount || 0,
           maxScorePerQuestion: (course as any).midtermExam.maxScorePerQuestion || 0,
+          questionMaxScores: (course as any).midtermExam.questionMaxScores,
         });
       }
       if ((course as any).finalExam) {
@@ -182,6 +183,7 @@ export default function EditCoursePage() {
           examCode: (course as any).finalExam.examCode || "",
           questionCount: (course as any).finalExam.questionCount || 0,
           maxScorePerQuestion: (course as any).finalExam.maxScorePerQuestion || 0,
+          questionMaxScores: (course as any).finalExam.questionMaxScores,
         });
       }
       const rpt = (course as any).reportPassingThreshold;
@@ -319,11 +321,25 @@ export default function EditCoursePage() {
           examCode: midtermExam.examCode.trim(),
           questionCount: midtermExam.questionCount,
           maxScorePerQuestion: midtermExam.maxScorePerQuestion,
+          questionMaxScores:
+            Array.isArray(midtermExam.questionMaxScores) && midtermExam.questionMaxScores.length === midtermExam.questionCount
+              ? midtermExam.questionMaxScores
+              : Array.from(
+                  { length: midtermExam.questionCount },
+                  () => midtermExam.maxScorePerQuestion || 0
+                ),
         },
         finalExam: {
           examCode: finalExam.examCode.trim(),
           questionCount: finalExam.questionCount,
           maxScorePerQuestion: finalExam.maxScorePerQuestion,
+          questionMaxScores:
+            Array.isArray(finalExam.questionMaxScores) && finalExam.questionMaxScores.length === finalExam.questionCount
+              ? finalExam.questionMaxScores
+              : Array.from(
+                  { length: finalExam.questionCount },
+                  () => finalExam.maxScorePerQuestion || 0
+                ),
         },
         reportPassingThreshold: reportPassingThreshold === "" ? null : Math.min(100, Math.max(0, Number(reportPassingThreshold))),
         students: students.map((s) => ({

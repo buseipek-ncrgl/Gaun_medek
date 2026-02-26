@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { examApi, type ExamAnalysisResponse, type Exam } from "@/lib/api/examApi";
 import { courseApi, type Course } from "@/lib/api/courseApi";
-import { studentExamResultApi } from "@/lib/api/studentExamResultApi";
+import { studentExamResultApi, type QuestionScoreItem } from "@/lib/api/studentExamResultApi";
 import { Bar, BarChart, CartesianGrid, Legend, Radar, RadarChart, PolarGrid, PolarAngleAxis, Tooltip, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { Download, Loader2, ArrowLeft, FileText, Users, TrendingUp, Target, GraduationCap, Search, Filter, X, CheckCircle2, AlertCircle, BarChart3, FileSpreadsheet, Upload, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -53,6 +53,8 @@ export default function ExamResultsPage() {
   const obsFileInputRef = useRef<HTMLInputElement>(null);
   const [editingResult, setEditingResult] = useState<StudentResult | null>(null);
   const [editScore, setEditScore] = useState("");
+  const [questionScores, setQuestionScores] = useState<QuestionScoreItem[]>([]);
+  const [loadingQuestionScores, setLoadingQuestionScores] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
@@ -309,33 +311,91 @@ export default function ExamResultsPage() {
     }
   };
 
-  const handleOpenEdit = (result: StudentResult) => {
+  const handleOpenEdit = async (result: StudentResult) => {
     setEditingResult(result);
     setEditScore(String(result.totalScore ?? 0));
+    setQuestionScores([]);
+    setLoadingQuestionScores(true);
+    try {
+      const data = await studentExamResultApi.getQuestionScores(examId, result.studentNumber);
+      if (data.questionScores && data.questionScores.length > 0) {
+        setQuestionScores(data.questionScores);
+      } else if (exam?.questions?.length) {
+        // API boş dönse bile sınavda soru tanımı varsa soru bazlı puan alanlarını göster
+        const fallback = exam.questions.map((q: { questionNumber: number; maxScore?: number }) => ({
+          questionNumber: q.questionNumber,
+          maxScore: typeof q.maxScore === "number" && q.maxScore >= 0 ? q.maxScore : Math.round(100 / exam.questions.length),
+          scoreValue: 0,
+        }));
+        setQuestionScores(fallback);
+      }
+    } catch {
+      // API hata verirse sınav sorularından liste oluştur
+      if (exam?.questions?.length) {
+        const fallback = exam.questions.map((q: { questionNumber: number; maxScore?: number }) => ({
+          questionNumber: q.questionNumber,
+          maxScore: typeof q.maxScore === "number" && q.maxScore >= 0 ? q.maxScore : Math.round(100 / exam.questions.length),
+          scoreValue: 0,
+        }));
+        setQuestionScores(fallback);
+      }
+    } finally {
+      setLoadingQuestionScores(false);
+    }
   };
+
+  const handleQuestionScoreChange = (questionNumber: number, value: number) => {
+    setQuestionScores((prev) =>
+      prev.map((q) =>
+        q.questionNumber === questionNumber
+          ? { ...q, scoreValue: Math.max(0, value) }
+          : q
+      )
+    );
+  };
+
+  const computedTotalFromQuestions = questionScores.reduce((s, q) => s + (q.scoreValue ?? 0), 0);
+  const computedMaxFromQuestions = questionScores.reduce((s, q) => s + (q.maxScore ?? 0), 0) || 100;
+  const computedPercentageFromQuestions = computedMaxFromQuestions > 0
+    ? Math.round((computedTotalFromQuestions / computedMaxFromQuestions) * 10000) / 100
+    : 0;
 
   const handleSaveEdit = async () => {
     if (!editingResult || !exam || !course) return;
-    const scoreNum = Math.min(100, Math.max(0, Number(editScore)));
-    if (Number.isNaN(scoreNum)) {
-      toast.error("Geçerli bir puan girin (0-100)");
-      return;
-    }
     const courseId = typeof course._id === "string" ? course._id : course._id;
     setSavingEdit(true);
     try {
-      await studentExamResultApi.createOrUpdate({
-        studentNumber: editingResult.studentNumber,
-        examId,
-        courseId,
-        totalScore: scoreNum,
-        maxScore: 100,
-        percentage: scoreNum,
-        outcomePerformance: {},
-        programOutcomePerformance: {},
-      });
+      if (questionScores.length > 0) {
+        await studentExamResultApi.createOrUpdate({
+          studentNumber: editingResult.studentNumber,
+          examId,
+          courseId,
+          questionScores: questionScores.map((q) => ({
+            questionNumber: q.questionNumber,
+            score: Number(q.scoreValue) ?? 0,
+          })),
+        });
+      } else {
+        const scoreNum = Math.min(100, Math.max(0, Number(editScore)));
+        if (Number.isNaN(scoreNum)) {
+          toast.error("Geçerli bir puan girin (0-100)");
+          setSavingEdit(false);
+          return;
+        }
+        await studentExamResultApi.createOrUpdate({
+          studentNumber: editingResult.studentNumber,
+          examId,
+          courseId,
+          totalScore: scoreNum,
+          maxScore: 100,
+          percentage: scoreNum,
+          outcomePerformance: {},
+          programOutcomePerformance: {},
+        });
+      }
       toast.success("Puan güncellendi");
       setEditingResult(null);
+      setQuestionScores([]);
       await loadResults();
       await load();
     } catch (err: any) {
@@ -1064,31 +1124,71 @@ export default function ExamResultsPage() {
 
         {/* Puan düzenleme dialog */}
         <Dialog open={!!editingResult} onOpenChange={(open) => !open && setEditingResult(null)}>
-          <DialogContent className="w-[95vw] sm:max-w-md relative" onClose={() => setEditingResult(null)}>
+          <DialogContent className="w-[95vw] sm:max-w-lg relative max-h-[90vh] overflow-hidden flex flex-col" onClose={() => setEditingResult(null)}>
             <DialogHeader>
               <DialogTitle>Puanı düzenle</DialogTitle>
             </DialogHeader>
             {editingResult && (
-              <div className="space-y-4 pt-2">
+              <div className="space-y-4 pt-2 overflow-auto flex-1 min-h-0">
                 <div className="space-y-2">
                   <Label>Öğrenci No</Label>
                   <div className="rounded-md border bg-muted/50 px-3 py-2 text-sm font-medium">
                     {editingResult.studentNumber}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-score">Puan (0–100)</Label>
-                  <Input
-                    id="edit-score"
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={editScore}
-                    onChange={(e) => setEditScore(e.target.value)}
-                    disabled={savingEdit}
-                    className="h-11"
-                  />
+                <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-900/20 px-3 py-2 text-sm">
+                  <span className="text-muted-foreground">Mevcut puan: </span>
+                  <span className="font-medium">{editingResult.totalScore?.toFixed(1) ?? "—"} / {editingResult.maxScore ?? 100}</span>
+                  <span className="text-muted-foreground ml-1">(%{editingResult.percentage?.toFixed(1) ?? "—"})</span>
                 </div>
+                {loadingQuestionScores ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Soru puanları yükleniyor...
+                  </div>
+                ) : questionScores.length > 0 ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Soru bazlı puan (değiştirdikçe toplam güncellenir)</Label>
+                      <div className="max-h-48 overflow-auto space-y-2 rounded-md border p-2">
+                        {questionScores.map((q) => (
+                          <div key={q.questionNumber} className="flex items-center gap-2 text-sm">
+                            <span className="w-16 shrink-0 font-medium">Soru {q.questionNumber}</span>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={q.maxScore || 100}
+                              step={0.5}
+                              value={q.scoreValue ?? ""}
+                              onChange={(e) => handleQuestionScoreChange(q.questionNumber, Number(e.target.value) || 0)}
+                              disabled={savingEdit}
+                              className="h-9 w-24"
+                            />
+                            <span className="text-muted-foreground">/ {q.maxScore}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-muted/50 px-3 py-2 text-sm flex justify-between">
+                      <span className="font-medium">Toplam</span>
+                      <span>{computedTotalFromQuestions.toFixed(1)} / {computedMaxFromQuestions} (%{computedPercentageFromQuestions.toFixed(1)})</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-score">Puan (0–100)</Label>
+                    <Input
+                      id="edit-score"
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={editScore}
+                      onChange={(e) => setEditScore(e.target.value)}
+                      disabled={savingEdit}
+                      className="h-11"
+                    />
+                  </div>
+                )}
                 <div className="flex justify-end gap-2 pt-2">
                   <Button
                     type="button"

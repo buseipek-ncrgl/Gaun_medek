@@ -10,6 +10,7 @@ import {
   submitExamScores,
   getExamResults,
   getExamResultsByStudent,
+  getQuestionScoresForStudent,
   startBatchScore,
   getBatchStatus,
   createOrUpdateStudentExamResult,
@@ -50,9 +51,9 @@ router.post("/:examId/manual-score", validate(studentExamResultSchemas.createOrU
 router.post("/:examId/upload-scores", asyncHandler(uploadScoresFromList));
 
 // GET routes with sub-paths - MUST be before /:id route to avoid conflict
-// These are more specific than /:id, so they must come first
 router.get("/:examId/batch-status", asyncHandler(getBatchStatus));
 router.get("/:examId/results", asyncHandler(getExamResults));
+router.get("/:examId/results/:studentNumber/question-scores", asyncHandler(getQuestionScoresForStudent));
 router.get("/:id/analysis", validate(examSchemas.getById, 'params'), asyncHandler(getExamAnalysis));
 
 // GET /api/exams/:id - Genel route en sonda (least specific)

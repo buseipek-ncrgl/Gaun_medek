@@ -30,10 +30,10 @@ interface ExamFormProps {
 
 type QuestionRow = {
   questionNumber: number;
-  /** Tek ÖÇ (eski format, geriye dönük uyumluluk) */
   learningOutcomeCode?: string;
-  /** Birden fazla ÖÇ (her soru için). Gönderimde bunu kullanıyoruz. */
   learningOutcomeCodes: string[];
+  /** Soru başına max puan */
+  maxScore: number;
 };
 
 export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps) {
@@ -307,13 +307,15 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
         console.log("✅ Initializing questions with count:", questionCount);
         // In edit mode, try to load existing questions from initialData first
         // If initialData questions changed (after update), use them
+        const defaultMaxPerQuestion = questionCount > 0 ? Math.round(100 / questionCount) : 0;
         if (mode === "edit" && initialData?.questions && Array.isArray(initialData.questions) && initialData.questions.length > 0) {
           const examQuestions = initialData.questions;
-          const toRow = (q: { questionNumber: number; learningOutcomeCode?: string; learningOutcomeCodes?: string[] }) => {
+          const toRow = (q: { questionNumber: number; learningOutcomeCode?: string; learningOutcomeCodes?: string[]; maxScore?: number }) => {
             const codes = Array.isArray((q as any).learningOutcomeCodes) && (q as any).learningOutcomeCodes.length > 0
               ? (q as any).learningOutcomeCodes
               : ((q as any).learningOutcomeCode ? [(q as any).learningOutcomeCode] : []);
-            return { questionNumber: q.questionNumber, learningOutcomeCodes: codes };
+            const maxScore = typeof (q as any).maxScore === "number" && (q as any).maxScore >= 0 ? (q as any).maxScore : defaultMaxPerQuestion;
+            return { questionNumber: q.questionNumber, learningOutcomeCodes: codes, maxScore };
           };
           if (examQuestions.length === questionCount) {
             setQuestions(examQuestions.map(toRow));
@@ -321,7 +323,7 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
           } else {
             const adjustedQuestions = Array.from({ length: questionCount }, (_, i) => {
               const existing = examQuestions.find(q => q.questionNumber === i + 1);
-              return existing ? toRow(existing) : { questionNumber: i + 1, learningOutcomeCodes: [] as string[] };
+              return existing ? toRow(existing) : { questionNumber: i + 1, learningOutcomeCodes: [] as string[], maxScore: defaultMaxPerQuestion };
             });
             setQuestions(adjustedQuestions);
             prevQuestionsRef.current = adjustedQuestions;
@@ -332,6 +334,7 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
           const newQuestions = Array.from({ length: questionCount }, (_, i) => ({
             questionNumber: i + 1,
             learningOutcomeCodes: [initialLOs[i % initialLOs.length] || ""].filter(Boolean),
+            maxScore: defaultMaxPerQuestion,
           }));
           setQuestions(newQuestions);
           prevLearningOutcomesRef.current = initialLOs;
@@ -342,6 +345,7 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
             const newQuestions = Array.from({ length: questionCount }, (_, i) => ({
               questionNumber: i + 1,
               learningOutcomeCodes: [] as string[],
+              maxScore: defaultMaxPerQuestion,
             }));
             setQuestions(newQuestions);
             prevQuestionsRef.current = newQuestions;
@@ -354,11 +358,13 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
       // This prevents losing mappings when course data is loading or missing
       if (mode === "edit" && initialData?.questions && Array.isArray(initialData.questions) && initialData.questions.length > 0) {
         if (prevQuestionsLengthRef.current !== initialData.questions.length) {
+          const defaultMax = initialData.questions.length > 0 ? Math.round(100 / initialData.questions.length) : 0;
           const toRow = (q: any) => ({
             questionNumber: q.questionNumber,
             learningOutcomeCodes: Array.isArray(q.learningOutcomeCodes) && q.learningOutcomeCodes.length > 0
               ? q.learningOutcomeCodes
               : (q.learningOutcomeCode ? [q.learningOutcomeCode] : []),
+            maxScore: typeof q.maxScore === "number" && q.maxScore >= 0 ? q.maxScore : defaultMax,
           });
           setQuestions(initialData.questions.map(toRow));
           prevQuestionsLengthRef.current = initialData.questions.length;
@@ -391,6 +397,14 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
           : [...codes, loCode];
         return { ...q, learningOutcomeCodes: next };
       })
+    );
+  };
+
+  const handleQuestionMaxScoreChange = (index: number, value: number) => {
+    setQuestions((prev) =>
+      prev.map((q, idx) =>
+        idx === index ? { ...q, maxScore: Math.max(0, Math.min(100, value)) } : q
+      )
     );
   };
 
@@ -439,12 +453,17 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
 
       if (mode === "create") {
         (payload as CreateExamDto).questions = questions.length > 0
-          ? questions.map((q) => ({ questionNumber: q.questionNumber, learningOutcomeCodes: q.learningOutcomeCodes || [] }))
+          ? questions.map((q) => ({
+              questionNumber: q.questionNumber,
+              learningOutcomeCodes: q.learningOutcomeCodes || [],
+              maxScore: q.maxScore ?? Math.round(100 / questions.length),
+            }))
           : undefined;
       } else if (mode === "edit") {
         (payload as UpdateExamDto).questions = questions.map((q) => ({
           questionNumber: q.questionNumber,
           learningOutcomeCodes: q.learningOutcomeCodes || [],
+          maxScore: q.maxScore ?? Math.round(100 / questions.length),
         }));
       }
 
@@ -624,15 +643,32 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
           {questions.map((q, idx) => {
             const selectedCodes = q.learningOutcomeCodes || [];
             const hasSelection = selectedCodes.length > 0;
+            const maxScore = q.maxScore ?? 0;
             return (
               <div
                 key={q.questionNumber}
                 className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 min-w-0"
               >
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex flex-wrap items-center gap-3 min-w-0">
                   <span className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400">
                     Soru {q.questionNumber}
                   </span>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor={`q-${idx}-max`} className="text-xs text-slate-500 whitespace-nowrap">
+                      Puan:
+                    </Label>
+                    <Input
+                      id={`q-${idx}-max`}
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={maxScore}
+                      onChange={(e) => handleQuestionMaxScoreChange(idx, Number(e.target.value) || 0)}
+                      disabled={isSubmitting}
+                      className="w-20 h-9 text-sm"
+                    />
+                  </div>
                   {!hasSelection && (
                     <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
                       ÖÇ seçilmedi
@@ -696,7 +732,12 @@ export function ExamForm({ mode, examId, initialData, onSuccess }: ExamFormProps
                     </button>
                     {openDropdownIndex === idx && learningOutcomeOptions.length > 0 && (
                       <div
-                        className="absolute left-0 right-0 top-full z-50 mt-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg max-h-60 overflow-auto"
+                        className={cn(
+                          "absolute left-0 right-0 z-50 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg max-h-60 overflow-auto",
+                          idx >= questions.length - 2
+                            ? "bottom-full mb-1"
+                            : "top-full mt-1"
+                        )}
                         role="listbox"
                       >
                         {learningOutcomeOptions.map((opt) => {

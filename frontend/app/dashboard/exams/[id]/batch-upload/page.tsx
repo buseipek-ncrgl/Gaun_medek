@@ -260,6 +260,7 @@ export default function BatchUploadPage() {
                   <tr>
                     <th className="p-1.5 sm:p-2 border text-left font-medium">Öğrenci</th>
                     <th className="p-1.5 sm:p-2 border text-center font-medium">Durum</th>
+                    <th className="p-1.5 sm:p-2 border text-left font-medium">Aldığı puan</th>
                     <th className="p-1.5 sm:p-2 border text-left font-medium">Not</th>
                   </tr>
                 </thead>
@@ -281,6 +282,18 @@ export default function BatchUploadPage() {
                             <span className="sm:hidden">✗</span>
                           </span>
                         )}
+                      </td>
+                      <td className="border p-1.5 sm:p-2 text-left break-words">
+                        {s.status === "success" && (s.totalScore != null || (s.questionScores?.length ?? 0) > 0) ? (
+                          <span className="font-medium text-slate-700 dark:text-slate-200">
+                            {s.totalScore != null ? s.totalScore.toFixed(1) : s.questionScores?.reduce((a, b) => a + b, 0)?.toFixed(1) ?? "-"}
+                            {(s.questionScores?.length ?? 0) > 0 && (
+                              <span className="ml-1 text-muted-foreground font-normal">
+                                ({s.questionScores!.map((p, i) => `S${i + 1}:${p}`).join(", ")})
+                              </span>
+                            )}
+                          </span>
+                        ) : "-"}
                       </td>
                       <td className="border p-1.5 sm:p-2 text-left break-words">{s.message || "-"}</td>
                     </tr>

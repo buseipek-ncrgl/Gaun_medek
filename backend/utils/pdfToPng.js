@@ -114,5 +114,75 @@ async function pdfToPng(pdfInput) {
   }
 }
 
-export { pdfToPng };
+/**
+ * Convert all pages of a PDF to PNG (her sayfa = bir öğrenci kağıdı için).
+ * @param {Buffer|string} pdfInput - PDF buffer or file path
+ * @returns {Promise<{ buffers: Buffer[]; filePaths: string[] }>} Her sayfa için PNG buffer ve path dizisi
+ */
+async function pdfToPngAllPages(pdfInput) {
+  let tempPdfPath;
+  let isTempFile = false;
+
+  if (Buffer.isBuffer(pdfInput)) {
+    tempPdfPath = path.join(__dirname, "../temp", `temp_multipage_${Date.now()}.pdf`);
+    const tempDir = path.dirname(tempPdfPath);
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    fs.writeFileSync(tempPdfPath, pdfInput);
+    isTempFile = true;
+  } else {
+    tempPdfPath = pdfInput;
+  }
+
+  const outputDir = path.join(process.cwd(), "temp");
+  const prefix = `multipage_${Date.now()}`;
+  const outputPrefix = path.join(outputDir, prefix);
+
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  try {
+    // pdftoppm: -f 1 -l 999 tüm sayfaları çıkarır; prefix-1.png, prefix-2.png, ...
+    execSync(
+      `pdftoppm -png -r 150 -f 1 -l 999 "${tempPdfPath}" "${outputPrefix}"`,
+      { stdio: "ignore" }
+    );
+
+    const allFiles = fs.readdirSync(outputDir)
+      .filter((f) => f.startsWith(prefix) && f.endsWith(".png"));
+
+    // Sıralama: prefix-1.png, prefix-2.png, ... (sayıya göre)
+    const sortKey = (f) => {
+      const base = f.replace(prefix, "").replace(".png", "").replace("-", "");
+      return parseInt(base, 10) || 0;
+    };
+    const sorted = allFiles.sort((a, b) => sortKey(a) - sortKey(b));
+
+    const buffers = [];
+    const filePaths = [];
+    for (const f of sorted) {
+      const fullPath = path.join(outputDir, f);
+      buffers.push(fs.readFileSync(fullPath));
+      filePaths.push(fullPath);
+      try {
+        fs.unlinkSync(fullPath);
+      } catch (_) {}
+    }
+
+    if (isTempFile && fs.existsSync(tempPdfPath)) {
+      fs.unlinkSync(tempPdfPath);
+    }
+
+    return { buffers, filePaths };
+  } catch (err) {
+    if (isTempFile && fs.existsSync(tempPdfPath)) {
+      try { fs.unlinkSync(tempPdfPath); } catch (_) {}
+    }
+    throw new Error(`PDF to PNG (all pages) failed: ${err.message}. Install poppler-utils (pdftoppm).`);
+  }
+}
+
+export { pdfToPng, pdfToPngAllPages };
 

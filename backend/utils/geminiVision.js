@@ -41,6 +41,29 @@ function getGeminiModel(genAI) {
   throw new Error(`None of the Gemini models are available. Tried: ${modelNames.join(", ")}`);
 }
 
+/** 503 / high demand için yeniden dene (max 3 deneme, exponential backoff). */
+async function generateContentWithRetry(model, contents, maxRetries = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await model.generateContent(contents);
+      return result;
+    } catch (err) {
+      lastError = err;
+      const msg = err?.message || String(err);
+      const is503 = msg.includes("503") || msg.includes("Service Unavailable") || msg.includes("high demand");
+      if (is503 && attempt < maxRetries) {
+        const delayMs = Math.min(2000 * Math.pow(2, attempt - 1), 15000);
+        console.warn(`⚠️ Gemini 503/high demand (deneme ${attempt}/${maxRetries}), ${delayMs}ms sonra tekrar deneniyor...`);
+        await new Promise((r) => setTimeout(r, delayMs));
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw lastError;
+}
+
 /**
  * Extract numeric value from an image using Gemini Vision API
  * @param {Buffer} imageBuffer - Image buffer (PNG)
@@ -108,7 +131,7 @@ What number is in this image?`;
     }
 
     console.log(`🤖 Calling Gemini API to extract ${context} from image...`);
-    const result = await model.generateContent([
+    const result = await generateContentWithRetry(model, [
       prompt,
       {
         inlineData: {
@@ -180,7 +203,7 @@ IMPORTANT:
 - Example outputs: 20231021, 2023123456, EMPTY
 
 What is the student ID number in this exam paper?`;
-    const result = await model.generateContent([
+    const result = await generateContentWithRetry(model, [
       prompt,
       {
         inlineData: {
@@ -247,7 +270,7 @@ INSTRUCTIONS:
 4. If the box is empty or no number is visible, return exactly: EMPTY
 
 Return ONLY the digits or EMPTY.`;
-    const result = await model.generateContent([
+    const result = await generateContentWithRetry(model, [
       prompt,
       {
         inlineData: {

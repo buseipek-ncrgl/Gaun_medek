@@ -21,11 +21,13 @@ export interface Course {
     examCode: string;
     questionCount: number;
     maxScorePerQuestion: number;
+    questionMaxScores?: number[];
   };
   finalExam?: {
     examCode: string;
     questionCount: number;
     maxScorePerQuestion: number;
+    questionMaxScores?: number[];
   };
   students?: Array<{ studentNumber: string; fullName: string }>;
   studentsCount?: number;
@@ -49,6 +51,7 @@ export interface ExamSettingsInput {
   examCode: string;
   questionCount: number;
   maxScorePerQuestion: number;
+  questionMaxScores?: number[];
 }
 
 export interface StudentInput {

@@ -261,11 +261,25 @@ export default function CreateCoursePage() {
           examCode: midtermExam.examCode.trim(),
           questionCount: midtermExam.questionCount,
           maxScorePerQuestion: midtermExam.maxScorePerQuestion,
+          questionMaxScores:
+            Array.isArray(midtermExam.questionMaxScores) && midtermExam.questionMaxScores.length === midtermExam.questionCount
+              ? midtermExam.questionMaxScores
+              : Array.from(
+                  { length: midtermExam.questionCount },
+                  () => midtermExam.maxScorePerQuestion || 0
+                ),
         },
         finalExam: {
           examCode: finalExam.examCode.trim(),
           questionCount: finalExam.questionCount,
           maxScorePerQuestion: finalExam.maxScorePerQuestion,
+          questionMaxScores:
+            Array.isArray(finalExam.questionMaxScores) && finalExam.questionMaxScores.length === finalExam.questionCount
+              ? finalExam.questionMaxScores
+              : Array.from(
+                  { length: finalExam.questionCount },
+                  () => finalExam.maxScorePerQuestion || 0
+                ),
         },
         students: students.map((s) => ({
           studentNumber: s.studentNumber.trim(),
