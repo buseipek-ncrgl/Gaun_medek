@@ -322,9 +322,10 @@ export default function ExamResultsPage() {
         setQuestionScores(data.questionScores);
       } else if (exam?.questions?.length) {
         // API boş dönse bile sınavda soru tanımı varsa soru bazlı puan alanlarını göster
-        const fallback = exam.questions.map((q: { questionNumber: number; maxScore?: number }) => ({
+        const qList = exam.questions ?? [];
+        const fallback = qList.map((q: { questionNumber: number; maxScore?: number }) => ({
           questionNumber: q.questionNumber,
-          maxScore: typeof q.maxScore === "number" && q.maxScore >= 0 ? q.maxScore : Math.round(100 / exam.questions.length),
+          maxScore: typeof q.maxScore === "number" && q.maxScore >= 0 ? q.maxScore : Math.round(100 / qList.length),
           scoreValue: 0,
         }));
         setQuestionScores(fallback);
@@ -332,9 +333,10 @@ export default function ExamResultsPage() {
     } catch {
       // API hata verirse sınav sorularından liste oluştur
       if (exam?.questions?.length) {
-        const fallback = exam.questions.map((q: { questionNumber: number; maxScore?: number }) => ({
+        const qList = exam.questions ?? [];
+        const fallback = qList.map((q: { questionNumber: number; maxScore?: number }) => ({
           questionNumber: q.questionNumber,
-          maxScore: typeof q.maxScore === "number" && q.maxScore >= 0 ? q.maxScore : Math.round(100 / exam.questions.length),
+          maxScore: typeof q.maxScore === "number" && q.maxScore >= 0 ? q.maxScore : Math.round(100 / qList.length),
           scoreValue: 0,
         }));
         setQuestionScores(fallback);
