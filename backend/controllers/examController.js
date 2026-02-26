@@ -22,6 +22,7 @@ import {
   extractNumberFromImage,
   extractStudentIdFromImage,
 } from "../utils/geminiVision.js";
+import { readStudentNumberOMR } from "../utils/omrStudentNumber.js";
 import {
   calculateOutcomePerformance,
   calculateProgramOutcomePerformance,
@@ -203,7 +204,20 @@ const extractStudentNumberFromFile = async (fileName, pngBuffer) => {
   
   console.log(`⚠️ Student number not found in filename: "${fileName}"`);
   
-  // 2) Template koordinatlarından öğrenci numarası kutusunu kes ve oku (tek kutu veya çok kutu)
+  // 2) Önce 12 haneli OMR (optik balon) varsa onu dene
+  if (template.studentNumberOMR && template.studentNumberOMR.hanes && template.studentNumberOMR.hanes.length === 12) {
+    try {
+      const omrNumber = await readStudentNumberOMR(pngBuffer, template);
+      if (omrNumber && omrNumber.length === 12) {
+        console.log(`✅ Student number from OMR (12 hane): ${omrNumber}`);
+        return omrNumber;
+      }
+    } catch (err) {
+      console.warn("⚠️ OMR student number extraction failed:", err.message);
+    }
+  }
+  
+  // 3) Template koordinatlarından öğrenci numarası kutusunu kes ve oku (tek kutu veya çok kutu)
   try {
     const studentNumberBoxes = template.studentNumberBoxes || [];
     if (studentNumberBoxes.length > 0) {
@@ -273,7 +287,7 @@ const extractStudentNumberFromFile = async (fileName, pngBuffer) => {
     console.warn("⚠️ Template-based student number extraction failed:", error.message);
   }
   
-  // 3) Son fallback: Tüm sayfadan Gemini OCR
+  // 4) Son fallback: Tüm sayfadan Gemini OCR
   console.log("🔄 Trying full-page OCR for student number...");
   const ocrId = await extractStudentIdFromImage(pngBuffer);
   if (ocrId) {
@@ -282,7 +296,7 @@ const extractStudentNumberFromFile = async (fileName, pngBuffer) => {
   }
   
   console.error(`❌ Student number could not be extracted from file: "${fileName}"`);
-  console.error(`   Tried: filename regex, template coordinates, full-page OCR`);
+  console.error(`   Tried: filename regex, OMR (12 hane), template coordinates, full-page OCR`);
   return null;
 };
 

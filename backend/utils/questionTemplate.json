@@ -20,26 +20,934 @@
     }
   ],
   "totalScoreBoxes": [
-    {"number": 1, "xPercent": 10.1, "yPercent": 16.97, "wPercent": 8.34, "hPercent": 2.44},
-    {"number": 2, "xPercent": 18.62, "yPercent": 16.97, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 3, "xPercent": 27.09, "yPercent": 16.97, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 4, "xPercent": 35.55, "yPercent": 16.97, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 5, "xPercent": 44.01, "yPercent": 16.97, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 6, "xPercent": 52.48, "yPercent": 16.97, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 7, "xPercent": 60.94, "yPercent": 16.97, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 8, "xPercent": 69.41, "yPercent": 16.97, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 9, "xPercent": 77.87, "yPercent": 16.97, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 10, "xPercent": 86.34, "yPercent": 16.97, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 11, "xPercent": 10.1, "yPercent": 22.1, "wPercent": 8.34, "hPercent": 2.44},
-    {"number": 12, "xPercent": 18.62, "yPercent": 22.1, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 13, "xPercent": 27.09, "yPercent": 22.1, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 14, "xPercent": 35.55, "yPercent": 22.1, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 15, "xPercent": 44.01, "yPercent": 22.1, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 16, "xPercent": 52.48, "yPercent": 22.1, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 17, "xPercent": 60.94, "yPercent": 22.1, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 18, "xPercent": 69.41, "yPercent": 22.1, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 19, "xPercent": 77.87, "yPercent": 22.1, "wPercent": 8.28, "hPercent": 2.44},
-    {"number": 20, "xPercent": 86.34, "yPercent": 22.1, "wPercent": 8.28, "hPercent": 2.44}
+    {
+      "number": 1,
+      "xPercent": 10.1,
+      "yPercent": 16.97,
+      "wPercent": 8.34,
+      "hPercent": 2.44
+    },
+    {
+      "number": 2,
+      "xPercent": 18.62,
+      "yPercent": 16.97,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 3,
+      "xPercent": 27.09,
+      "yPercent": 16.97,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 4,
+      "xPercent": 35.55,
+      "yPercent": 16.97,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 5,
+      "xPercent": 44.01,
+      "yPercent": 16.97,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 6,
+      "xPercent": 52.48,
+      "yPercent": 16.97,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 7,
+      "xPercent": 60.94,
+      "yPercent": 16.97,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 8,
+      "xPercent": 69.41,
+      "yPercent": 16.97,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 9,
+      "xPercent": 77.87,
+      "yPercent": 16.97,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 10,
+      "xPercent": 86.34,
+      "yPercent": 16.97,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 11,
+      "xPercent": 10.1,
+      "yPercent": 22.1,
+      "wPercent": 8.34,
+      "hPercent": 2.44
+    },
+    {
+      "number": 12,
+      "xPercent": 18.62,
+      "yPercent": 22.1,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 13,
+      "xPercent": 27.09,
+      "yPercent": 22.1,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 14,
+      "xPercent": 35.55,
+      "yPercent": 22.1,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 15,
+      "xPercent": 44.01,
+      "yPercent": 22.1,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 16,
+      "xPercent": 52.48,
+      "yPercent": 22.1,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 17,
+      "xPercent": 60.94,
+      "yPercent": 22.1,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 18,
+      "xPercent": 69.41,
+      "yPercent": 22.1,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 19,
+      "xPercent": 77.87,
+      "yPercent": 22.1,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    },
+    {
+      "number": 20,
+      "xPercent": 86.34,
+      "yPercent": 22.1,
+      "wPercent": 8.28,
+      "hPercent": 2.44
+    }
   ],
-  "_comment": "Şablon 1654x2339. Öğrenci no tek kutu (339,679,374,54). 20 puan kutusu koordinatları (x,y,w,h) yüzdeye çevrildi."
+  "_comment": "Şablon 1654x2339. Öğrenci no tek kutu (339,679,374,54). 20 puan kutusu koordinatları (x,y,w,h) yüzdeye çevrildi.",
+  "studentNumberOMR": {
+    "referenceSize": {
+      "width": 1654,
+      "height": 2339
+    },
+    "hanes": [
+      {
+        "hane": 1,
+        "digits": [
+          {
+            "digit": 0,
+            "x": 344,
+            "y": 772,
+            "r": 12
+          },
+          {
+            "digit": 1,
+            "x": 344,
+            "y": 806,
+            "r": 12
+          },
+          {
+            "digit": 2,
+            "x": 345,
+            "y": 841,
+            "r": 9
+          },
+          {
+            "digit": 3,
+            "x": 344,
+            "y": 874,
+            "r": 12
+          },
+          {
+            "digit": 4,
+            "x": 344,
+            "y": 908,
+            "r": 12
+          },
+          {
+            "digit": 5,
+            "x": 344,
+            "y": 943,
+            "r": 12
+          },
+          {
+            "digit": 6,
+            "x": 345,
+            "y": 977,
+            "r": 9
+          },
+          {
+            "digit": 7,
+            "x": 344,
+            "y": 1010,
+            "r": 12
+          },
+          {
+            "digit": 8,
+            "x": 344,
+            "y": 1044,
+            "r": 12
+          },
+          {
+            "digit": 9,
+            "x": 344,
+            "y": 1078,
+            "r": 12
+          }
+        ]
+      },
+      {
+        "hane": 2,
+        "digits": [
+          {
+            "digit": 0,
+            "x": 387,
+            "y": 773,
+            "r": 12
+          },
+          {
+            "digit": 1,
+            "x": 386,
+            "y": 806,
+            "r": 12
+          },
+          {
+            "digit": 2,
+            "x": 386,
+            "y": 840,
+            "r": 12
+          },
+          {
+            "digit": 3,
+            "x": 386,
+            "y": 874,
+            "r": 12
+          },
+          {
+            "digit": 4,
+            "x": 386,
+            "y": 908,
+            "r": 12
+          },
+          {
+            "digit": 5,
+            "x": 387,
+            "y": 943,
+            "r": 9
+          },
+          {
+            "digit": 6,
+            "x": 387,
+            "y": 977,
+            "r": 9
+          },
+          {
+            "digit": 7,
+            "x": 387,
+            "y": 1011,
+            "r": 9
+          },
+          {
+            "digit": 8,
+            "x": 386,
+            "y": 1044,
+            "r": 12
+          },
+          {
+            "digit": 9,
+            "x": 387,
+            "y": 1079,
+            "r": 12
+          }
+        ]
+      },
+      {
+        "hane": 3,
+        "digits": [
+          {
+            "digit": 0,
+            "x": 428,
+            "y": 772,
+            "r": 12
+          },
+          {
+            "digit": 1,
+            "x": 428,
+            "y": 806,
+            "r": 12
+          },
+          {
+            "digit": 2,
+            "x": 428,
+            "y": 840,
+            "r": 12
+          },
+          {
+            "digit": 3,
+            "x": 428,
+            "y": 874,
+            "r": 12
+          },
+          {
+            "digit": 4,
+            "x": 428,
+            "y": 909,
+            "r": 12
+          },
+          {
+            "digit": 5,
+            "x": 428,
+            "y": 943,
+            "r": 12
+          },
+          {
+            "digit": 6,
+            "x": 429,
+            "y": 977,
+            "r": 9
+          },
+          {
+            "digit": 7,
+            "x": 428,
+            "y": 1011,
+            "r": 12
+          },
+          {
+            "digit": 8,
+            "x": 427,
+            "y": 1044,
+            "r": 12
+          },
+          {
+            "digit": 9,
+            "x": 428,
+            "y": 1079,
+            "r": 12
+          }
+        ]
+      },
+      {
+        "hane": 4,
+        "digits": [
+          {
+            "digit": 0,
+            "x": 469,
+            "y": 773,
+            "r": 9
+          },
+          {
+            "digit": 1,
+            "x": 469,
+            "y": 806,
+            "r": 12
+          },
+          {
+            "digit": 2,
+            "x": 469,
+            "y": 841,
+            "r": 9
+          },
+          {
+            "digit": 3,
+            "x": 469,
+            "y": 875,
+            "r": 9
+          },
+          {
+            "digit": 4,
+            "x": 469,
+            "y": 908,
+            "r": 12
+          },
+          {
+            "digit": 5,
+            "x": 469,
+            "y": 943,
+            "r": 9
+          },
+          {
+            "digit": 6,
+            "x": 469,
+            "y": 977,
+            "r": 9
+          },
+          {
+            "digit": 7,
+            "x": 469,
+            "y": 1011,
+            "r": 12
+          },
+          {
+            "digit": 8,
+            "x": 469,
+            "y": 1044,
+            "r": 12
+          },
+          {
+            "digit": 9,
+            "x": 469,
+            "y": 1079,
+            "r": 9
+          }
+        ]
+      },
+      {
+        "hane": 5,
+        "digits": [
+          {
+            "digit": 0,
+            "x": 511,
+            "y": 772,
+            "r": 12
+          },
+          {
+            "digit": 1,
+            "x": 511,
+            "y": 806,
+            "r": 12
+          },
+          {
+            "digit": 2,
+            "x": 511,
+            "y": 840,
+            "r": 12
+          },
+          {
+            "digit": 3,
+            "x": 511,
+            "y": 874,
+            "r": 12
+          },
+          {
+            "digit": 4,
+            "x": 511,
+            "y": 909,
+            "r": 12
+          },
+          {
+            "digit": 5,
+            "x": 511,
+            "y": 943,
+            "r": 12
+          },
+          {
+            "digit": 6,
+            "x": 511,
+            "y": 977,
+            "r": 9
+          },
+          {
+            "digit": 7,
+            "x": 511,
+            "y": 1010,
+            "r": 12
+          },
+          {
+            "digit": 8,
+            "x": 511,
+            "y": 1044,
+            "r": 12
+          },
+          {
+            "digit": 9,
+            "x": 511,
+            "y": 1079,
+            "r": 12
+          }
+        ]
+      },
+      {
+        "hane": 6,
+        "digits": [
+          {
+            "digit": 0,
+            "x": 552,
+            "y": 773,
+            "r": 9
+          },
+          {
+            "digit": 1,
+            "x": 552,
+            "y": 806,
+            "r": 12
+          },
+          {
+            "digit": 2,
+            "x": 552,
+            "y": 841,
+            "r": 11
+          },
+          {
+            "digit": 3,
+            "x": 552,
+            "y": 875,
+            "r": 12
+          },
+          {
+            "digit": 4,
+            "x": 552,
+            "y": 909,
+            "r": 11
+          },
+          {
+            "digit": 5,
+            "x": 552,
+            "y": 943,
+            "r": 11
+          },
+          {
+            "digit": 6,
+            "x": 553,
+            "y": 977,
+            "r": 9
+          },
+          {
+            "digit": 7,
+            "x": 552,
+            "y": 1011,
+            "r": 9
+          },
+          {
+            "digit": 8,
+            "x": 553,
+            "y": 1044,
+            "r": 12
+          },
+          {
+            "digit": 9,
+            "x": 552,
+            "y": 1079,
+            "r": 9
+          }
+        ]
+      },
+      {
+        "hane": 7,
+        "digits": [
+          {
+            "digit": 0,
+            "x": 594,
+            "y": 773,
+            "r": 9
+          },
+          {
+            "digit": 1,
+            "x": 594,
+            "y": 806,
+            "r": 12
+          },
+          {
+            "digit": 2,
+            "x": 594,
+            "y": 841,
+            "r": 9
+          },
+          {
+            "digit": 3,
+            "x": 594,
+            "y": 874,
+            "r": 12
+          },
+          {
+            "digit": 4,
+            "x": 594,
+            "y": 908,
+            "r": 12
+          },
+          {
+            "digit": 5,
+            "x": 594,
+            "y": 942,
+            "r": 12
+          },
+          {
+            "digit": 6,
+            "x": 594,
+            "y": 977,
+            "r": 9
+          },
+          {
+            "digit": 7,
+            "x": 594,
+            "y": 1010,
+            "r": 12
+          },
+          {
+            "digit": 8,
+            "x": 594,
+            "y": 1045,
+            "r": 9
+          },
+          {
+            "digit": 9,
+            "x": 594,
+            "y": 1079,
+            "r": 9
+          }
+        ]
+      },
+      {
+        "hane": 8,
+        "digits": [
+          {
+            "digit": 0,
+            "x": 636,
+            "y": 773,
+            "r": 12
+          },
+          {
+            "digit": 1,
+            "x": 635,
+            "y": 806,
+            "r": 12
+          },
+          {
+            "digit": 2,
+            "x": 636,
+            "y": 841,
+            "r": 11
+          },
+          {
+            "digit": 3,
+            "x": 636,
+            "y": 875,
+            "r": 9
+          },
+          {
+            "digit": 4,
+            "x": 636,
+            "y": 909,
+            "r": 9
+          },
+          {
+            "digit": 5,
+            "x": 635,
+            "y": 943,
+            "r": 12
+          },
+          {
+            "digit": 6,
+            "x": 636,
+            "y": 977,
+            "r": 12
+          },
+          {
+            "digit": 7,
+            "x": 635,
+            "y": 1010,
+            "r": 12
+          },
+          {
+            "digit": 8,
+            "x": 636,
+            "y": 1045,
+            "r": 11
+          },
+          {
+            "digit": 9,
+            "x": 636,
+            "y": 1079,
+            "r": 12
+          }
+        ]
+      },
+      {
+        "hane": 9,
+        "digits": [
+          {
+            "digit": 0,
+            "x": 677,
+            "y": 773,
+            "r": 9
+          },
+          {
+            "digit": 1,
+            "x": 677,
+            "y": 806,
+            "r": 12
+          },
+          {
+            "digit": 2,
+            "x": 677,
+            "y": 840,
+            "r": 12
+          },
+          {
+            "digit": 3,
+            "x": 677,
+            "y": 875,
+            "r": 9
+          },
+          {
+            "digit": 4,
+            "x": 677,
+            "y": 909,
+            "r": 12
+          },
+          {
+            "digit": 5,
+            "x": 676,
+            "y": 945,
+            "r": 10
+          },
+          {
+            "digit": 6,
+            "x": 677,
+            "y": 977,
+            "r": 9
+          },
+          {
+            "digit": 7,
+            "x": 677,
+            "y": 1010,
+            "r": 12
+          },
+          {
+            "digit": 8,
+            "x": 677,
+            "y": 1045,
+            "r": 11
+          },
+          {
+            "digit": 9,
+            "x": 677,
+            "y": 1079,
+            "r": 9
+          }
+        ]
+      },
+      {
+        "hane": 10,
+        "digits": [
+          {
+            "digit": 0,
+            "x": 719,
+            "y": 773,
+            "r": 12
+          },
+          {
+            "digit": 1,
+            "x": 718,
+            "y": 806,
+            "r": 12
+          },
+          {
+            "digit": 2,
+            "x": 718,
+            "y": 840,
+            "r": 12
+          },
+          {
+            "digit": 3,
+            "x": 718,
+            "y": 874,
+            "r": 12
+          },
+          {
+            "digit": 4,
+            "x": 718,
+            "y": 909,
+            "r": 12
+          },
+          {
+            "digit": 5,
+            "x": 718,
+            "y": 943,
+            "r": 12
+          },
+          {
+            "digit": 6,
+            "x": 719,
+            "y": 977,
+            "r": 12
+          },
+          {
+            "digit": 7,
+            "x": 718,
+            "y": 1010,
+            "r": 12
+          },
+          {
+            "digit": 8,
+            "x": 719,
+            "y": 1045,
+            "r": 12
+          },
+          {
+            "digit": 9,
+            "x": 719,
+            "y": 1079,
+            "r": 12
+          }
+        ]
+      },
+      {
+        "hane": 11,
+        "digits": [
+          {
+            "digit": 0,
+            "x": 761,
+            "y": 773,
+            "r": 12
+          },
+          {
+            "digit": 1,
+            "x": 760,
+            "y": 806,
+            "r": 12
+          },
+          {
+            "digit": 2,
+            "x": 760,
+            "y": 840,
+            "r": 12
+          },
+          {
+            "digit": 3,
+            "x": 761,
+            "y": 875,
+            "r": 12
+          },
+          {
+            "digit": 4,
+            "x": 760,
+            "y": 909,
+            "r": 9
+          },
+          {
+            "digit": 5,
+            "x": 761,
+            "y": 943,
+            "r": 9
+          },
+          {
+            "digit": 6,
+            "x": 761,
+            "y": 977,
+            "r": 12
+          },
+          {
+            "digit": 7,
+            "x": 761,
+            "y": 1011,
+            "r": 11
+          },
+          {
+            "digit": 8,
+            "x": 760,
+            "y": 1044,
+            "r": 12
+          },
+          {
+            "digit": 9,
+            "x": 761,
+            "y": 1079,
+            "r": 12
+          }
+        ]
+      },
+      {
+        "hane": 12,
+        "digits": [
+          {
+            "digit": 0,
+            "x": 801,
+            "y": 772,
+            "r": 12
+          },
+          {
+            "digit": 1,
+            "x": 802,
+            "y": 807,
+            "r": 12
+          },
+          {
+            "digit": 2,
+            "x": 801,
+            "y": 840,
+            "r": 12
+          },
+          {
+            "digit": 3,
+            "x": 801,
+            "y": 874,
+            "r": 12
+          },
+          {
+            "digit": 4,
+            "x": 801,
+            "y": 908,
+            "r": 12
+          },
+          {
+            "digit": 5,
+            "x": 802,
+            "y": 943,
+            "r": 12
+          },
+          {
+            "digit": 6,
+            "x": 802,
+            "y": 977,
+            "r": 12
+          },
+          {
+            "digit": 7,
+            "x": 802,
+            "y": 1011,
+            "r": 12
+          },
+          {
+            "digit": 8,
+            "x": 802,
+            "y": 1044,
+            "r": 12
+          },
+          {
+            "digit": 9,
+            "x": 801,
+            "y": 1078,
+            "r": 12
+          }
+        ]
+      }
+    ]
+  }
 }
