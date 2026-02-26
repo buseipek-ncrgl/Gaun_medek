@@ -223,8 +223,11 @@ export default function BatchUploadPage() {
           <CardHeader className="p-4 sm:p-6">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-blue-600 flex-shrink-0" />
-              <span>Hesaplanıyor...</span>
+              <span>İşleniyor: {status.processedCount} / {status.totalFiles}</span>
             </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Sayfalar sırayla işleniyor (canlıda zaman alabilir). Bu sayfayı kapatmayın.
+            </p>
           </CardHeader>
         </Card>
       )}

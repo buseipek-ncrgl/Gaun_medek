@@ -37,40 +37,56 @@ export function calculateTotalScoreAnalysis(studentResults, exam) {
   };
 }
 
-// 2) ÖÇ performansı: Sınav bazlı ÖÇ eşleme - sadece sınavın eşlendiği ÖÇ'ler için hesapla
+// 2) ÖÇ performansı: Her ÖÇ için öğrenci bazlı outcomePerformance yüzdelerinin ortalaması
 export function calculateOutcomePerformance(studentResults, exam, course) {
-  // Sınavın eşlendiği ÖÇ kodlarını al
   const examLOs = exam?.learningOutcomes || [];
-  
-  // Eğer sınav için ÖÇ eşlemesi yoksa, course'daki tüm ÖÇ'leri kullan (fallback)
   const loDefs = course?.learningOutcomes || [];
-  
-  // Tüm öğrencilerin genel puan yüzdelerini topla
-  const percentages = [];
-  (studentResults || []).forEach((result) => {
-    if (result.percentage !== undefined && result.percentage !== null) {
-      percentages.push(Number(result.percentage || 0));
-    }
-  });
-  
-  // Ortalama yüzdeyi hesapla
-  const avgPercentage = percentages.length
-    ? percentages.reduce((a, b) => a + b, 0) / percentages.length
-    : 0;
-
-  // Sınav bazlı ÖÇ eşleme varsa sadece onları kullan, yoksa tüm ÖÇ'leri kullan
-  const relevantLOs = examLOs.length > 0
+  let relevantLOs = examLOs.length > 0
     ? loDefs.filter((lo) => examLOs.includes(lo.code))
     : loDefs;
+  if (relevantLOs.length === 0 && exam?.questions?.length) {
+    const codesFromQuestions = new Set();
+    exam.questions.forEach((q) => {
+      const codes = q.learningOutcomeCodes || (q.learningOutcomeCode ? [q.learningOutcomeCode] : []);
+      codes.filter(Boolean).forEach((c) => codesFromQuestions.add(String(c).trim()));
+    });
+    if (codesFromQuestions.size > 0) {
+      relevantLOs = loDefs.filter((lo) => codesFromQuestions.has(lo.code));
+    }
+  }
+  if (relevantLOs.length === 0) relevantLOs = loDefs;
 
-  // Her ÖÇ için genel puan yüzdesini kullan
-  return relevantLOs.map((lo) => ({
-    code: lo.code,
-    description: lo.description,
-    programOutcomes: lo.programOutcomes || lo.relatedProgramOutcomes || [],
-    success: Number(avgPercentage.toFixed(2)),
-    studentCount: percentages.length,
-  }));
+  // Genel puan ortalaması (outcomePerformance yoksa fallback)
+  const generalPercentages = [];
+  (studentResults || []).forEach((result) => {
+    if (result.percentage != null) generalPercentages.push(Number(result.percentage) || 0);
+  });
+  const avgGeneral = generalPercentages.length
+    ? generalPercentages.reduce((a, b) => a + b, 0) / generalPercentages.length
+    : 0;
+
+  // Her ÖÇ için: öğrenci sonuçlarındaki outcomePerformance[ÖÇ] değerlerini topla, ortalama al
+  return relevantLOs.map((lo) => {
+    const perStudent = [];
+    (studentResults || []).forEach((result) => {
+      const op = result.outcomePerformance;
+      if (op && typeof op === "object" && op[lo.code] != null) {
+        perStudent.push(Number(op[lo.code]) || 0);
+      } else if (result.percentage != null) {
+        perStudent.push(Number(result.percentage) || 0);
+      }
+    });
+    const success = perStudent.length > 0
+      ? perStudent.reduce((a, b) => a + b, 0) / perStudent.length
+      : avgGeneral;
+    return {
+      code: lo.code,
+      description: lo.description,
+      programOutcomes: lo.programOutcomes || lo.relatedProgramOutcomes || [],
+      success: Number(Number(success).toFixed(2)),
+      studentCount: perStudent.length || generalPercentages.length,
+    };
+  });
 }
 
 // 3) PÇ performansı: ÖÇ sonuçlarından türet

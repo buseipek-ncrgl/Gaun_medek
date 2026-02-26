@@ -816,10 +816,11 @@ const startBatchScore = async (req, res) => {
       isComplete: false,
     });
 
-    // Asenkron işleme (her workItem = bir sayfa = bir öğrenci)
+    // Asenkron işleme (her workItem = bir sayfa = bir öğrenci). Aynı anda en fazla 5 iş (canlıda timeout/rate limit önlemek için).
+    const CONCURRENCY = 5;
     const courseForProcessing = course;
     process.nextTick(async () => {
-      const promises = workItems.map(async (workItem) => {
+      const processOne = async (workItem) => {
         const { pngBuffer, originalName, pageIndex } = workItem;
         const pageLabel = workItems.length > 1 ? ` ${originalName} (Sayfa ${pageIndex})` : ` ${originalName}`;
         try {
@@ -1006,10 +1007,12 @@ const startBatchScore = async (req, res) => {
             }
           }
         }
-      });
+      };
 
-      // Tüm dosyalar işlendikten sonra batch'i tamamla olarak işaretle
-      await Promise.allSettled(promises);
+      for (let i = 0; i < workItems.length; i += CONCURRENCY) {
+        const chunk = workItems.slice(i, i + CONCURRENCY);
+        await Promise.allSettled(chunk.map(processOne));
+      }
       
       // Batch tamamlandı mı kontrol et ve güncelle
       const finalBatch = await Batch.findOne({ batchId });
