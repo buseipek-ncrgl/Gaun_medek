@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { isMostlyEmptyBox } from "./imagePreprocess.js";
 
 /**
  * Initialize Gemini Vision API client
@@ -70,17 +71,34 @@ async function generateContentWithRetry(model, contents, maxRetries = 3) {
  * @param {string} context - Context description (e.g., "student number digit", "exam code digit", "total score")
  * @returns {Promise<number>} Extracted number (0 if empty)
  */
-async function extractNumberFromImage(imageBuffer, context = "numeric value") {
+async function extractNumberFromImage(imageBuffer, context = "numeric value", maxValue = null) {
   try {
+    if (context.includes("question") || context === "numeric value") {
+      const empty = await isMostlyEmptyBox(imageBuffer);
+      if (empty) {
+        console.log(`  → Box empty (skipped Gemini): ${context}`);
+        return 0;
+      }
+    }
+
     const genAI = getGeminiClient();
     const model = getGeminiModel(genAI);
 
-    // Convert buffer to base64
     const base64Image = imageBuffer.toString("base64");
 
-    // Context-specific prompts
     let prompt;
-    if (context === "total score") {
+    if (context.startsWith("question score")) {
+      const maxHint = maxValue != null ? ` The maximum allowed score is ${maxValue}.` : "";
+      prompt = `You are reading ONE exam question score from a small cropped box.
+
+RULES:
+1. Return ONLY one integer (0${maxValue != null ? ` to ${maxValue}` : " to 100"}).${maxHint}
+2. Ignore box borders, grid lines, and printed labels.
+3. Handwritten digits only — if the box is blank, return 0.
+4. No explanation — digits only.
+
+What score is written in this box?`;
+    } else if (context === "total score") {
       prompt = `You are analyzing an exam paper image. This image shows a cropped section containing the TOTAL SCORE box.
 
 CONTEXT:
@@ -159,10 +177,15 @@ What number is in this image?`;
       throw new Error("Invalid score value detected.");
     }
 
-    const number = parseInt(numberMatch[0], 10);
+    let number = parseInt(numberMatch[0], 10);
     if (isNaN(number)) {
       console.error(`  ❌ Invalid number parsed: "${numberMatch[0]}"`);
       throw new Error("Invalid score value detected.");
+    }
+
+    if (maxValue != null && number > maxValue) {
+      console.warn(`  ⚠️ Score ${number} > max ${maxValue}, clamping`);
+      number = maxValue;
     }
 
     console.log(`  ✅ Parsed number: ${number}`);
@@ -310,14 +333,37 @@ async function extractExamId(digitBoxes) {
  * @param {Array<Buffer>} scoreBoxes - Array of score box image buffers
  * @returns {Promise<Array<number>>} Array of scores
  */
-async function extractScores(scoreBoxes) {
+/**
+ * @param {Array<Buffer>} scoreBoxes
+ * @param {number[]} [maxScoresPerQuestion] - Soru başına üst sınır (sınav tanımından)
+ */
+async function extractScores(scoreBoxes, maxScoresPerQuestion = []) {
   const scores = [];
   for (let i = 0; i < scoreBoxes.length; i++) {
-    const score = await extractNumberFromImage(scoreBoxes[i]);
-    // Clamp score between 0 and 100
-    scores.push(Math.max(0, Math.min(100, score)));
+    const maxForQ =
+      maxScoresPerQuestion[i] != null && maxScoresPerQuestion[i] > 0
+        ? maxScoresPerQuestion[i]
+        : 100;
+    const score = await extractNumberFromImage(
+      scoreBoxes[i],
+      `question score ${i + 1}`,
+      maxForQ
+    );
+    scores.push(Math.max(0, Math.min(maxForQ, score)));
   }
   return scores;
+}
+
+/** Sınav sorularından max puan dizisi */
+function getQuestionMaxScores(exam, boxCount = 20) {
+  const questions = exam?.questions || [];
+  const arr = [];
+  for (let i = 0; i < boxCount; i++) {
+    const q = questions[i];
+    const m = q?.maxScore;
+    arr.push(m != null && m > 0 ? m : 10);
+  }
+  return arr;
 }
 
 export {
@@ -327,5 +373,6 @@ export {
   extractExamId,
   extractScores,
   extractStudentIdFromImage,
+  getQuestionMaxScores,
 };
 

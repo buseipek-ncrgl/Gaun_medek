@@ -17,12 +17,15 @@ import { warpAndDefineROIs, cropROI, cropTotalScoreBox } from "../utils/roiCrop.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const template = JSON.parse(fs.readFileSync(join(__dirname, "../utils/questionTemplate.json"), "utf-8"));
-import sharp from "sharp";
 import {
   extractNumberFromImage,
-  extractStudentIdFromImage,
+  extractScores,
+  getQuestionMaxScores,
 } from "../utils/geminiVision.js";
-import { readStudentNumberOMR } from "../utils/omrStudentNumber.js";
+import {
+  resolveStudentNumber,
+  getCourseStudentNumbers,
+} from "../utils/studentNumberResolver.js";
 import {
   calculateOutcomePerformance,
   calculateProgramOutcomePerformance,
@@ -190,114 +193,17 @@ const derivePCFromExam = (exam, course) => {
 
 // cropTotalScoreBox artık utils/roiCrop.js'de tanımlı
 
-// Yardımcı: Dosya adından veya template koordinatlarından öğrenci no çıkar
-const extractStudentNumberFromFile = async (fileName, pngBuffer) => {
-  console.log(`🔍 Extracting student number from file: ${fileName || 'unknown'}`);
-  
-  // 1) Önce dosya adından dene
-  const regex = /\b(20\d{4,6}|\d{7,12})\b/;
-  const nameMatch = fileName ? fileName.match(regex) : null;
-  if (nameMatch) {
-    console.log(`✅ Student number from filename: ${nameMatch[0]}`);
-    return nameMatch[0];
-  }
-  
-  console.log(`⚠️ Student number not found in filename: "${fileName}"`);
-  
-  // 2) Önce 12 haneli OMR (optik balon) varsa onu dene
-  if (template.studentNumberOMR && template.studentNumberOMR.hanes && template.studentNumberOMR.hanes.length === 12) {
-    try {
-      const omrNumber = await readStudentNumberOMR(pngBuffer, template);
-      if (omrNumber && omrNumber.length === 12) {
-        console.log(`✅ Student number from OMR (12 hane): ${omrNumber}`);
-        return omrNumber;
-      }
-    } catch (err) {
-      console.warn("⚠️ OMR student number extraction failed:", err.message);
-    }
-  }
-  
-  // 3) Template koordinatlarından öğrenci numarası kutusunu kes ve oku (tek kutu veya çok kutu)
-  try {
-    const studentNumberBoxes = template.studentNumberBoxes || [];
-    if (studentNumberBoxes.length > 0) {
-      const imageMetadata = await sharp(pngBuffer).metadata();
-      const imageWidth = imageMetadata.width || template.templateSize.width;
-      const imageHeight = imageMetadata.height || template.templateSize.height;
-      const box = studentNumberBoxes[0];
-
-      // Tek kutuda tüm öğrenci numarası (digit === "all")
-      const isSingleBox = box.digit === "all" || (template.studentNumberBox && template.studentNumberBox.singleBox);
-      if (isSingleBox && studentNumberBoxes.length === 1) {
-        const x = box.x !== undefined ? box.x : Math.round((box.xPercent || 0) * imageWidth / 100);
-        const y = box.y !== undefined ? box.y : Math.round((box.yPercent || 0) * imageHeight / 100);
-        const w = box.w !== undefined ? box.w : Math.round((box.wPercent || 0) * imageWidth / 100);
-        const h = box.h !== undefined ? box.h : Math.round((box.hPercent || 0) * imageHeight / 100);
-        if (x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= imageWidth && y + h <= imageHeight) {
-          try {
-            const singleBuffer = await sharp(pngBuffer)
-              .extract({ left: x, top: y, width: w, height: h })
-              .png()
-              .toBuffer();
-            const { extractStudentNumberFromSingleBox } = await import("../utils/geminiVision.js");
-            const studentNumber = await extractStudentNumberFromSingleBox(singleBuffer);
-            if (studentNumber && studentNumber.length >= 5) {
-              console.log(`✅ Student number from single box (template): ${studentNumber}`);
-              return studentNumber;
-            }
-          } catch (err) {
-            console.warn("⚠️ Single-box student number extraction failed:", err.message);
-          }
-        }
-        // Fall through to full-page OCR if single box failed
-      } else {
-        // Çok kutu (her hane ayrı)
-        const digitBoxes = [];
-        for (const b of studentNumberBoxes) {
-          const x = b.x !== undefined ? b.x : Math.round((b.xPercent || 0) * imageWidth / 100);
-          const y = b.y !== undefined ? b.y : Math.round((b.yPercent || 0) * imageHeight / 100);
-          const w = b.w !== undefined ? b.w : Math.round((b.wPercent || 0) * imageWidth / 100);
-          const h = b.h !== undefined ? b.h : Math.round((b.hPercent || 0) * imageHeight / 100);
-          if (x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= imageWidth && y + h <= imageHeight) {
-            try {
-              const digitBuffer = await sharp(pngBuffer)
-                .extract({ left: x, top: y, width: w, height: h })
-                .png()
-                .toBuffer();
-              digitBoxes.push(digitBuffer);
-            } catch (error) {
-              console.warn(`⚠️ Failed to crop student number digit ${b.digit}:`, error.message);
-            }
-          }
-        }
-        const expectedDigits = studentNumberBoxes.length;
-        if (digitBoxes.length === expectedDigits) {
-          const { extractStudentNumber } = await import("../utils/geminiVision.js");
-          const studentNumber = await extractStudentNumber(digitBoxes);
-          if (studentNumber && studentNumber.length >= 7) {
-            console.log(`✅ Student number from template coordinates (${expectedDigits} digits): ${studentNumber}`);
-            return studentNumber;
-          }
-        } else {
-          console.warn(`⚠️ Could not crop all ${expectedDigits} student number digits (got ${digitBoxes.length})`);
-        }
-      }
-    }
-  } catch (error) {
-    console.warn("⚠️ Template-based student number extraction failed:", error.message);
-  }
-  
-  // 4) Son fallback: Tüm sayfadan Gemini OCR
-  console.log("🔄 Trying full-page OCR for student number...");
-  const ocrId = await extractStudentIdFromImage(pngBuffer);
-  if (ocrId) {
-    console.log(`✅ Student number from full-page OCR: ${ocrId}`);
-    return ocrId;
-  }
-  
-  console.error(`❌ Student number could not be extracted from file: "${fileName}"`);
-  console.error(`   Tried: filename regex, OMR (12 hane), template coordinates, full-page OCR`);
-  return null;
+/** Çoklu kaynak + ders listesi ile öğrenci numarası */
+const extractStudentNumberFromFile = async (fileName, pngBuffer, course) => {
+  console.log(`🔍 Extracting student number from file: ${fileName || "unknown"}`);
+  const allowedNumbers = getCourseStudentNumbers(course);
+  const resolved = await resolveStudentNumber({
+    fileName,
+    pngBuffer,
+    template,
+    allowedNumbers,
+  });
+  return resolved?.studentNumber ?? null;
 };
 
 // Batch durum takibi - MongoDB'de saklanıyor (RAM'de değil)
@@ -833,19 +739,38 @@ const startBatchScore = async (req, res) => {
     // Asenkron işleme (her workItem = bir sayfa = bir öğrenci). Aynı anda en fazla 5 iş (canlıda timeout/rate limit önlemek için).
     const CONCURRENCY = 5;
     const courseForProcessing = course;
+    const questionMaxScores = getQuestionMaxScores(exam, 20);
+    const allowedStudentNumbers = getCourseStudentNumbers(course);
     process.nextTick(async () => {
       const processOne = async (workItem) => {
         const { pngBuffer, originalName, pageIndex } = workItem;
         const pageLabel = workItems.length > 1 ? ` ${originalName} (Sayfa ${pageIndex})` : ` ${originalName}`;
         try {
-          // 1) Öğrenci no (sayfa görüntüsünden; dosya adında yoksa şablondan/Gemini'den okunur)
           console.log(`\n📄 Processing:${pageLabel}`);
-          const studentNumber = await extractStudentNumberFromFile(originalName, pngBuffer);
+          const resolved = await resolveStudentNumber({
+            fileName: originalName,
+            pngBuffer,
+            template,
+            allowedNumbers: allowedStudentNumbers,
+          });
+          const studentNumber = resolved?.studentNumber;
           if (!studentNumber) {
             console.error(`❌ [${pageLabel}] Öğrenci numarası tespit edilemedi`);
             throw new Error(`Öğrenci numarası tespit edilemedi:${pageLabel}`);
           }
-          console.log(`✅ [${pageLabel}] Student number: ${studentNumber}`);
+          if (
+            allowedStudentNumbers.length > 0 &&
+            !allowedStudentNumbers.some(
+              (n) => String(n).replace(/\D/g, "") === String(studentNumber).replace(/\D/g, "")
+            )
+          ) {
+            throw new Error(
+              `Öğrenci numarası (${studentNumber}) bu dersin öğrenci listesinde yok:${pageLabel}`
+            );
+          }
+          console.log(
+            `✅ [${pageLabel}] Student number: ${studentNumber} (kaynak=${resolved.source})`
+          );
 
           // 3) Marker (OpenCV disabled on Render - will use fallback)
           let markers = { success: false, reason: "opencv_disabled" };
@@ -867,8 +792,7 @@ const startBatchScore = async (req, res) => {
           let scores = [];
           try {
             if (totalScoreCrop.buffers && totalScoreCrop.buffers.length === 20) {
-              const { extractScores } = await import("../utils/geminiVision.js");
-              scores = await extractScores(totalScoreCrop.buffers);
+              scores = await extractScores(totalScoreCrop.buffers, questionMaxScores);
               totalScore = scores.reduce((a, b) => a + b, 0);
               console.log(`   ✅ [Batch ${studentNumber}] Total score (20 boxes sum): ${totalScore}`);
             } else {
@@ -961,7 +885,8 @@ const startBatchScore = async (req, res) => {
           const statusPayload = {
             studentNumber,
             status: "success",
-            message: markers?.success ? "markers" : "template",
+            message: totalScoreCrop.method || (markers?.success ? "markers" : "template"),
+            studentNumberSource: resolved.source,
             totalScore,
             questionScores: scoresToUse.length > 0 ? scoresToUse : undefined,
           };
@@ -1206,6 +1131,28 @@ const submitExamScores = async (req, res) => {
     // 1) PDF -> PNG
     const { buffer: pngBuffer, filePath: pngPath } = await pdfToPng(pdfBuffer);
 
+    // Kağıttaki öğrenci no ile seçilen öğrenciyi karşılaştır
+    const resolvedFromSheet = await resolveStudentNumber({
+      fileName: req.file?.originalname || "",
+      pngBuffer,
+      template,
+      allowedNumbers: getCourseStudentNumbers(course),
+    });
+    if (resolvedFromSheet?.studentNumber) {
+      const sheetNorm = String(resolvedFromSheet.studentNumber).replace(/\D/g, "");
+      const selectedNorm = String(studentNumber).replace(/\D/g, "");
+      if (sheetNorm !== selectedNorm) {
+        return res.status(400).json({
+          success: false,
+          message: `Kağıttaki öğrenci numarası (${resolvedFromSheet.studentNumber}) seçilen öğrenci (${studentNumber}) ile uyuşmuyor. Lütfen doğru öğrenciyi seçin.`,
+          detectedStudentNumber: resolvedFromSheet.studentNumber,
+          selectedStudentNumber: studentNumber,
+        });
+      }
+    }
+
+    const questionMaxScores = getQuestionMaxScores(exam, 20);
+
     // 2) Marker detection (with fallback)
     const markers = await detectMarkers(pngBuffer);
 
@@ -1220,8 +1167,7 @@ const submitExamScores = async (req, res) => {
     let questionScores = [];
     try {
       if (totalScoreCrop.buffers && totalScoreCrop.buffers.length === 20) {
-        const { extractScores } = await import("../utils/geminiVision.js");
-        const rawScores = await extractScores(totalScoreCrop.buffers);
+        const rawScores = await extractScores(totalScoreCrop.buffers, questionMaxScores);
         const questionCount = Math.min(exam.questions?.length || 20, rawScores.length, 20);
         const sliced = rawScores.slice(0, questionCount);
         totalScore = sliced.reduce((a, b) => a + b, 0);

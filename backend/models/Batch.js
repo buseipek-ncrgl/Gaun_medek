@@ -14,6 +14,10 @@ const BatchStatusItemSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+  studentNumberSource: {
+    type: String,
+    default: null,
+  },
   /** Başarılı işlemde hesaplanan toplam puan (gösterim için). */
   totalScore: { type: Number, default: null },
   /** Soru bazlı puanlar [s1, s2, ...] (gösterim için). */

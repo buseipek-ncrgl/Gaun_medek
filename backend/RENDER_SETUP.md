@@ -20,7 +20,10 @@ Render Linux ortamında çalışır ve native binary gerektiren paketler (opencv
 ```
 ENABLE_OPENCV=false
 ENABLE_PDF_POPPLER=false
+SAVE_EXAM_CROPS=false
 ```
+
+`SAVE_EXAM_CROPS=true` yaparsanız kırpılmış puan kutuları `temp/exam_crops/` altına kaydedilir (koordinat kalibrasyonu için).
 
 ### MongoDB & Other Services
 
